@@ -1,0 +1,1 @@
+projeto de tcc sobre sistema de predicao de empressas de componemtes de hardware
