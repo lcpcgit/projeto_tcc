@@ -1,76 +1,81 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 
-# Configuração inicial
+# 1. IMPORTAÇÃO CORRIGIDA: Agora importamos a função de busca!
+from bot_scraping import raspar_busca_kabum 
+
 st.set_page_config(page_title="Hardware Preditivo AI", layout="wide")
 
-st.sidebar.title("IA Hardware B2B")
+# ================= MENU LATERAL =================
+st.sidebar.title("🤖 IA Hardware B2B")
 st.sidebar.markdown("---")
 menu = st.sidebar.radio(
     "Navegação do Sistema:",
-    ["Dashboard e Mercado", 
-     "Previsão de IA", 
-     "Alertas de Estoque", 
-     "Gestão de Dados"]
+    ["📊 Dashboard e Mercado", 
+     "🔮 Previsão de IA", 
+     "⚠️ Alertas de Estoque", 
+     "📂 Gestão de Dados"]
 )
 
-if menu == "Dashboard e Mercado":
-    st.title("Inteligência de Mercado: Visão Geral")
-    st.write("Acompanhe o preço praticado pela nossa loja vs. o preço do mercado (Concorrentes).")
+# ================= PÁGINA 1: DASHBOARD =================
+if menu == "📊 Dashboard e Mercado":
+    st.title("📊 Inteligência de Mercado: Scanner B2B")
     
-    # dados fictícios teste
+    st.write("Acompanhe o histórico do preço praticado pela nossa loja vs. o mercado.")
     dados_mock = pd.DataFrame({
         'Mês': ['Jan', 'Fev', 'Mar', 'Abr', 'Mai'],
-        'Nosso Preço (RTX 4060)': [2100, 2050, 2000, 1950, 1950],
-        'Preço Mercado (Ex: Kabum)': [2050, 2000, 1900, 1850, 1800]
+        'Nosso Preço Médio': [1600, 1550, 1500, 1450, 1450],
+        'Mercado (Média)': [1550, 1500, 1400, 1399, 1399]
     }).set_index('Mês')
-    
-    # graficos 
     st.line_chart(dados_mock)
     
-    col1, col2 = st.columns(2)
-    col1.metric("Vendas no Mês Atual", "145 unidades", "+5% vs mês passado")
-    col2.metric("Preço Médio Praticado", "R$ 1.950,00", "-R$ 50,00 vs mercado")
+    st.markdown("---")
+    
+    # --- SECÇÃO DO ROBÔ ATUALIZADA ---
+    st.subheader("🤖 Scanner de Mercado em Tempo Real")
+    st.write("Pesquise um componente para varrer os preços atuais da concorrência e calcular a média de mercado.")
+    
+    # Novo input: agora o gestor digita apenas o nome da peça!
+    termo_input = st.text_input("Buscar Hardware no Mercado (Ex: gtx 1660, rtx 4060, ryzen 5):", value="gtx 1660")
+    
+    if st.button("🔍 Escanear Mercado Agora"):
+        with st.spinner(f"O robô está a varrer a Kabum à procura de '{termo_input}'..."):
+            
+            # Chama a NOVA função
+            resultado_robo = raspar_busca_kabum(termo_input)
+            
+            if resultado_robo:
+                st.success(f"✅ Varredura concluída! Foram encontrados {resultado_robo['total_encontrados']} modelos compatíveis.")
+                
+                # Exibindo os cálculos que o robô fez
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Preço Médio (Mercado)", f"R$ {resultado_robo['preco_medio']:.2f}")
+                col2.metric("Menor Preço Encontrado", f"R$ {resultado_robo['preco_minimo']:.2f}")
+                col3.metric("O Nosso Preço (Fictício)", "R$ 1.450,00", f"{resultado_robo['preco_medio'] - 1450:.2f} diferença")
+                
+                st.write("### 📋 Tabela de Produtos Raspados")
+                st.write("Abaixo está a base de dados bruta extraída pelo robô neste exato segundo:")
+                # Plota a tabela do Pandas diretamente na tela do Streamlit!
+                st.dataframe(resultado_robo['dados_completos'], use_container_width=True)
+            else:
+                st.error("❌ O robô não conseguiu encontrar dados. Verifique o terminal para erros de HTML.")
 
-# PREVISÃO 
-elif menu == "Previsão de IA":
-    st.title("Motor de Previsão de Demanda")
-    st.write("Selecione o componente para que a Inteligência Artificial calcule a demanda do próximo mês.")
-    
-    produto = st.selectbox("Selecione o Hardware:", ["Placa de Vídeo RTX 4060", "Processador Intel Core i9", "Memória RAM 16GB DDR5"])
-    mes_alvo = st.selectbox("Mês de Previsão:", ["Novembro/2026", "Dezembro/2026", "Janeiro/2027"])
-    
-    if st.button("Rodar Algoritmo Preditivo (Machine Learning)"):
+# ================= OUTRAS PÁGINAS (Mantidas iguais) =================
+elif menu == "🔮 Previsão de IA":
+    st.title("🔮 Motor de Previsão de Demanda")
+    produto = st.selectbox("Selecione o Hardware:", ["Placa de Vídeo GTX 1660 Super", "Processador Intel Core i9"])
+    mes_alvo = st.selectbox("Mês de Previsão:", ["Novembro/2026", "Dezembro/2026"])
+    if st.button("🚀 Rodar Algoritmo"):
         st.success(f"Análise concluída para: {produto}")
-        st.write("### Resultado da IA:")
-        
-        #Intervalos de confiança 
         colA, colB, colC = st.columns(3)
         colA.metric("Cenário Pessimista", "120 unid.")
         colB.metric("Previsão Principal", "150 unid.")
         colC.metric("Cenário Otimista", "180 unid.")
-        st.info("💡 A IA identificou que o preço do mercado está em queda, o que pode impulsionar as vendas no cenário otimista.")
 
-# ALERTAS DO ESTOQUE
-elif menu == "Alertas de Estoque":
-    st.title("Alertas Inteligentes de Ruptura e Capital Parado")
-    st.write("Cruzamento do estoque físico atual com as previsões da IA.")
-    
-    st.error("**ALERTA VERMELHO: Risco de Ruptura!**\n\n**Produto:** Processador Intel Core i9\n**Estoque Atual:** 15 unidades\n**Previsão IA (Próx. Mês):** 45 unidades\n*Ação sugerida: Comprar lote imediatamente.*")
-    
-    st.warning("**ALERTA AMARELO: Estoque Encalhado!**\n\n**Produto:** Placa-Mãe B550\n**Estoque Atual:** 200 unidades\n**Previsão IA (Próx. Mês):** 20 unidades\n*Ação sugerida: Realizar promoção.*")
-    
-    st.success("**Placa de Vídeo RTX 4060:** Estoque saudável e alinhado com a previsão.")
+elif menu == "⚠️ Alertas de Estoque":
+    st.title("⚠️ Alertas Inteligentes de Ruptura e Capital Parado")
+    st.warning("⚠️ **ALERTA AMARELO: Estoque Encalhado!**\n\n**Produto:** Placa-Mãe B550\n**Estoque:** 200 unid.\n**Previsão IA:** 20 unid.")
 
-# GESTÃO DE DADOS 
-elif menu == "Gestão de Dados":
-    st.title("Ingestão, Limpeza e Tratamento")
-    st.write("Faça o upload da base bruta. O sistema aplicará as regras de Data Cleaning automaticamente.")
-    
-    arquivo_upload = st.file_uploader("Suba o arquivo CSV de vendas internas:", type=["csv"])
-    
-    if arquivo_upload is not None:
-        st.write("Base de dados carregada com sucesso!")
-        # futuro código pandas 
-        st.button("Executar Limpeza de Dados e Exportar")
+elif menu == "📂 Gestão de Dados":
+    st.title("📂 Ingestão, Limpeza e Tratamento")
+    st.file_uploader("Suba o arquivo CSV de vendas internas:", type=["csv"])
