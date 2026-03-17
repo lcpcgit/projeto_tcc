@@ -47,21 +47,25 @@ def escanear_mercado_completo(termo_busca):
         try:
             url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}"
             navegador.get(url_kabum)
-            time.sleep(3)
             
-            nomes_kabum = navegador.find_elements(By.CLASS_NAME, 'nameCard')
-            precos_kabum = navegador.find_elements(By.CLASS_NAME, 'priceCard')
+            # Aumentei um pouco o tempo aqui só por segurança contra o Cloudflare
+            time.sleep(5)
+            
+            # 🚨 A MUDANÇA ESTÁ AQUI: Os novos seletores baseados no Tailwind CSS
+            nomes_kabum = navegador.find_elements(By.CSS_SELECTOR, 'span.line-clamp-2.text-ellipsis')
+            precos_kabum = navegador.find_elements(By.XPATH, '//span[text()="R$"]/..')
             
             for nome_el, preco_el in zip(nomes_kabum, precos_kabum):
                 nome = nome_el.get_attribute('textContent').strip()
                 if not produto_eh_valido(nome, termo_busca): continue
                 
                 preco_texto = preco_el.get_attribute('textContent')
-                # NOVO FILTRO DE PREÇO: Pega só números e a última vírgula
-                numeros_e_virgula = re.sub(r'[^\d,]', '', preco_texto) 
                 
-                if numeros_e_virgula:
-                    preco_limpo = numeros_e_virgula.replace(',', '.')
+                # 🚨 A MUDANÇA ESTÁ AQUI: Regex ajustado para a nova forma de preço (R$1.500,00)
+                match = re.search(r'R\$?\s*([\d\.]+,\d{2})', preco_texto)
+                
+                if match:
+                    preco_limpo = match.group(1).replace('.', '').replace(',', '.')
                     try: lista_produtos.append({"Loja": "Kabum 🥷", "Produto": nome, "Preço (R$)": float(preco_limpo)})
                     except: pass
         except: pass
@@ -72,6 +76,7 @@ def escanear_mercado_completo(termo_busca):
             navegador.get(url_terabyte)
             time.sleep(6) 
             
+            # A Terabyte não mudou, então o seu código continua idêntico aqui
             nomes_tera = navegador.find_elements(By.CSS_SELECTOR, '.product-item__name')
             precos_tera = navegador.find_elements(By.CSS_SELECTOR, '.product-item__new-price')
             
