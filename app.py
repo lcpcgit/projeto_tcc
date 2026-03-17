@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 # 1. IMPORTAÇÃO CORRIGIDA: Agora importamos a função de busca!
-from bot_scraping import raspar_busca_kabum 
+from bot_scraping import escanear_mercado_completo
 
 st.set_page_config(page_title="Hardware Preditivo AI", layout="wide")
 
@@ -42,7 +42,7 @@ if menu == "📊 Dashboard e Mercado":
         with st.spinner(f"O robô está a varrer a Kabum à procura de '{termo_input}'..."):
             
             # Chama a NOVA função
-            resultado_robo = raspar_busca_kabum(termo_input)
+            resultado_robo = escanear_mercado_completo(termo_input)
             
             if resultado_robo:
                 st.success(f"✅ Varredura concluída! Foram encontrados {resultado_robo['total_encontrados']} modelos compatíveis.")
@@ -55,8 +55,19 @@ if menu == "📊 Dashboard e Mercado":
                 
                 st.write("### 📋 Tabela de Produtos Raspados")
                 st.write("Abaixo está a base de dados bruta extraída pelo robô neste exato segundo:")
-                # Plota a tabela do Pandas diretamente na tela do Streamlit!
-                st.dataframe(resultado_robo['dados_completos'], use_container_width=True)
+                
+                # A NOVA TABELA FORMATADA
+                st.dataframe(
+                    resultado_robo['dados_completos'], 
+                    width='stretch',
+                    column_config={
+                        "Preço (R$)": st.column_config.NumberColumn(
+                            "Preço de Mercado",
+                            help="Preço convertido para reais",
+                            format="R$ %.2f"
+                        )
+                    }
+                )
             else:
                 st.error("❌ O robô não conseguiu encontrar dados. Verifique o terminal para erros de HTML.")
 
