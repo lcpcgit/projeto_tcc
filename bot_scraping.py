@@ -2,6 +2,7 @@ import pandas as pd
 from datetime import datetime
 import time
 import re
+import unicodedata # A biblioteca que remove os acentos!
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -11,7 +12,7 @@ import traceback
 
 def escanear_mercado_completo(termo_busca):
     print(f"\n==================================================")
-    print(f"🤖 INICIANDO SCANNER SUPER FILTRADO PARA: '{termo_busca}'")
+    print(f"🤖 INICIANDO SCANNER COM PAGINAÇÃO PARA: '{termo_busca}'")
     print(f"==================================================")
     
     try:
@@ -25,58 +26,69 @@ def escanear_mercado_completo(termo_busca):
         
         lista_produtos = []
         
+        # ================= FUNÇÃO DE NORMALIZAÇÃO =================
+        def remover_acentos(texto):
+            texto_sem_acento = ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
+            return texto_sem_acento.lower()
+        
         def produto_eh_valido(nome_produto, termo):
-            nome_lower = nome_produto.lower()
-            termo_lower = termo.lower()
+            nome_limpo = remover_acentos(nome_produto)
+            termo_limpo = remover_acentos(termo)
             
-            # Bloqueios antigos
-            if re.search(r'\bpc\b', nome_lower) or 'computador' in nome_lower: return False
-            if 'placa mãe' in nome_lower or 'placa-mãe' in nome_lower or 'motherboard' in nome_lower: return False
-            if 'cabo' in nome_lower or 'adaptador' in nome_lower or 'watercooler' in nome_lower: return False
+            # 🚨 NOVO: Se o usuário está buscando um PC, não bloqueie a palavra PC!
+            buscando_pc = re.search(r'\bpc\b', termo_limpo) or 'computador' in termo_limpo
             
-            # 🚫 O NOVO BLOQUEIO: Adeus, Notebooks!
-            if 'notebook' in nome_lower or 'laptop' in nome_lower: return False
+            if not buscando_pc:
+                if re.search(r'\bpc\b', nome_limpo) or 'computador' in nome_limpo: return False
                 
-            palavras_da_busca = termo_lower.split()
+            # Bloqueios antigos 
+            if 'cabo' in nome_limpo or 'adaptador' in nome_limpo or 'watercooler' in nome_limpo: return False
+            if 'notebook' in nome_limpo or 'laptop' in nome_limpo: return False
+                
+            # Verifica se todas as palavras da busca estão no nome do produto
+            palavras_da_busca = termo_limpo.split()
             for palavra in palavras_da_busca:
-                if palavra not in nome_lower:
+                if palavra not in nome_limpo:
                     return False
             return True
             
         # ================= 1. RASPANDO A KABUM =================
         try:
-            url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}"
-            navegador.get(url_kabum)
-            
-            # Aumentei um pouco o tempo aqui só por segurança contra o Cloudflare
-            time.sleep(5)
-            
-            # 🚨 A MUDANÇA ESTÁ AQUI: Os novos seletores baseados no Tailwind CSS
-            nomes_kabum = navegador.find_elements(By.CSS_SELECTOR, 'span.line-clamp-2.text-ellipsis')
-            precos_kabum = navegador.find_elements(By.XPATH, '//span[text()="R$"]/..')
-            
-            for nome_el, preco_el in zip(nomes_kabum, precos_kabum):
-                nome = nome_el.get_attribute('textContent').strip()
-                if not produto_eh_valido(nome, termo_busca): continue
+            for pagina in range(1, 4):
+                url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number={pagina}"
+                print(f"🌐 [Kabum] Varrendo Página {pagina}...")
+                navegador.get(url_kabum)
                 
-                preco_texto = preco_el.get_attribute('textContent')
+                time.sleep(5) 
                 
-                # 🚨 A MUDANÇA ESTÁ AQUI: Regex ajustado para a nova forma de preço (R$1.500,00)
-                match = re.search(r'R\$?\s*([\d\.]+,\d{2})', preco_texto)
+                nomes_kabum = navegador.find_elements(By.CSS_SELECTOR, 'span.line-clamp-2.text-ellipsis')
+                precos_kabum = navegador.find_elements(By.XPATH, '//span[text()="R$"]/..')
                 
-                if match:
-                    preco_limpo = match.group(1).replace('.', '').replace(',', '.')
-                    try: lista_produtos.append({"Loja": "Kabum 🥷", "Produto": nome, "Preço (R$)": float(preco_limpo)})
-                    except: pass
-        except: pass
+                if len(nomes_kabum) == 0:
+                    print("🏁 [Kabum] Fim dos produtos encontrado.")
+                    break
+                
+                for nome_el, preco_el in zip(nomes_kabum, precos_kabum):
+                    nome = nome_el.get_attribute('textContent').strip()
+                    if not produto_eh_valido(nome, termo_busca): continue
+                    
+                    preco_texto = preco_el.get_attribute('textContent')
+                    match = re.search(r'R\$?\s*([\d\.]+,\d{2})', preco_texto)
+                    
+                    if match:
+                        preco_limpo = match.group(1).replace('.', '').replace(',', '.')
+                        try: lista_produtos.append({"Loja": "Kabum 🥷", "Produto": nome, "Preço (R$)": float(preco_limpo)})
+                        except: pass
+        except Exception as e: 
+            print("Erro na Kabum:", e)
 
         # ================= 2. RASPANDO A TERABYTE =================
         try:
             url_terabyte = f"https://www.terabyteshop.com.br/busca?str={termo_busca.replace(' ', '+')}"
+            print(f"🌐 [Terabyte] Varrendo produtos...")
             navegador.get(url_terabyte)
             time.sleep(6) 
             
-            # A Terabyte não mudou, então o seu código continua idêntico aqui
             nomes_tera = navegador.find_elements(By.CSS_SELECTOR, '.product-item__name')
             precos_tera = navegador.find_elements(By.CSS_SELECTOR, '.product-item__new-price')
             
@@ -97,12 +109,25 @@ def escanear_mercado_completo(termo_busca):
         
         if len(lista_produtos) > 0:
             df_resultados = pd.DataFrame(lista_produtos)
+            
+            # 🚨 NOVA LÓGICA: Removendo produtos 100% idênticos (mesmo nome e mesma loja)
+            df_resultados = df_resultados.drop_duplicates(subset=['Loja', 'Produto'], keep='first')
+            
             df_resultados = df_resultados.sort_values(by="Preço (R$)", ascending=True).reset_index(drop=True)
             data_coleta = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            qtd_kabum = len(df_resultados[df_resultados['Loja'].str.contains('Kabum')])
+            qtd_terabyte = len(df_resultados[df_resultados['Loja'].str.contains('Terabyte')])
+            
             return {
-                "data": data_coleta, "total_encontrados": len(lista_produtos),
-                "preco_minimo": df_resultados["Preço (R$)"].min(), "preco_medio": df_resultados["Preço (R$)"].mean(),
-                "dados_completos": df_resultados, "status": "Sucesso"
+                "data": data_coleta, 
+                "total_encontrados": len(df_resultados), # Atualizado para mostrar o número REAL após limpeza
+                "total_kabum": qtd_kabum,       
+                "total_terabyte": qtd_terabyte, 
+                "preco_minimo": df_resultados["Preço (R$)"].min(), 
+                "preco_medio": df_resultados["Preço (R$)"].mean(),
+                "dados_completos": df_resultados, 
+                "status": "Sucesso"
             }
         return None
     except Exception as e:
