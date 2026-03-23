@@ -51,20 +51,24 @@ def escanear_mercado_completo(termo_busca):
             nome_limpo = remover_acentos(nome_produto)
             termo_limpo = remover_acentos(termo)
             
-            buscando_pc = re.search(r'\bpc\b', termo_limpo) or 'computador' in termo_limpo
+            buscando_pc = re.search(r'\bpc\b', termo_limpo) or 'computador' in termo_limpo or 'desktop' in termo_limpo
             if not buscando_pc:
-                if re.search(r'\bpc\b', nome_limpo) or 'computador' in nome_limpo: return False
+                if re.search(r'\bpc\b', nome_limpo) or 'computador' in nome_limpo or 'desktop' in nome_limpo: return False
                 
             if 'cabo' in nome_limpo or 'adaptador' in nome_limpo or 'watercooler' in nome_limpo: return False
-            if 'notebook' in nome_limpo or 'laptop' in nome_limpo: return False
-            
-            # 🚨 NOVO BLOQUEIO: Adeus Kits, Combos e Upgrades que estragam a média de preço!
+            if 'notebook' in nome_limpo or 'laptop' in nome_limpo or 'book' in nome_limpo or 'tela' in nome_limpo: return False
             if 'kit' in nome_limpo or 'combo' in nome_limpo or 'upgrade' in nome_limpo: return False
                 
             palavras_da_busca = termo_limpo.split()
             for palavra in palavras_da_busca:
-                if palavra not in nome_limpo:
-                    return False
+                # 🚨 NOVA REGRA DE INTELIGÊNCIA NUMÉRICA
+                # Se a palavra for apenas um número curto (ex: 3, 5, 7, 9), usa o Regex \b para garantir que ele está isolado!
+                if palavra.isdigit() and len(palavra) <= 2:
+                    if not re.search(rf'\b{palavra}\b', nome_limpo):
+                        return False
+                else:
+                    if palavra not in nome_limpo:
+                        return False
             return True
             
         data_atual = datetime.now().strftime("%Y-%m-%d") 
