@@ -2,7 +2,7 @@ import pandas as pd
 from datetime import datetime
 import time
 import re
-import unicodedata # A biblioteca que remove os acentos!
+import unicodedata 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -26,7 +26,23 @@ def escanear_mercado_completo(termo_busca):
         
         lista_produtos = []
         
-        # ================= FUNÇÃO DE NORMALIZAÇÃO =================
+        def extrair_marca(nome):
+            marcas = ['asus', 'gigabyte', 'msi', 'galax', 'zotac', 'pny', 'asrock', 'sapphire', 'powercolor', 'amd', 'intel', 'corsair', 'kingston', 'husky', 'ninja', 'inno3d', 'palit', 'gainward', 'xfx', 'evga', 'pcyes', 'colorful', 'biostar']
+            
+            nome_lower = nome.lower()
+            for marca in marcas:
+                if marca in nome_lower:
+                    if marca == 'inno3d': return 'Inno3D'
+                    if marca == 'pcyes': return 'PCYes'
+                    if marca == 'xfx': return 'XFX'
+                    if marca == 'pny': return 'PNY'
+                    if marca == 'amd': return 'AMD'
+                    if marca == 'msi': return 'MSI'
+                    if marca == 'evga': return 'EVGA'
+                    return marca.capitalize() 
+            
+            return "Outra/Genérica"
+        
         def remover_acentos(texto):
             texto_sem_acento = ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
             return texto_sem_acento.lower()
@@ -35,38 +51,35 @@ def escanear_mercado_completo(termo_busca):
             nome_limpo = remover_acentos(nome_produto)
             termo_limpo = remover_acentos(termo)
             
-            # 🚨 NOVO: Se o usuário está buscando um PC, não bloqueie a palavra PC!
             buscando_pc = re.search(r'\bpc\b', termo_limpo) or 'computador' in termo_limpo
-            
             if not buscando_pc:
                 if re.search(r'\bpc\b', nome_limpo) or 'computador' in nome_limpo: return False
                 
-            # Bloqueios antigos 
             if 'cabo' in nome_limpo or 'adaptador' in nome_limpo or 'watercooler' in nome_limpo: return False
             if 'notebook' in nome_limpo or 'laptop' in nome_limpo: return False
+            
+            # 🚨 NOVO BLOQUEIO: Adeus Kits, Combos e Upgrades que estragam a média de preço!
+            if 'kit' in nome_limpo or 'combo' in nome_limpo or 'upgrade' in nome_limpo: return False
                 
-            # Verifica se todas as palavras da busca estão no nome do produto
             palavras_da_busca = termo_limpo.split()
             for palavra in palavras_da_busca:
                 if palavra not in nome_limpo:
                     return False
             return True
             
+        data_atual = datetime.now().strftime("%Y-%m-%d") 
+        
         # ================= 1. RASPANDO A KABUM =================
         try:
             for pagina in range(1, 4):
                 url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number={pagina}"
-                print(f"🌐 [Kabum] Varrendo Página {pagina}...")
                 navegador.get(url_kabum)
-                
                 time.sleep(5) 
                 
                 nomes_kabum = navegador.find_elements(By.CSS_SELECTOR, 'span.line-clamp-2.text-ellipsis')
                 precos_kabum = navegador.find_elements(By.XPATH, '//span[text()="R$"]/..')
                 
-                if len(nomes_kabum) == 0:
-                    print("🏁 [Kabum] Fim dos produtos encontrado.")
-                    break
+                if len(nomes_kabum) == 0: break
                 
                 for nome_el, preco_el in zip(nomes_kabum, precos_kabum):
                     nome = nome_el.get_attribute('textContent').strip()
@@ -77,15 +90,21 @@ def escanear_mercado_completo(termo_busca):
                     
                     if match:
                         preco_limpo = match.group(1).replace('.', '').replace(',', '.')
-                        try: lista_produtos.append({"Loja": "Kabum 🥷", "Produto": nome, "Preço (R$)": float(preco_limpo)})
+                        marca = extrair_marca(nome)
+                        
+                        try: lista_produtos.append({
+                            "Data": data_atual, 
+                            "Loja": "Kabum",
+                            "Marca": marca,
+                            "Produto": nome, 
+                            "Preço (R$)": float(preco_limpo)
+                        })
                         except: pass
-        except Exception as e: 
-            print("Erro na Kabum:", e)
+        except: pass
 
         # ================= 2. RASPANDO A TERABYTE =================
         try:
             url_terabyte = f"https://www.terabyteshop.com.br/busca?str={termo_busca.replace(' ', '+')}"
-            print(f"🌐 [Terabyte] Varrendo produtos...")
             navegador.get(url_terabyte)
             time.sleep(6) 
             
@@ -101,7 +120,15 @@ def escanear_mercado_completo(termo_busca):
                 
                 if numeros_e_virgula:
                     preco_limpo = numeros_e_virgula.replace(',', '.')
-                    try: lista_produtos.append({"Loja": "Terabyte 🦖", "Produto": nome, "Preço (R$)": float(preco_limpo)})
+                    marca = extrair_marca(nome)
+                    
+                    try: lista_produtos.append({
+                        "Data": data_atual, 
+                        "Loja": "Terabyte",
+                        "Marca": marca,
+                        "Produto": nome, 
+                        "Preço (R$)": float(preco_limpo)
+                    })
                     except: pass
         except: pass
 
@@ -109,25 +136,19 @@ def escanear_mercado_completo(termo_busca):
         
         if len(lista_produtos) > 0:
             df_resultados = pd.DataFrame(lista_produtos)
-            
-            # 🚨 NOVA LÓGICA: Removendo produtos 100% idênticos (mesmo nome e mesma loja)
             df_resultados = df_resultados.drop_duplicates(subset=['Loja', 'Produto'], keep='first')
-            
             df_resultados = df_resultados.sort_values(by="Preço (R$)", ascending=True).reset_index(drop=True)
-            data_coleta = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
-            qtd_kabum = len(df_resultados[df_resultados['Loja'].str.contains('Kabum')])
-            qtd_terabyte = len(df_resultados[df_resultados['Loja'].str.contains('Terabyte')])
+            qtd_kabum = len(df_resultados[df_resultados['Loja'] == 'Kabum'])
+            qtd_terabyte = len(df_resultados[df_resultados['Loja'] == 'Terabyte'])
             
             return {
-                "data": data_coleta, 
-                "total_encontrados": len(df_resultados), # Atualizado para mostrar o número REAL após limpeza
+                "total_encontrados": len(df_resultados), 
                 "total_kabum": qtd_kabum,       
                 "total_terabyte": qtd_terabyte, 
                 "preco_minimo": df_resultados["Preço (R$)"].min(), 
                 "preco_medio": df_resultados["Preço (R$)"].mean(),
                 "dados_completos": df_resultados, 
-                "status": "Sucesso"
             }
         return None
     except Exception as e:
