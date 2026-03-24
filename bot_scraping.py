@@ -27,7 +27,15 @@ def escanear_mercado_completo(termo_busca):
         lista_produtos = []
         
         def extrair_marca(nome):
-            marcas = ['asus', 'gigabyte', 'msi', 'galax', 'zotac', 'pny', 'asrock', 'sapphire', 'powercolor', 'amd', 'intel', 'corsair', 'kingston', 'husky', 'ninja', 'inno3d', 'palit', 'gainward', 'xfx', 'evga', 'pcyes', 'colorful', 'biostar']
+            # 🚨 DICIONÁRIO EXPANDIDO COM AS NOVAS MARCAS DE FONTES DE ENTRADA
+            marcas = [
+                'asus', 'gigabyte', 'msi', 'galax', 'zotac', 'pny', 'asrock', 'sapphire', 'powercolor', 
+                'amd', 'intel', 'corsair', 'kingston', 'husky', 'ninja', 'inno3d', 'palit', 'gainward', 
+                'xfx', 'evga', 'pcyes', 'colorful', 'biostar',
+                'thermaltake', 'gamemax', 'aerocool', 'c3tech', 'draxen', 'cowboy', 'cooler master',
+                'redragon', 'xpg', 'superframe', 'cougar', 'mancer', 'seasonic', 'onepower', 'duex',
+                'brx', 'tgt', 'mymax', 'fortrek', 'brazilpc', 'brazil pc', 'mach1', 'rise mode', 'sate'
+            ]
             
             nome_lower = nome.lower()
             for marca in marcas:
@@ -39,6 +47,18 @@ def escanear_mercado_completo(termo_busca):
                     if marca == 'amd': return 'AMD'
                     if marca == 'msi': return 'MSI'
                     if marca == 'evga': return 'EVGA'
+                    if marca == 'c3tech': return 'C3Tech'
+                    if marca == 'cooler master': return 'Cooler Master'
+                    if marca == 'superframe': return 'SuperFrame'
+                    if marca == 'xpg': return 'XPG'
+                    if marca == 'onepower': return 'OnePower'
+                    if marca == 'brx': return 'BRX'
+                    if marca == 'tgt': return 'TGT'
+                    if marca == 'mymax': return 'Mymax'
+                    if marca == 'brazilpc' or marca == 'brazil pc': return 'BrazilPC'
+                    if marca == 'mach1': return 'MACH1'
+                    if marca == 'rise mode': return 'Rise Mode'
+                    if marca == 'fortrek': return 'Fortrek'
                     return marca.capitalize() 
             
             return "Outra/Genérica"
@@ -53,18 +73,24 @@ def escanear_mercado_completo(termo_busca):
             
             buscando_pc = re.search(r'\bpc\b', termo_limpo) or 'computador' in termo_limpo or 'desktop' in termo_limpo
             if not buscando_pc:
-                if re.search(r'\bpc\b', nome_limpo) or 'computador' in nome_limpo or 'desktop' in nome_limpo: return False
+                if re.search(r'\bpc\b', nome_limpo) or 'computador' in nome_limpo or 'desktop' in nome_limpo or 'ilha' in nome_limpo or 'workstation' in nome_limpo or 'setup' in nome_limpo: return False
                 
             if 'cabo' in nome_limpo or 'adaptador' in nome_limpo or 'watercooler' in nome_limpo: return False
             if 'notebook' in nome_limpo or 'laptop' in nome_limpo or 'book' in nome_limpo or 'tela' in nome_limpo: return False
             if 'kit' in nome_limpo or 'combo' in nome_limpo or 'upgrade' in nome_limpo: return False
+            
+            # 🚨 MURALHA ANTI-SERVIDORES ADICIONADA AQUI
+            if 'enterprise' in nome_limpo or 'servidor' in nome_limpo or 'server' in nome_limpo: return False
+            
+            if 'super' not in termo_limpo and re.search(r'\bsuper\b', nome_limpo): return False
+            if 'ti' not in termo_limpo and re.search(r'\bti\b', nome_limpo): return False
+            if 'xt' not in termo_limpo and re.search(r'\bxt\b', nome_limpo): return False
+            if 'xtx' not in termo_limpo and re.search(r'\bxtx\b', nome_limpo): return False
                 
             palavras_da_busca = termo_limpo.split()
             for palavra in palavras_da_busca:
-                # 🚨 NOVA REGRA DE INTELIGÊNCIA NUMÉRICA
-                # Se a palavra for apenas um número curto (ex: 3, 5, 7, 9), usa o Regex \b para garantir que ele está isolado!
-                if palavra.isdigit() and len(palavra) <= 2:
-                    if not re.search(rf'\b{palavra}\b', nome_limpo):
+                if palavra.isdigit():
+                    if not re.search(rf'(?<!\d){palavra}(?!\d)', nome_limpo):
                         return False
                 else:
                     if palavra not in nome_limpo:
