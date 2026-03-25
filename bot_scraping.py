@@ -27,11 +27,10 @@ def escanear_mercado_completo(termo_busca):
         lista_produtos = []
         
         def extrair_marca(nome):
-            # 🚨 DICIONÁRIO EXPANDIDO COM MARCAS DE ENTRADA (Vinik, Knup, Bluecase, etc.)
             marcas = [
                 'asus', 'gigabyte', 'msi', 'galax', 'zotac', 'pny', 'asrock', 'sapphire', 'powercolor', 
                 'amd', 'intel', 'corsair', 'kingston', 'husky', 'ninja', 'inno3d', 'palit', 'gainward', 
-                'xfx', 'evga', 'pcyes', 'colorful', 'biostar',
+                'xfx', 'evga', 'pcyes', 'colorful', 'biostar', 'yeston',
                 'thermaltake', ' tt ', 'gamemax', 'aerocool', 'c3tech', 'draxen', 'cowboy', 'cooler master',
                 'redragon', 'xpg', 'superframe', 'cougar', 'mancer', 'seasonic', 'onepower', 'duex',
                 'brx', 'tgt', 'mymax', 'fortrek', 'brazilpc', 'brazil pc', 'mach1', 'rise mode', 'sate',
@@ -39,11 +38,12 @@ def escanear_mercado_completo(termo_busca):
                 'vinik', 'knup', 'bluecase', 'k-mex', 'kmex', 'primetek', 'concórdia', 'concordia'
             ]
             
-            nome_lower = f" {nome.lower()} " # Adiciona espaço nas bordas para buscar siglas perfeitamente
+            nome_lower = f" {nome.lower()} " 
             for marca in marcas:
                 if marca in nome_lower:
                     if marca == 'inno3d': return 'Inno3D'
                     if marca == 'pcyes': return 'PCYes'
+                    if marca == 'yeston': return 'Yeston'
                     if marca == 'xfx': return 'XFX'
                     if marca == 'pny': return 'PNY'
                     if marca == 'amd': return 'AMD'
@@ -85,7 +85,15 @@ def escanear_mercado_completo(termo_busca):
             if not buscando_pc:
                 if re.search(r'\bpc\b', nome_limpo) or 'computador' in nome_limpo or 'desktop' in nome_limpo or 'ilha' in nome_limpo or 'workstation' in nome_limpo or 'setup' in nome_limpo: return False
                 
-            if 'cabo' in nome_limpo or 'adaptador' in nome_limpo or 'watercooler' in nome_limpo: return False
+            if 'cabo' in nome_limpo or 'adaptador' in nome_limpo: return False
+            
+            # 🚨 CORREÇÃO: Remove temporariamente as palavras "com cooler" e "sem cooler" antes de testar a regra
+            if 'cooler' not in termo_limpo:
+                nome_teste_cooler = nome_limpo.replace('com cooler', '').replace('sem cooler', '').replace('c/ cooler', '').replace('s/ cooler', '')
+                if 'cooler' in nome_teste_cooler: return False
+                
+            if 'fan' not in termo_limpo and re.search(r'\bfan\b', nome_limpo): return False
+            
             if 'notebook' in nome_limpo or 'laptop' in nome_limpo or 'book' in nome_limpo or 'tela' in nome_limpo: return False
             if 'kit' in nome_limpo or 'combo' in nome_limpo or 'upgrade' in nome_limpo: return False
             
