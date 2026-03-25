@@ -27,17 +27,19 @@ def escanear_mercado_completo(termo_busca):
         lista_produtos = []
         
         def extrair_marca(nome):
-            # 🚨 DICIONÁRIO EXPANDIDO COM AS NOVAS MARCAS DE FONTES DE ENTRADA
+            # 🚨 DICIONÁRIO EXPANDIDO COM MARCAS DE ENTRADA (Vinik, Knup, Bluecase, etc.)
             marcas = [
                 'asus', 'gigabyte', 'msi', 'galax', 'zotac', 'pny', 'asrock', 'sapphire', 'powercolor', 
                 'amd', 'intel', 'corsair', 'kingston', 'husky', 'ninja', 'inno3d', 'palit', 'gainward', 
                 'xfx', 'evga', 'pcyes', 'colorful', 'biostar',
-                'thermaltake', 'gamemax', 'aerocool', 'c3tech', 'draxen', 'cowboy', 'cooler master',
+                'thermaltake', ' tt ', 'gamemax', 'aerocool', 'c3tech', 'draxen', 'cowboy', 'cooler master',
                 'redragon', 'xpg', 'superframe', 'cougar', 'mancer', 'seasonic', 'onepower', 'duex',
-                'brx', 'tgt', 'mymax', 'fortrek', 'brazilpc', 'brazil pc', 'mach1', 'rise mode', 'sate'
+                'brx', 'tgt', 'mymax', 'fortrek', 'brazilpc', 'brazil pc', 'mach1', 'rise mode', 'sate',
+                'nzxt', 'lian li', 'storm-z', 'montech', 'ktrok', 'ps-g',
+                'vinik', 'knup', 'bluecase', 'k-mex', 'kmex', 'primetek', 'concórdia', 'concordia'
             ]
             
-            nome_lower = nome.lower()
+            nome_lower = f" {nome.lower()} " # Adiciona espaço nas bordas para buscar siglas perfeitamente
             for marca in marcas:
                 if marca in nome_lower:
                     if marca == 'inno3d': return 'Inno3D'
@@ -47,7 +49,7 @@ def escanear_mercado_completo(termo_busca):
                     if marca == 'amd': return 'AMD'
                     if marca == 'msi': return 'MSI'
                     if marca == 'evga': return 'EVGA'
-                    if marca == 'c3tech': return 'C3Tech'
+                    if marca == 'c3tech' or marca == 'ps-g': return 'C3Tech'
                     if marca == 'cooler master': return 'Cooler Master'
                     if marca == 'superframe': return 'SuperFrame'
                     if marca == 'xpg': return 'XPG'
@@ -59,7 +61,15 @@ def escanear_mercado_completo(termo_busca):
                     if marca == 'mach1': return 'MACH1'
                     if marca == 'rise mode': return 'Rise Mode'
                     if marca == 'fortrek': return 'Fortrek'
-                    return marca.capitalize() 
+                    if marca == 'nzxt': return 'NZXT'
+                    if marca == 'lian li': return 'Lian Li'
+                    if marca == 'storm-z': return 'Storm-Z'
+                    if marca == 'montech': return 'Montech'
+                    if marca == 'ktrok': return 'Ktrok'
+                    if marca == 'thermaltake' or marca == ' tt ': return 'Thermaltake'
+                    if marca == 'k-mex' or marca == 'kmex': return 'K-mex'
+                    if marca == 'concórdia' or marca == 'concordia': return 'Concórdia'
+                    return marca.strip().capitalize() 
             
             return "Outra/Genérica"
         
@@ -79,7 +89,6 @@ def escanear_mercado_completo(termo_busca):
             if 'notebook' in nome_limpo or 'laptop' in nome_limpo or 'book' in nome_limpo or 'tela' in nome_limpo: return False
             if 'kit' in nome_limpo or 'combo' in nome_limpo or 'upgrade' in nome_limpo: return False
             
-            # 🚨 MURALHA ANTI-SERVIDORES ADICIONADA AQUI
             if 'enterprise' in nome_limpo or 'servidor' in nome_limpo or 'server' in nome_limpo: return False
             
             if 'super' not in termo_limpo and re.search(r'\bsuper\b', nome_limpo): return False
