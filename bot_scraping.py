@@ -12,7 +12,7 @@ import traceback
 
 def escanear_mercado_completo(termo_busca):
     print(f"\n==================================================")
-    print(f"🤖 INICIANDO SCANNER COM PAGINAÇÃO PARA: '{termo_busca}'")
+    print(f"🤖 INICIANDO SCANNER COM OTIMIZAÇÃO (100 PRODUTOS/PÁGINA) PARA: '{termo_busca}'")
     print(f"==================================================")
     
     try:
@@ -81,18 +81,36 @@ def escanear_mercado_completo(termo_busca):
             nome_limpo = remover_acentos(nome_produto)
             termo_limpo = remover_acentos(termo)
             
+            correcoes = {
+                'processadores': 'processador',
+                'placas': 'placa',
+                'fontes': 'fonte',
+                'memorias': 'memoria',
+                'gabinetes': 'gabinete',
+                'coolers': 'cooler',
+                'teclados': 'teclado',
+                'mouses': 'mouse',
+                'monitores': 'monitor',
+                'fans': 'fan'
+            }
+            for errado, certo in correcoes.items():
+                termo_limpo = re.sub(rf'\b{errado}\b', certo, termo_limpo)
+            
             buscando_pc = re.search(r'\bpc\b', termo_limpo) or 'computador' in termo_limpo or 'desktop' in termo_limpo
             if not buscando_pc:
                 if re.search(r'\bpc\b', nome_limpo) or 'computador' in nome_limpo or 'desktop' in nome_limpo or 'ilha' in nome_limpo or 'workstation' in nome_limpo or 'setup' in nome_limpo: return False
                 
             if 'cabo' in nome_limpo or 'adaptador' in nome_limpo: return False
             
-            # 🚨 CORREÇÃO: Remove temporariamente as palavras "com cooler" e "sem cooler" antes de testar a regra
-            if 'cooler' not in termo_limpo:
-                nome_teste_cooler = nome_limpo.replace('com cooler', '').replace('sem cooler', '').replace('c/ cooler', '').replace('s/ cooler', '')
-                if 'cooler' in nome_teste_cooler: return False
-                
-            if 'fan' not in termo_limpo and re.search(r'\bfan\b', nome_limpo): return False
+            # 🚨 MURALHA ANTI-PLACAS INTROMETIDAS (CORRIGIDA)
+            # Bloqueia apenas Placas-Mãe, deixando as Placas de Vídeo (RTX/RX) livres!
+            if 'placa-mae' not in termo_limpo and 'placa mae' not in termo_limpo and 'motherboard' not in termo_limpo:
+                if 'placa-mae' in nome_limpo or 'placa mae' in nome_limpo or 'motherboard' in nome_limpo or 'mainboard' in nome_limpo: return False
+            
+            if 'cooler' not in termo_limpo and 'water' not in termo_limpo and 'fan' not in termo_limpo:
+                if nome_limpo.startswith('cooler ') or nome_limpo.startswith('water ') or nome_limpo.startswith('fan '): return False
+                if 'cooler para' in nome_limpo or 'cooler processador' in nome_limpo or 'water cooler' in nome_limpo or 'watercooler' in nome_limpo: return False
+                if 'ventoinha' in nome_limpo or 'dissipador' in nome_limpo: return False
             
             if 'notebook' in nome_limpo or 'laptop' in nome_limpo or 'book' in nome_limpo or 'tela' in nome_limpo: return False
             if 'kit' in nome_limpo or 'combo' in nome_limpo or 'upgrade' in nome_limpo: return False
@@ -118,35 +136,32 @@ def escanear_mercado_completo(termo_busca):
         
         # ================= 1. RASPANDO A KABUM =================
         try:
-            for pagina in range(1, 4):
-                url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number={pagina}"
-                navegador.get(url_kabum)
-                time.sleep(5) 
+            url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number=1&page_size=100"
+            navegador.get(url_kabum)
+            time.sleep(7) 
+            
+            nomes_kabum = navegador.find_elements(By.CSS_SELECTOR, 'span.line-clamp-2.text-ellipsis')
+            precos_kabum = navegador.find_elements(By.XPATH, '//span[text()="R$"]/..')
+            
+            for nome_el, preco_el in zip(nomes_kabum, precos_kabum):
+                nome = nome_el.get_attribute('textContent').strip()
+                if not produto_eh_valido(nome, termo_busca): continue
                 
-                nomes_kabum = navegador.find_elements(By.CSS_SELECTOR, 'span.line-clamp-2.text-ellipsis')
-                precos_kabum = navegador.find_elements(By.XPATH, '//span[text()="R$"]/..')
+                preco_texto = preco_el.get_attribute('textContent')
+                match = re.search(r'R\$?\s*([\d\.]+,\d{2})', preco_texto)
                 
-                if len(nomes_kabum) == 0: break
-                
-                for nome_el, preco_el in zip(nomes_kabum, precos_kabum):
-                    nome = nome_el.get_attribute('textContent').strip()
-                    if not produto_eh_valido(nome, termo_busca): continue
+                if match:
+                    preco_limpo = match.group(1).replace('.', '').replace(',', '.')
+                    marca = extrair_marca(nome)
                     
-                    preco_texto = preco_el.get_attribute('textContent')
-                    match = re.search(r'R\$?\s*([\d\.]+,\d{2})', preco_texto)
-                    
-                    if match:
-                        preco_limpo = match.group(1).replace('.', '').replace(',', '.')
-                        marca = extrair_marca(nome)
-                        
-                        try: lista_produtos.append({
-                            "Data": data_atual, 
-                            "Loja": "Kabum",
-                            "Marca": marca,
-                            "Produto": nome, 
-                            "Preço (R$)": float(preco_limpo)
-                        })
-                        except: pass
+                    try: lista_produtos.append({
+                        "Data": data_atual, 
+                        "Loja": "Kabum",
+                        "Marca": marca,
+                        "Produto": nome, 
+                        "Preço (R$)": float(preco_limpo)
+                    })
+                    except: pass
         except: pass
 
         # ================= 2. RASPANDO A TERABYTE =================
