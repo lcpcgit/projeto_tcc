@@ -12,7 +12,7 @@ import traceback
 
 def escanear_mercado_completo(termo_busca):
     print(f"\n==================================================")
-    print(f"🤖 INICIANDO SCANNER COM OTIMIZAÇÃO (100 PRODUTOS/PÁGINA) PARA: '{termo_busca}'")
+    print(f"🤖 INICIANDO MEGA-SCANNER (ALTA PROFUNDIDADE) PARA: '{termo_busca}'")
     print(f"==================================================")
     
     try:
@@ -102,8 +102,6 @@ def escanear_mercado_completo(termo_busca):
                 
             if 'cabo' in nome_limpo or 'adaptador' in nome_limpo: return False
             
-            # 🚨 MURALHA ANTI-PLACAS INTROMETIDAS (CORRIGIDA)
-            # Bloqueia apenas Placas-Mãe, deixando as Placas de Vídeo (RTX/RX) livres!
             if 'placa-mae' not in termo_limpo and 'placa mae' not in termo_limpo and 'motherboard' not in termo_limpo:
                 if 'placa-mae' in nome_limpo or 'placa mae' in nome_limpo or 'motherboard' in nome_limpo or 'mainboard' in nome_limpo: return False
             
@@ -136,39 +134,48 @@ def escanear_mercado_completo(termo_busca):
         
         # ================= 1. RASPANDO A KABUM =================
         try:
-            url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number=1&page_size=100"
-            navegador.get(url_kabum)
-            time.sleep(7) 
-            
-            nomes_kabum = navegador.find_elements(By.CSS_SELECTOR, 'span.line-clamp-2.text-ellipsis')
-            precos_kabum = navegador.find_elements(By.XPATH, '//span[text()="R$"]/..')
-            
-            for nome_el, preco_el in zip(nomes_kabum, precos_kabum):
-                nome = nome_el.get_attribute('textContent').strip()
-                if not produto_eh_valido(nome, termo_busca): continue
+            # 🚨 5 Páginas de 100 itens = Até 500 produtos vasculhados na Kabum
+            for pagina in range(1, 6):  
+                url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number={pagina}&page_size=100"
+                navegador.get(url_kabum)
+                time.sleep(4) 
                 
-                preco_texto = preco_el.get_attribute('textContent')
-                match = re.search(r'R\$?\s*([\d\.]+,\d{2})', preco_texto)
+                nomes_kabum = navegador.find_elements(By.CSS_SELECTOR, 'span.line-clamp-2.text-ellipsis')
+                precos_kabum = navegador.find_elements(By.XPATH, '//span[text()="R$"]/..')
                 
-                if match:
-                    preco_limpo = match.group(1).replace('.', '').replace(',', '.')
-                    marca = extrair_marca(nome)
+                if len(nomes_kabum) == 0: break
+                
+                for nome_el, preco_el in zip(nomes_kabum, precos_kabum):
+                    nome = nome_el.get_attribute('textContent').strip()
+                    if not produto_eh_valido(nome, termo_busca): continue
                     
-                    try: lista_produtos.append({
-                        "Data": data_atual, 
-                        "Loja": "Kabum",
-                        "Marca": marca,
-                        "Produto": nome, 
-                        "Preço (R$)": float(preco_limpo)
-                    })
-                    except: pass
+                    preco_texto = preco_el.get_attribute('textContent')
+                    match = re.search(r'R\$?\s*([\d\.]+,\d{2})', preco_texto)
+                    
+                    if match:
+                        preco_limpo = match.group(1).replace('.', '').replace(',', '.')
+                        marca = extrair_marca(nome)
+                        
+                        try: lista_produtos.append({
+                            "Data": data_atual, 
+                            "Loja": "Kabum",
+                            "Marca": marca,
+                            "Produto": nome, 
+                            "Preço (R$)": float(preco_limpo)
+                        })
+                        except: pass
         except: pass
 
         # ================= 2. RASPANDO A TERABYTE =================
         try:
             url_terabyte = f"https://www.terabyteshop.com.br/busca?str={termo_busca.replace(' ', '+')}"
             navegador.get(url_terabyte)
-            time.sleep(6) 
+            time.sleep(5) 
+            
+            # 🚨 10 rolagens massivas para carregar tudo o que estiver escondido no fundo da página
+            for _ in range(10):
+                navegador.execute_script("window.scrollBy(0, 1000);")
+                time.sleep(1)
             
             nomes_tera = navegador.find_elements(By.CSS_SELECTOR, '.product-item__name')
             precos_tera = navegador.find_elements(By.CSS_SELECTOR, '.product-item__new-price')
