@@ -27,8 +27,10 @@ def escanear_mercado_completo(termo_busca):
         lista_produtos = []
         
         def extrair_marca(nome):
-            # 🚨 DICIONÁRIO EXPANDIDO: Mais de 80 marcas mapeadas perfeitamente!
+            # 🚨 DICIONÁRIO DE ARMAZENAMENTO E MONITORES ADICIONADO!
             marcas = [
+                'seagate', 'toshiba', 'western digital', ' wd ', 'sandisk', 'lacie', 'hitachi', 'hgst', 'aitek',
+                'lg', 'aoc', 'samsung', 'acer', 'philips', 'benq', 'hayom', '3green', 'ultra flick', 'ezviz',
                 'geil', 'crucial', 'adata', 'lexar', 'g.skill', 'gskill', 'team group', 'teamgroup',
                 'patriot', 'netac', 'oloy', 'asgard', 'hikvision', 'hiksemi', 'tob computers', 'westgatte',
                 'kingston', 'corsair', 'xpg', 'husky', 'rise mode', 'mancer', 'sk hynix', 'hynix', 
@@ -82,10 +84,12 @@ def escanear_mercado_completo(termo_busca):
                     if marca == ' hp ': return 'HP'
                     if marca == 'ibm': return 'IBM'
                     if marca == 'dell': return 'Dell'
-                    if marca == 'lenovo': return 'Lenovo'
                     if marca == 'kingspec': return 'KingSpec'
                     if marca == 'oxy': return 'Oxy'
                     if marca == 'keepdata': return 'Keepdata'
+                    if marca == ' wd ' or marca == 'western digital': return 'WD'
+                    if marca == 'lg': return 'LG'
+                    if marca == 'aoc': return 'AOC'
                     return marca.strip().capitalize() 
             
             return "Outra/Genérica"
@@ -118,6 +122,12 @@ def escanear_mercado_completo(termo_busca):
                 if re.search(r'\bpc\b', nome_limpo) or 'computador' in nome_limpo or 'desktop' in nome_limpo or 'ilha' in nome_limpo or 'workstation' in nome_limpo or 'setup' in nome_limpo: return False
                 
             if 'cabo' in nome_limpo or 'adaptador' in nome_limpo: return False
+            
+            # 🚨 MURALHA ANTI-MONITORES E CÂMERAS ("Falsos HDs")
+            # Se a busca tiver as letras 'hd', 'ssd', 'disco', ele bloqueia displays!
+            if re.search(r'\bhd\b', termo_limpo) or 'ssd' in termo_limpo or 'disco' in termo_limpo or 'armazenamento' in termo_limpo:
+                if 'monitor ' in nome_limpo or 'tela ' in nome_limpo or 'webcam' in nome_limpo or 'camera' in nome_limpo or 'smart tv' in nome_limpo or 'televisao' in nome_limpo:
+                    return False
             
             if 'memoria' in termo_limpo or 'ram' in termo_limpo or 'ddr' in termo_limpo:
                 if 'processador' in nome_limpo or 'storage' in nome_limpo or re.search(r'\bnas\b', nome_limpo) or 'servidor' in nome_limpo: 
