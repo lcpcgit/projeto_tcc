@@ -27,13 +27,19 @@ def escanear_mercado_completo(termo_busca):
         lista_produtos = []
         
         def extrair_marca(nome):
+            # 🚨 DICIONÁRIO EXPANDIDO: Mais de 80 marcas mapeadas perfeitamente!
             marcas = [
+                'geil', 'crucial', 'adata', 'lexar', 'g.skill', 'gskill', 'team group', 'teamgroup',
+                'patriot', 'netac', 'oloy', 'asgard', 'hikvision', 'hiksemi', 'tob computers', 'westgatte',
+                'kingston', 'corsair', 'xpg', 'husky', 'rise mode', 'mancer', 'sk hynix', 'hynix', 
+                'kingspec', 'oxy', 'keepdata', 'up gamer', 'upgamer', 'diamond',
+                'dell', ' hp ', 'lenovo', 'ibm', 
                 'asus', 'gigabyte', 'msi', 'galax', 'zotac', 'pny', 'asrock', 'sapphire', 'powercolor', 
-                'amd', 'intel', 'corsair', 'kingston', 'husky', 'ninja', 'inno3d', 'palit', 'gainward', 
+                'amd', 'intel', 'ninja', 'inno3d', 'palit', 'gainward', 
                 'xfx', 'evga', 'pcyes', 'colorful', 'biostar', 'yeston',
                 'thermaltake', ' tt ', 'gamemax', 'aerocool', 'c3tech', 'draxen', 'cowboy', 'cooler master',
-                'redragon', 'xpg', 'superframe', 'cougar', 'mancer', 'seasonic', 'onepower', 'duex',
-                'brx', 'tgt', 'mymax', 'fortrek', 'brazilpc', 'brazil pc', 'mach1', 'rise mode', 'sate',
+                'redragon', 'superframe', 'cougar', 'seasonic', 'onepower', 'duex',
+                'brx', 'tgt', 'mymax', 'fortrek', 'brazilpc', 'brazil pc', 'mach1', 'sate',
                 'nzxt', 'lian li', 'storm-z', 'montech', 'ktrok', 'ps-g',
                 'vinik', 'knup', 'bluecase', 'k-mex', 'kmex', 'primetek', 'concórdia', 'concordia'
             ]
@@ -69,6 +75,17 @@ def escanear_mercado_completo(termo_busca):
                     if marca == 'thermaltake' or marca == ' tt ': return 'Thermaltake'
                     if marca == 'k-mex' or marca == 'kmex': return 'K-mex'
                     if marca == 'concórdia' or marca == 'concordia': return 'Concórdia'
+                    if marca == 'g.skill' or marca == 'gskill': return 'G.Skill'
+                    if marca == 'team group' or marca == 'teamgroup': return 'Team Group'
+                    if marca == 'sk hynix' or marca == 'hynix': return 'SK Hynix'
+                    if marca == 'up gamer' or marca == 'upgamer': return 'Up Gamer'
+                    if marca == ' hp ': return 'HP'
+                    if marca == 'ibm': return 'IBM'
+                    if marca == 'dell': return 'Dell'
+                    if marca == 'lenovo': return 'Lenovo'
+                    if marca == 'kingspec': return 'KingSpec'
+                    if marca == 'oxy': return 'Oxy'
+                    if marca == 'keepdata': return 'Keepdata'
                     return marca.strip().capitalize() 
             
             return "Outra/Genérica"
@@ -102,6 +119,10 @@ def escanear_mercado_completo(termo_busca):
                 
             if 'cabo' in nome_limpo or 'adaptador' in nome_limpo: return False
             
+            if 'memoria' in termo_limpo or 'ram' in termo_limpo or 'ddr' in termo_limpo:
+                if 'processador' in nome_limpo or 'storage' in nome_limpo or re.search(r'\bnas\b', nome_limpo) or 'servidor' in nome_limpo: 
+                    return False
+            
             if 'placa-mae' not in termo_limpo and 'placa mae' not in termo_limpo and 'motherboard' not in termo_limpo:
                 if 'placa-mae' in nome_limpo or 'placa mae' in nome_limpo or 'motherboard' in nome_limpo or 'mainboard' in nome_limpo: return False
             
@@ -134,7 +155,6 @@ def escanear_mercado_completo(termo_busca):
         
         # ================= 1. RASPANDO A KABUM =================
         try:
-            # 🚨 5 Páginas de 100 itens = Até 500 produtos vasculhados na Kabum
             for pagina in range(1, 6):  
                 url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number={pagina}&page_size=100"
                 navegador.get(url_kabum)
@@ -172,7 +192,6 @@ def escanear_mercado_completo(termo_busca):
             navegador.get(url_terabyte)
             time.sleep(5) 
             
-            # 🚨 10 rolagens massivas para carregar tudo o que estiver escondido no fundo da página
             for _ in range(10):
                 navegador.execute_script("window.scrollBy(0, 1000);")
                 time.sleep(1)
