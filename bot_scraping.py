@@ -27,9 +27,9 @@ def escanear_mercado_completo(termo_busca):
         lista_produtos = []
         
         def extrair_marca(nome):
-            # 🚨 DICIONÁRIO DE ARMAZENAMENTO E MONITORES ADICIONADO!
             marcas = [
                 'seagate', 'toshiba', 'western digital', ' wd ', 'sandisk', 'lacie', 'hitachi', 'hgst', 'aitek',
+                'hawking', 'alltek', 'win memory', 'win memmory', 
                 'lg', 'aoc', 'samsung', 'acer', 'philips', 'benq', 'hayom', '3green', 'ultra flick', 'ezviz',
                 'geil', 'crucial', 'adata', 'lexar', 'g.skill', 'gskill', 'team group', 'teamgroup',
                 'patriot', 'netac', 'oloy', 'asgard', 'hikvision', 'hiksemi', 'tob computers', 'westgatte',
@@ -90,6 +90,7 @@ def escanear_mercado_completo(termo_busca):
                     if marca == ' wd ' or marca == 'western digital': return 'WD'
                     if marca == 'lg': return 'LG'
                     if marca == 'aoc': return 'AOC'
+                    if marca == 'win memory' or marca == 'win memmory': return 'Win Memory'
                     return marca.strip().capitalize() 
             
             return "Outra/Genérica"
@@ -123,8 +124,12 @@ def escanear_mercado_completo(termo_busca):
                 
             if 'cabo' in nome_limpo or 'adaptador' in nome_limpo: return False
             
+            # 🚨 MURALHA ANTI-GAVETAS E DISSIPADORES DE SSD
+            if 'ssd' in termo_limpo or 'nvme' in termo_limpo or 'm.2' in termo_limpo:
+                if 'gaveta' in nome_limpo or 'case' in nome_limpo or 'dissipador' in nome_limpo or 'enclosure' in nome_limpo:
+                    return False
+            
             # 🚨 MURALHA ANTI-MONITORES E CÂMERAS ("Falsos HDs")
-            # Se a busca tiver as letras 'hd', 'ssd', 'disco', ele bloqueia displays!
             if re.search(r'\bhd\b', termo_limpo) or 'ssd' in termo_limpo or 'disco' in termo_limpo or 'armazenamento' in termo_limpo:
                 if 'monitor ' in nome_limpo or 'tela ' in nome_limpo or 'webcam' in nome_limpo or 'camera' in nome_limpo or 'smart tv' in nome_limpo or 'televisao' in nome_limpo:
                     return False
