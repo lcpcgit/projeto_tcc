@@ -27,31 +27,33 @@ def escanear_mercado_completo(termo_busca):
         lista_produtos = []
         
         def extrair_marca(nome):
-            # 🚨 HIERARQUIA DE MARCAS: As marcas com nomes compostos e especializadas vêm primeiro!
+            # 🚨 DICIONÁRIO BLINDADO + NOVAS MARCAS DE GABINETES (Liketec, Hyte, Hyrax, Kalkan, Dr. Office)
             marcas = [
                 'cooler master', 'deepcool', 'noctua', 'scythe', 'gamdias', 'pure power', 'ryvel', 'nzxt', 'lian li',
-                'seagate', 'toshiba', 'western digital', ' wd ', 'sandisk', 'lacie', 'hitachi', 'hgst', 'aitek',
+                'seagate', 'toshiba', 'western digital', 'wd', 'sandisk', 'lacie', 'hitachi', 'hgst', 'aitek',
                 'hawking', 'alltek', 'win memory', 'win memmory', 
                 'lg', 'aoc', 'samsung', 'acer', 'philips', 'benq', 'hayom', '3green', 'ultra flick', 'ezviz',
                 'geil', 'crucial', 'adata', 'lexar', 'g.skill', 'gskill', 'team group', 'teamgroup',
                 'patriot', 'netac', 'oloy', 'asgard', 'hikvision', 'hiksemi', 'tob computers', 'westgatte',
                 'kingston', 'corsair', 'xpg', 'husky', 'rise mode', 'mancer', 'sk hynix', 'hynix', 
                 'kingspec', 'oxy', 'keepdata', 'up gamer', 'upgamer', 'diamond',
-                'dell', ' hp ', 'lenovo', 'ibm', 
+                'dell', 'hp', 'lenovo', 'ibm', 
                 'asus', 'gigabyte', 'msi', 'galax', 'zotac', 'pny', 'asrock', 'sapphire', 'powercolor', 
                 'ninja', 'inno3d', 'palit', 'gainward', 
                 'xfx', 'evga', 'pcyes', 'colorful', 'biostar', 'yeston',
-                'thermaltake', ' tt ', 'gamemax', 'aerocool', 'c3tech', 'draxen', 'cowboy',
+                'thermaltake', 'tt', 'gamemax', 'aerocool', 'c3tech', 'draxen', 'cowboy',
                 'redragon', 'superframe', 'cougar', 'seasonic', 'onepower', 'duex',
                 'brx', 'tgt', 'mymax', 'fortrek', 'brazilpc', 'brazil pc', 'mach1', 'sate',
-                'storm-z', 'montech', 'ktrok', 'ps-g',
+                'storm-z', 'montech', 'ktrok', 'ps-g', 'liketec', 'hyte', 'hyrax', 'kalkan', 'dr. office',
                 'vinik', 'knup', 'bluecase', 'k-mex', 'kmex', 'primetek', 'concórdia', 'concordia',
-                'amd', 'intel' # AMD e Intel ficam no final para não "roubarem" os coolers compatíveis com eles!
+                'amd', 'intel' 
             ]
             
-            nome_lower = f" {nome.lower()} " 
+            nome_lower = nome.lower()
             for marca in marcas:
-                if marca in nome_lower:
+                # 🚨 NOVA REGRA DE REGEX: Obriga a procurar a palavra exata usando o "Word Boundary" (\b)
+                # Assim "lacie" não será encontrado dentro de "glacier".
+                if re.search(rf'\b{re.escape(marca)}\b', nome_lower):
                     if marca == 'inno3d': return 'Inno3D'
                     if marca == 'pcyes': return 'PCYes'
                     if marca == 'yeston': return 'Yeston'
@@ -77,20 +79,20 @@ def escanear_mercado_completo(termo_busca):
                     if marca == 'storm-z': return 'Storm-Z'
                     if marca == 'montech': return 'Montech'
                     if marca == 'ktrok': return 'Ktrok'
-                    if marca == 'thermaltake' or marca == ' tt ': return 'Thermaltake'
+                    if marca == 'thermaltake' or marca == 'tt': return 'Thermaltake'
                     if marca == 'k-mex' or marca == 'kmex': return 'K-mex'
                     if marca == 'concórdia' or marca == 'concordia': return 'Concórdia'
                     if marca == 'g.skill' or marca == 'gskill': return 'G.Skill'
                     if marca == 'team group' or marca == 'teamgroup': return 'Team Group'
                     if marca == 'sk hynix' or marca == 'hynix': return 'SK Hynix'
                     if marca == 'up gamer' or marca == 'upgamer': return 'Up Gamer'
-                    if marca == ' hp ': return 'HP'
+                    if marca == 'hp': return 'HP'
                     if marca == 'ibm': return 'IBM'
                     if marca == 'dell': return 'Dell'
                     if marca == 'kingspec': return 'KingSpec'
                     if marca == 'oxy': return 'Oxy'
                     if marca == 'keepdata': return 'Keepdata'
-                    if marca == ' wd ' or marca == 'western digital': return 'WD'
+                    if marca == 'wd' or marca == 'western digital': return 'WD'
                     if marca == 'lg': return 'LG'
                     if marca == 'aoc': return 'AOC'
                     if marca == 'win memory' or marca == 'win memmory': return 'Win Memory'
@@ -98,6 +100,11 @@ def escanear_mercado_completo(termo_busca):
                     if marca == 'pure power': return 'Pure Power'
                     if marca == 'ryvel': return 'Ryvel'
                     if marca == 'gamdias': return 'Gamdias'
+                    if marca == 'liketec': return 'Liketec'
+                    if marca == 'hyte': return 'Hyte'
+                    if marca == 'hyrax': return 'Hyrax'
+                    if marca == 'kalkan': return 'Kalkan'
+                    if marca == 'dr. office': return 'Dr. Office'
                     return marca.strip().capitalize() 
             
             return "Outra/Genérica"
@@ -131,6 +138,11 @@ def escanear_mercado_completo(termo_busca):
                 
             if 'cabo' in nome_limpo or 'adaptador' in nome_limpo: return False
             
+            # 🚨 MURALHA ANTI-ACESSÓRIOS DE GABINETE
+            if 'gabinete' in termo_limpo:
+                if 'suporte' in nome_limpo or 'fita' in nome_limpo or 'controladora' in nome_limpo or 'hub' in nome_limpo or 'cabo' in nome_limpo:
+                    return False
+            
             if 'ssd' in termo_limpo or 'nvme' in termo_limpo or 'm.2' in termo_limpo:
                 if 'gaveta' in nome_limpo or 'case' in nome_limpo or 'dissipador' in nome_limpo or 'enclosure' in nome_limpo:
                     return False
@@ -146,8 +158,6 @@ def escanear_mercado_completo(termo_busca):
             if 'placa-mae' not in termo_limpo and 'placa mae' not in termo_limpo and 'motherboard' not in termo_limpo:
                 if 'placa-mae' in nome_limpo or 'placa mae' in nome_limpo or 'motherboard' in nome_limpo or 'mainboard' in nome_limpo: return False
             
-            # 🚨 MURALHA ANTI-GABINETES E PROCESSADORES (QUANDO SE PESQUISA POR COOLER)
-            # Como a marca é "Cooler Master" ou o processador diz "Com cooler", barramos eles de entrarem na categoria Cooler!
             if 'gabinete' not in termo_limpo and 'cpu' not in termo_limpo and 'processador' not in termo_limpo:
                 if nome_limpo.startswith('gabinete'): return False
                 if nome_limpo.startswith('processador'): return False
