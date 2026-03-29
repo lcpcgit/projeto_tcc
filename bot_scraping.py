@@ -27,7 +27,9 @@ def escanear_mercado_completo(termo_busca):
         lista_produtos = []
         
         def extrair_marca(nome):
+            # 🚨 HIERARQUIA DE MARCAS: As marcas com nomes compostos e especializadas vêm primeiro!
             marcas = [
+                'cooler master', 'deepcool', 'noctua', 'scythe', 'gamdias', 'pure power', 'ryvel', 'nzxt', 'lian li',
                 'seagate', 'toshiba', 'western digital', ' wd ', 'sandisk', 'lacie', 'hitachi', 'hgst', 'aitek',
                 'hawking', 'alltek', 'win memory', 'win memmory', 
                 'lg', 'aoc', 'samsung', 'acer', 'philips', 'benq', 'hayom', '3green', 'ultra flick', 'ezviz',
@@ -37,13 +39,14 @@ def escanear_mercado_completo(termo_busca):
                 'kingspec', 'oxy', 'keepdata', 'up gamer', 'upgamer', 'diamond',
                 'dell', ' hp ', 'lenovo', 'ibm', 
                 'asus', 'gigabyte', 'msi', 'galax', 'zotac', 'pny', 'asrock', 'sapphire', 'powercolor', 
-                'amd', 'intel', 'ninja', 'inno3d', 'palit', 'gainward', 
+                'ninja', 'inno3d', 'palit', 'gainward', 
                 'xfx', 'evga', 'pcyes', 'colorful', 'biostar', 'yeston',
-                'thermaltake', ' tt ', 'gamemax', 'aerocool', 'c3tech', 'draxen', 'cowboy', 'cooler master',
+                'thermaltake', ' tt ', 'gamemax', 'aerocool', 'c3tech', 'draxen', 'cowboy',
                 'redragon', 'superframe', 'cougar', 'seasonic', 'onepower', 'duex',
                 'brx', 'tgt', 'mymax', 'fortrek', 'brazilpc', 'brazil pc', 'mach1', 'sate',
-                'nzxt', 'lian li', 'storm-z', 'montech', 'ktrok', 'ps-g',
-                'vinik', 'knup', 'bluecase', 'k-mex', 'kmex', 'primetek', 'concórdia', 'concordia'
+                'storm-z', 'montech', 'ktrok', 'ps-g',
+                'vinik', 'knup', 'bluecase', 'k-mex', 'kmex', 'primetek', 'concórdia', 'concordia',
+                'amd', 'intel' # AMD e Intel ficam no final para não "roubarem" os coolers compatíveis com eles!
             ]
             
             nome_lower = f" {nome.lower()} " 
@@ -91,6 +94,10 @@ def escanear_mercado_completo(termo_busca):
                     if marca == 'lg': return 'LG'
                     if marca == 'aoc': return 'AOC'
                     if marca == 'win memory' or marca == 'win memmory': return 'Win Memory'
+                    if marca == 'deepcool': return 'DeepCool'
+                    if marca == 'pure power': return 'Pure Power'
+                    if marca == 'ryvel': return 'Ryvel'
+                    if marca == 'gamdias': return 'Gamdias'
                     return marca.strip().capitalize() 
             
             return "Outra/Genérica"
@@ -124,12 +131,10 @@ def escanear_mercado_completo(termo_busca):
                 
             if 'cabo' in nome_limpo or 'adaptador' in nome_limpo: return False
             
-            # 🚨 MURALHA ANTI-GAVETAS E DISSIPADORES DE SSD
             if 'ssd' in termo_limpo or 'nvme' in termo_limpo or 'm.2' in termo_limpo:
                 if 'gaveta' in nome_limpo or 'case' in nome_limpo or 'dissipador' in nome_limpo or 'enclosure' in nome_limpo:
                     return False
             
-            # 🚨 MURALHA ANTI-MONITORES E CÂMERAS ("Falsos HDs")
             if re.search(r'\bhd\b', termo_limpo) or 'ssd' in termo_limpo or 'disco' in termo_limpo or 'armazenamento' in termo_limpo:
                 if 'monitor ' in nome_limpo or 'tela ' in nome_limpo or 'webcam' in nome_limpo or 'camera' in nome_limpo or 'smart tv' in nome_limpo or 'televisao' in nome_limpo:
                     return False
@@ -140,6 +145,12 @@ def escanear_mercado_completo(termo_busca):
             
             if 'placa-mae' not in termo_limpo and 'placa mae' not in termo_limpo and 'motherboard' not in termo_limpo:
                 if 'placa-mae' in nome_limpo or 'placa mae' in nome_limpo or 'motherboard' in nome_limpo or 'mainboard' in nome_limpo: return False
+            
+            # 🚨 MURALHA ANTI-GABINETES E PROCESSADORES (QUANDO SE PESQUISA POR COOLER)
+            # Como a marca é "Cooler Master" ou o processador diz "Com cooler", barramos eles de entrarem na categoria Cooler!
+            if 'gabinete' not in termo_limpo and 'cpu' not in termo_limpo and 'processador' not in termo_limpo:
+                if nome_limpo.startswith('gabinete'): return False
+                if nome_limpo.startswith('processador'): return False
             
             if 'cooler' not in termo_limpo and 'water' not in termo_limpo and 'fan' not in termo_limpo:
                 if nome_limpo.startswith('cooler ') or nome_limpo.startswith('water ') or nome_limpo.startswith('fan '): return False
