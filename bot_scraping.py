@@ -27,7 +27,6 @@ def escanear_mercado_completo(termo_busca):
         lista_produtos = []
         
         def extrair_marca(nome):
-            # 🚨 O DICIONÁRIO SUPREMO: Novas marcas custom (Attack Shark, MCHOSE, etc) e office!
             marcas = [
                 'cooler master', 'deepcool', 'noctua', 'scythe', 'gamdias', 'pure power', 'ryvel', 'nzxt', 'lian li',
                 'seagate', 'toshiba', 'western digital', 'wd', 'sandisk', 'lacie', 'hitachi', 'hgst', 'aitek',
@@ -36,7 +35,7 @@ def escanear_mercado_completo(termo_busca):
                 'aula', 'keychron', 'fallen', 'dazz', 'maxprint', 'bright', 'multilaser', 'multi', 'oex', 'rapoo', 'evus', 'newlink',
                 'attack shark', 'mchose', 't-dagger', 'force one', 'bloody', 'intelbras', 'elg', 'exbom', 'trust', 'gxtrust', 
                 'lecoo', 'neologic', '8bitdo', 'keytime', 'keyceo', 'c3tch', 'kross elegance',
-                'lg', 'aoc', 'samsung', 'acer', 'philips', 'benq', 'hayom', '3green', 'ultra flick', 'ezviz',
+                'lg', 'aoc', 'samsung', 'acer', 'philips', 'benq', 'zowie', 'hayom', '3green', 'ultra flick', 'ezviz', 'vx pro', 'pcfort',
                 'geil', 'crucial', 'adata', 'lexar', 'g.skill', 'gskill', 'team group', 'teamgroup',
                 'patriot', 'netac', 'oloy', 'asgard', 'hikvision', 'hiksemi', 'tob computers', 'westgatte',
                 'kingston', 'corsair', 'xpg', 'husky', 'rise mode', 'mancer', 'sk hynix', 'hynix', 
@@ -46,7 +45,7 @@ def escanear_mercado_completo(termo_busca):
                 'ninja', 'inno3d', 'palit', 'gainward', 
                 'xfx', 'evga', 'pcyes', 'colorful', 'biostar', 'yeston',
                 'thermaltake', 'tt', 'gamemax', 'aerocool', 'c3tech', 'draxen', 'cowboy',
-                'redragon', 'superframe', 'cougar', 'seasonic', 'onepower', 'duex',
+                'redragon', 'superframe', 'cougar', 'seasonic', 'onepower', 'duex', 'dxmo',
                 'brx', 'tgt', 'mymax', 'fortrek', 'brazilpc', 'brazil pc', 'mach1', 'sate',
                 'storm-z', 'montech', 'ktrok', 'ps-g', 'liketec', 'hyte', 'hyrax', 'kalkan', 'dr. office',
                 'vinik', 'knup', 'bluecase', 'k-mex', 'kmex', 'primetek', 'concórdia', 'concordia',
@@ -55,7 +54,7 @@ def escanear_mercado_completo(termo_busca):
             
             nome_lower = nome.lower()
             for marca in marcas:
-                if re.search(rf'\b{re.escape(marca)}\b', nome_lower):
+                if re.search(rf'\b{re.escape(marca)}\b', nome_lower) or (marca == 'dxmo' and 'dxmo' in nome_lower) or (marca == 'dxmo' and ', dx' in nome_lower):
                     if marca == 'inno3d': return 'Inno3D'
                     if marca == 'pcyes': return 'PCYes'
                     if marca == 'yeston': return 'Yeston'
@@ -97,6 +96,9 @@ def escanear_mercado_completo(termo_busca):
                     if marca == 'wd' or marca == 'western digital': return 'WD'
                     if marca == 'lg': return 'LG'
                     if marca == 'aoc': return 'AOC'
+                    if marca == 'zowie': return 'Zowie'
+                    if marca == 'vx pro': return 'VX PRO'
+                    if marca == 'pcfort': return 'PCFort'
                     if marca == 'win memory' or marca == 'win memmory': return 'Win Memory'
                     if marca == 'deepcool': return 'DeepCool'
                     if marca == 'pure power': return 'Pure Power'
@@ -128,6 +130,7 @@ def escanear_mercado_completo(termo_busca):
                     if marca == 'neologic': return 'Neologic'
                     if marca == '8bitdo': return '8BitDo'
                     if marca == 'keytime' or marca == 'keyceo': return 'Keytime'
+                    if marca == 'duex' or marca == 'dxmo': return 'Duex'
                     return marca.strip().capitalize() 
             
             return "Outra/Genérica"
@@ -140,6 +143,10 @@ def escanear_mercado_completo(termo_busca):
             nome_limpo = remover_acentos(nome_produto)
             termo_limpo = remover_acentos(termo)
             
+            if re.search(r'\b(open box|recondicionado|usado|refurbished|salvado)\b', nome_limpo):
+                return False
+
+            # 🚨 DICIONÁRIO DE CORREÇÕES ORTOGRÁFICAS (Adicionado "mause")
             correcoes = {
                 'processadores': 'processador',
                 'placas': 'placa',
@@ -149,6 +156,8 @@ def escanear_mercado_completo(termo_busca):
                 'coolers': 'cooler',
                 'teclados': 'teclado',
                 'mouses': 'mouse',
+                'mauses': 'mouse',
+                'mause': 'mouse',
                 'monitores': 'monitor',
                 'fans': 'fan'
             }
@@ -158,6 +167,15 @@ def escanear_mercado_completo(termo_busca):
             buscando_pc = re.search(r'\bpc\b', termo_limpo) or 'computador' in termo_limpo or 'desktop' in termo_limpo
             if not buscando_pc:
                 if re.search(r'\bpc\b', nome_limpo) or 'computador' in nome_limpo or 'desktop' in nome_limpo or 'ilha' in nome_limpo or 'workstation' in nome_limpo or 'setup' in nome_limpo: return False
+            
+            # 🚨 MURALHA ANTI-MOUSEPAD E ACESSÓRIOS DE MOUSE
+            if 'mouse' in termo_limpo:
+                if 'mousepad' in nome_limpo or 'mouse pad' in nome_limpo or 'bungee' in nome_limpo or 'grip tape' in nome_limpo or 'skate' in nome_limpo or 'feet' in nome_limpo:
+                    return False
+            
+            if 'monitor' in termo_limpo or 'tela' in termo_limpo:
+                if 'suporte' in nome_limpo or 'braco' in nome_limpo or 'articulado' in nome_limpo or 'pistao' in nome_limpo or 'barra de led' in nome_limpo or 'limpeza' in nome_limpo:
+                    return False
             
             if 'teclado' in termo_limpo:
                 if 'keycap' in nome_limpo or 'switch ' in nome_limpo or 'apoio' in nome_limpo or 'mousepad' in nome_limpo or 'adesivo' in nome_limpo or 'lubrificante' in nome_limpo:
