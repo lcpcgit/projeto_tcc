@@ -27,11 +27,15 @@ def escanear_mercado_completo(termo_busca):
         lista_produtos = []
         
         def extrair_marca(nome):
-            # 🚨 DICIONÁRIO BLINDADO + NOVAS MARCAS DE GABINETES (Liketec, Hyte, Hyrax, Kalkan, Dr. Office)
+            # 🚨 O DICIONÁRIO SUPREMO: Novas marcas custom (Attack Shark, MCHOSE, etc) e office!
             marcas = [
                 'cooler master', 'deepcool', 'noctua', 'scythe', 'gamdias', 'pure power', 'ryvel', 'nzxt', 'lian li',
                 'seagate', 'toshiba', 'western digital', 'wd', 'sandisk', 'lacie', 'hitachi', 'hgst', 'aitek',
                 'hawking', 'alltek', 'win memory', 'win memmory', 
+                'razer', 'logitech', 'hyperx', 'steelseries', 'wooting', 'akko', 'epomaker', 'machenike', 'motospeed', 
+                'aula', 'keychron', 'fallen', 'dazz', 'maxprint', 'bright', 'multilaser', 'multi', 'oex', 'rapoo', 'evus', 'newlink',
+                'attack shark', 'mchose', 't-dagger', 'force one', 'bloody', 'intelbras', 'elg', 'exbom', 'trust', 'gxtrust', 
+                'lecoo', 'neologic', '8bitdo', 'keytime', 'keyceo', 'c3tch', 'kross elegance',
                 'lg', 'aoc', 'samsung', 'acer', 'philips', 'benq', 'hayom', '3green', 'ultra flick', 'ezviz',
                 'geil', 'crucial', 'adata', 'lexar', 'g.skill', 'gskill', 'team group', 'teamgroup',
                 'patriot', 'netac', 'oloy', 'asgard', 'hikvision', 'hiksemi', 'tob computers', 'westgatte',
@@ -51,8 +55,6 @@ def escanear_mercado_completo(termo_busca):
             
             nome_lower = nome.lower()
             for marca in marcas:
-                # 🚨 NOVA REGRA DE REGEX: Obriga a procurar a palavra exata usando o "Word Boundary" (\b)
-                # Assim "lacie" não será encontrado dentro de "glacier".
                 if re.search(rf'\b{re.escape(marca)}\b', nome_lower):
                     if marca == 'inno3d': return 'Inno3D'
                     if marca == 'pcyes': return 'PCYes'
@@ -62,7 +64,7 @@ def escanear_mercado_completo(termo_busca):
                     if marca == 'amd': return 'AMD'
                     if marca == 'msi': return 'MSI'
                     if marca == 'evga': return 'EVGA'
-                    if marca == 'c3tech' or marca == 'ps-g': return 'C3Tech'
+                    if marca == 'c3tech' or marca == 'ps-g' or marca == 'c3tch': return 'C3Tech'
                     if marca == 'cooler master': return 'Cooler Master'
                     if marca == 'superframe': return 'SuperFrame'
                     if marca == 'xpg': return 'XPG'
@@ -105,6 +107,27 @@ def escanear_mercado_completo(termo_busca):
                     if marca == 'hyrax': return 'Hyrax'
                     if marca == 'kalkan': return 'Kalkan'
                     if marca == 'dr. office': return 'Dr. Office'
+                    if marca == 'hyperx': return 'HyperX'
+                    if marca == 'steelseries': return 'SteelSeries'
+                    if marca == 'logitech': return 'Logitech'
+                    if marca == 'razer': return 'Razer'
+                    if marca == 'machenike': return 'Machenike'
+                    if marca == 'motospeed': return 'Motospeed'
+                    if marca == 'epomaker': return 'Epomaker'
+                    if marca == 'multilaser' or marca == 'multi': return 'Multilaser'
+                    if marca == 'attack shark': return 'Attack Shark'
+                    if marca == 'mchose': return 'MCHOSE'
+                    if marca == 't-dagger': return 'T-Dagger'
+                    if marca == 'force one': return 'Force One'
+                    if marca == 'bloody': return 'Bloody'
+                    if marca == 'intelbras': return 'Intelbras'
+                    if marca == 'elg': return 'ELG'
+                    if marca == 'exbom': return 'Exbom'
+                    if marca == 'trust' or marca == 'gxtrust': return 'Trust'
+                    if marca == 'lecoo': return 'Lecoo'
+                    if marca == 'neologic': return 'Neologic'
+                    if marca == '8bitdo': return '8BitDo'
+                    if marca == 'keytime' or marca == 'keyceo': return 'Keytime'
                     return marca.strip().capitalize() 
             
             return "Outra/Genérica"
@@ -135,10 +158,13 @@ def escanear_mercado_completo(termo_busca):
             buscando_pc = re.search(r'\bpc\b', termo_limpo) or 'computador' in termo_limpo or 'desktop' in termo_limpo
             if not buscando_pc:
                 if re.search(r'\bpc\b', nome_limpo) or 'computador' in nome_limpo or 'desktop' in nome_limpo or 'ilha' in nome_limpo or 'workstation' in nome_limpo or 'setup' in nome_limpo: return False
+            
+            if 'teclado' in termo_limpo:
+                if 'keycap' in nome_limpo or 'switch ' in nome_limpo or 'apoio' in nome_limpo or 'mousepad' in nome_limpo or 'adesivo' in nome_limpo or 'lubrificante' in nome_limpo:
+                    return False
                 
             if 'cabo' in nome_limpo or 'adaptador' in nome_limpo: return False
             
-            # 🚨 MURALHA ANTI-ACESSÓRIOS DE GABINETE
             if 'gabinete' in termo_limpo:
                 if 'suporte' in nome_limpo or 'fita' in nome_limpo or 'controladora' in nome_limpo or 'hub' in nome_limpo or 'cabo' in nome_limpo:
                     return False
