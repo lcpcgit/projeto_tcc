@@ -146,7 +146,6 @@ def escanear_mercado_completo(termo_busca):
             if re.search(r'\b(open box|recondicionado|usado|refurbished|salvado)\b', nome_limpo):
                 return False
 
-            # 🚨 DICIONÁRIO DE CORREÇÕES ORTOGRÁFICAS (Adicionado "mause")
             correcoes = {
                 'processadores': 'processador',
                 'placas': 'placa',
@@ -168,7 +167,6 @@ def escanear_mercado_completo(termo_busca):
             if not buscando_pc:
                 if re.search(r'\bpc\b', nome_limpo) or 'computador' in nome_limpo or 'desktop' in nome_limpo or 'ilha' in nome_limpo or 'workstation' in nome_limpo or 'setup' in nome_limpo: return False
             
-            # 🚨 MURALHA ANTI-MOUSEPAD E ACESSÓRIOS DE MOUSE
             if 'mouse' in termo_limpo:
                 if 'mousepad' in nome_limpo or 'mouse pad' in nome_limpo or 'bungee' in nome_limpo or 'grip tape' in nome_limpo or 'skate' in nome_limpo or 'feet' in nome_limpo:
                     return False
@@ -246,21 +244,27 @@ def escanear_mercado_completo(termo_busca):
                 if len(nomes_kabum) == 0: break
                 
                 for nome_el, preco_el in zip(nomes_kabum, precos_kabum):
-                    nome = nome_el.get_attribute('textContent').strip()
-                    if not produto_eh_valido(nome, termo_busca): continue
+                    nome_completo = nome_el.get_attribute('textContent').strip()
+                    if not produto_eh_valido(nome_completo, termo_busca): continue
                     
                     preco_texto = preco_el.get_attribute('textContent')
                     match = re.search(r'R\$?\s*([\d\.]+,\d{2})', preco_texto)
                     
                     if match:
                         preco_limpo = match.group(1).replace('.', '').replace(',', '.')
-                        marca = extrair_marca(nome)
+                        marca = extrair_marca(nome_completo)
+                        
+                        # 🚨 CÓDIGO NOVO: Separador de Produto e Descrição
+                        partes_nome = re.split(r',\s*|;\s*|\s+-\s+', nome_completo, maxsplit=1)
+                        nome_curto = partes_nome[0].strip()
+                        descricao = partes_nome[1].strip() if len(partes_nome) > 1 else ""
                         
                         try: lista_produtos.append({
                             "Data": data_atual, 
                             "Loja": "Kabum",
                             "Marca": marca,
-                            "Produto": nome, 
+                            "Produto": nome_curto,          # Aqui entra o nome principal (ex: Ryzen 3 3200G)
+                            "Descrição": descricao,         # Aqui entra as especificações
                             "Preço (R$)": float(preco_limpo)
                         })
                         except: pass
@@ -280,21 +284,27 @@ def escanear_mercado_completo(termo_busca):
             precos_tera = navegador.find_elements(By.CSS_SELECTOR, '.product-item__new-price')
             
             for nome_el, preco_el in zip(nomes_tera, precos_tera):
-                nome = nome_el.get_attribute('textContent').strip()
-                if not produto_eh_valido(nome, termo_busca): continue
+                nome_completo = nome_el.get_attribute('textContent').strip()
+                if not produto_eh_valido(nome_completo, termo_busca): continue
                     
                 preco_texto = preco_el.get_attribute('textContent')
                 numeros_e_virgula = re.sub(r'[^\d,]', '', preco_texto)
                 
                 if numeros_e_virgula:
                     preco_limpo = numeros_e_virgula.replace(',', '.')
-                    marca = extrair_marca(nome)
+                    marca = extrair_marca(nome_completo)
+                    
+                    # 🚨 CÓDIGO NOVO: Separador de Produto e Descrição
+                    partes_nome = re.split(r',\s*|;\s*|\s+-\s+', nome_completo, maxsplit=1)
+                    nome_curto = partes_nome[0].strip()
+                    descricao = partes_nome[1].strip() if len(partes_nome) > 1 else ""
                     
                     try: lista_produtos.append({
                         "Data": data_atual, 
                         "Loja": "Terabyte",
                         "Marca": marca,
-                        "Produto": nome, 
+                        "Produto": nome_curto,          # Aqui entra o nome principal 
+                        "Descrição": descricao,         # Aqui entra as especificações
                         "Preço (R$)": float(preco_limpo)
                     })
                     except: pass
@@ -304,7 +314,9 @@ def escanear_mercado_completo(termo_busca):
         
         if len(lista_produtos) > 0:
             df_resultados = pd.DataFrame(lista_produtos)
-            df_resultados = df_resultados.drop_duplicates(subset=['Loja', 'Produto'], keep='first')
+            
+            # 🚨 CÓDIGO NOVO: Agora remove duplicados comparando Produto + Descrição para não apagar tamanhos/versões diferentes!
+            df_resultados = df_resultados.drop_duplicates(subset=['Loja', 'Produto', 'Descrição'], keep='first')
             df_resultados = df_resultados.sort_values(by="Preço (R$)", ascending=True).reset_index(drop=True)
             
             qtd_kabum = len(df_resultados[df_resultados['Loja'] == 'Kabum'])
@@ -320,4 +332,6 @@ def escanear_mercado_completo(termo_busca):
             }
         return None
     except Exception as e:
+        print(f"Erro crítico no WebDriver: {e}")
+        traceback.print_exc()
         return None
