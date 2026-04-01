@@ -33,10 +33,3 @@ Módulo 5: Motor de Previsão com Inteligência Artificial
 Previsão de Demanda: O Machine Learning analisa o histórico interno e os dados do mercado para prever o volume de vendas futuras de um hardware
 
 Intervalos de Confiança: O sistema fornece faixa segura (ex: "entre 140 e 160")
-
-
-Módulo 6: Sistema de Alertas Inteligentes
-
-Alerta (Estoque Baixo): Aviso visual se a IA prever que a demanda do próximo mês será maior do que a quantidade que a empresa posie 
-
-Alerta (Estoque parado): Aviso caso o estoque seja muito superior à previsão de vendas, sugere promoções
