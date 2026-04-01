@@ -234,7 +234,7 @@ def escanear_mercado_completo(termo_busca):
         # ================= 1. RASPANDO A KABUM =================
         try:
             for pagina in range(1, 6):  
-                url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number={pagina}&page_size=100"
+                url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number={pagina}&page_size=20"
                 navegador.get(url_kabum)
                 time.sleep(4) 
                 
