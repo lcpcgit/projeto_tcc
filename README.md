@@ -11,7 +11,7 @@ Módulo 2: Robô de Captura de Mercado (Web Scraping)
 
 Coleta Automatizada: Script rodando em segundo plano que acessa (ex: Kabum, Terabyte) para capturar o preço atualizado de hardwares específicos
 
-Armazenamento de Histórico Externo: Gravação diária dessa flutuação de preços globais no banco de dados para consulta da IA
+Armazenamento de Histórico Externo: Gravação semanal dessa flutuação de preços globais no banco de dados para consulta da IA
 
 
 Módulo 3: Ingestão, Tratamento e Exportação de Dados
@@ -34,9 +34,3 @@ Previsão de Demanda: O Machine Learning analisa o histórico interno e os dados
 
 Intervalos de Confiança: O sistema fornece faixa segura (ex: "entre 140 e 160")
 
-
-Módulo 6: Sistema de Alertas Inteligentes
-
-Alerta (Estoque Baixo): Aviso visual se a IA prever que a demanda do próximo mês será maior do que a quantidade que a empresa posie 
-
-Alerta (Estoque parado): Aviso caso o estoque seja muito superior à previsão de vendas, sugere promoções
