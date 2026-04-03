@@ -10,9 +10,11 @@ from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 import traceback
 
-def escanear_mercado_completo(termo_busca):
+# 🚨 CÓDIGO FINAL: Parâmetro salvar_no_banco e integração AWS ativada
+def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
     print(f"\n==================================================")
-    print(f"🤖 INICIANDO MEGA-SCANNER (ALTA PROFUNDIDADE) PARA: '{termo_busca}'")
+    print(f"🤖 INICIANDO MEGA-SCANNER PARA: '{termo_busca}'")
+    print(f"💾 Salvar na Nuvem AWS: {'SIM' if salvar_no_banco else 'NÃO'}")
     print(f"==================================================")
     
     try:
@@ -234,40 +236,44 @@ def escanear_mercado_completo(termo_busca):
         # ================= 1. RASPANDO A KABUM =================
         try:
             for pagina in range(1, 6):  
-                url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number={pagina}&page_size=20"
+                url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number={pagina}&page_size=100"
                 navegador.get(url_kabum)
                 time.sleep(4) 
                 
-                nomes_kabum = navegador.find_elements(By.CSS_SELECTOR, 'span.line-clamp-2.text-ellipsis')
-                precos_kabum = navegador.find_elements(By.XPATH, '//span[text()="R$"]/..')
+                for _ in range(8):
+                    navegador.execute_script("window.scrollBy(0, 800);")
+                    time.sleep(0.5)
                 
-                if len(nomes_kabum) == 0: break
+                cards_kabum = navegador.find_elements(By.CSS_SELECTOR, 'article.productCard')
+                if len(cards_kabum) == 0: break
                 
-                for nome_el, preco_el in zip(nomes_kabum, precos_kabum):
-                    nome_completo = nome_el.get_attribute('textContent').strip()
-                    if not produto_eh_valido(nome_completo, termo_busca): continue
-                    
-                    preco_texto = preco_el.get_attribute('textContent')
-                    match = re.search(r'R\$?\s*([\d\.]+,\d{2})', preco_texto)
-                    
-                    if match:
-                        preco_limpo = match.group(1).replace('.', '').replace(',', '.')
-                        marca = extrair_marca(nome_completo)
+                for card in cards_kabum:
+                    try:
+                        nome_el = card.find_element(By.CSS_SELECTOR, 'span.line-clamp-2.text-ellipsis')
+                        nome_completo = nome_el.get_attribute('textContent').strip()
+                        if not produto_eh_valido(nome_completo, termo_busca): continue
                         
-                        # 🚨 CÓDIGO NOVO: Separador de Produto e Descrição
-                        partes_nome = re.split(r',\s*|;\s*|\s+-\s+', nome_completo, maxsplit=1)
-                        nome_curto = partes_nome[0].strip()
-                        descricao = partes_nome[1].strip() if len(partes_nome) > 1 else ""
+                        preco_el = card.find_element(By.XPATH, './/span[contains(text(), "R$")]/..')
+                        preco_texto = preco_el.get_attribute('textContent')
+                        match = re.search(r'R\$?\s*([\d\.]+,\d{2})', preco_texto)
                         
-                        try: lista_produtos.append({
-                            "Data": data_atual, 
-                            "Loja": "Kabum",
-                            "Marca": marca,
-                            "Produto": nome_curto,          # Aqui entra o nome principal (ex: Ryzen 3 3200G)
-                            "Descrição": descricao,         # Aqui entra as especificações
-                            "Preço (R$)": float(preco_limpo)
-                        })
-                        except: pass
+                        if match:
+                            preco_limpo = match.group(1).replace('.', '').replace(',', '.')
+                            marca = extrair_marca(nome_completo)
+                            
+                            partes_nome = re.split(r',\s*|;\s*|\s+-\s+', nome_completo, maxsplit=1)
+                            nome_curto = partes_nome[0].strip()
+                            descricao = partes_nome[1].strip() if len(partes_nome) > 1 else ""
+                            
+                            lista_produtos.append({
+                                "Data": data_atual, 
+                                "Loja": "Kabum",
+                                "Marca": marca,
+                                "Produto": nome_curto,
+                                "Descrição": descricao,
+                                "Preço": float(preco_limpo)
+                            })
+                    except: pass
         except: pass
 
         # ================= 2. RASPANDO A TERABYTE =================
@@ -294,7 +300,6 @@ def escanear_mercado_completo(termo_busca):
                     preco_limpo = numeros_e_virgula.replace(',', '.')
                     marca = extrair_marca(nome_completo)
                     
-                    # 🚨 CÓDIGO NOVO: Separador de Produto e Descrição
                     partes_nome = re.split(r',\s*|;\s*|\s+-\s+', nome_completo, maxsplit=1)
                     nome_curto = partes_nome[0].strip()
                     descricao = partes_nome[1].strip() if len(partes_nome) > 1 else ""
@@ -303,9 +308,9 @@ def escanear_mercado_completo(termo_busca):
                         "Data": data_atual, 
                         "Loja": "Terabyte",
                         "Marca": marca,
-                        "Produto": nome_curto,          # Aqui entra o nome principal 
-                        "Descrição": descricao,         # Aqui entra as especificações
-                        "Preço (R$)": float(preco_limpo)
+                        "Produto": nome_curto,          
+                        "Descrição": descricao,         
+                        "Preço": float(preco_limpo)
                     })
                     except: pass
         except: pass
@@ -315,20 +320,56 @@ def escanear_mercado_completo(termo_busca):
         if len(lista_produtos) > 0:
             df_resultados = pd.DataFrame(lista_produtos)
             
-            # 🚨 CÓDIGO NOVO: Agora remove duplicados comparando Produto + Descrição para não apagar tamanhos/versões diferentes!
             df_resultados = df_resultados.drop_duplicates(subset=['Loja', 'Produto', 'Descrição'], keep='first')
-            df_resultados = df_resultados.sort_values(by="Preço (R$)", ascending=True).reset_index(drop=True)
+            df_resultados = df_resultados.sort_values(by="Preço", ascending=True).reset_index(drop=True)
+            
+            # ========================================================
+            # 🚨 INTEGRAÇÃO AWS: MOTOR DE INJEÇÃO SQL SERVER
+            # ========================================================
+            if salvar_no_banco:
+                try:
+                    from sqlalchemy import create_engine
+                    import urllib.parse
+                    
+                    print("☁️ Conectando ao banco de dados na AWS para salvar...")
+                    
+                    # Credenciais validadas
+                    endpoint_aws = "hardwares-tcc.cveowcsuansb.sa-east-1.rds.amazonaws.com"
+                    senha_aws = "milanhaverso2" 
+                    usuario_aws = "lcpctcc"
+                    
+                    # Formato seguro
+                    senha_codificada = urllib.parse.quote_plus(senha_aws)
+                    url_conexao = f"mssql+pyodbc://{usuario_aws}:{senha_codificada}@{endpoint_aws}/tcc_hardware?driver=ODBC+Driver+17+for+SQL+Server"
+                    engine = create_engine(url_conexao)
+                    
+                    # Injeta no banco e cria a tabela 'HistoricoPrecos' se ela não existir
+                    df_aws = df_resultados.rename(columns={
+                        'Data': 'DataCaptura',
+                        'Preço': 'Preco',
+                        'Descrição': 'Descricao'
+                    })
+                    
+                    df_aws.to_sql('HistoricoPrecos', con=engine, if_exists='append', index=False)
+                    print("✅ Sucesso: Tabela criada e atualizada na AWS!")
+                    
+                except Exception as aws_erro:
+                    print(f"❌ Erro ao tentar salvar na AWS: {aws_erro}")
+            # ========================================================
             
             qtd_kabum = len(df_resultados[df_resultados['Loja'] == 'Kabum'])
             qtd_terabyte = len(df_resultados[df_resultados['Loja'] == 'Terabyte'])
             
+            # Formata a coluna Preço para o output na tela ficar bonito
+            df_tela = df_resultados.rename(columns={'Preço': 'Preço (R$)'})
+            
             return {
-                "total_encontrados": len(df_resultados), 
+                "total_encontrados": len(df_tela), 
                 "total_kabum": qtd_kabum,       
                 "total_terabyte": qtd_terabyte, 
-                "preco_minimo": df_resultados["Preço (R$)"].min(), 
-                "preco_medio": df_resultados["Preço (R$)"].mean(),
-                "dados_completos": df_resultados, 
+                "preco_minimo": df_tela["Preço (R$)"].min(), 
+                "preco_medio": df_tela["Preço (R$)"].mean(),
+                "dados_completos": df_tela, 
             }
         return None
     except Exception as e:
