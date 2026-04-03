@@ -169,6 +169,51 @@ elif menu == "⚠️ Alertas de Estoque":
     st.title("⚠️ Alertas Inteligentes de Ruptura e Capital Parado")
     st.warning("⚠️ **ALERTA AMARELO: Estoque Encalhado!**\n\n**Produto:** Placa-Mãe B550\n**Estoque:** 200 unid.\n**Previsão IA:** 20 unid.")
 
+# ================= PÁGINA 4: GESTÃO DE DADOS =================
 elif menu == "📂 Gestão de Dados":
     st.title("📂 Ingestão, Limpeza e Tratamento")
-    st.file_uploader("Suba o arquivo CSV de vendas internas:", type=["csv"])
+    st.write("Módulo dedicado ao carregamento e padronização (Data Cleaning) do histórico de vendas da empresa.")
+    
+    st.info("💡 **Formato esperado do CSV:** O seu ficheiro deve conter as colunas de vendas (ex: Data, Produto, Quantidade, Preco).")
+    
+    arquivo_upload = st.file_uploader("Suba o arquivo CSV de vendas internas:", type=["csv"])
+    
+    if arquivo_upload is not None:
+        # 1. Ingestão dos Dados Brutos
+        df_interno = pd.read_csv(arquivo_upload)
+        
+        st.success("✅ Ficheiro carregado com sucesso!")
+        
+        st.write("### 🗄️ Dados Brutos (Raw Data)")
+        st.dataframe(df_interno, width='stretch')
+        
+        st.markdown("---")
+        st.write("### 🧹 Limpeza e Padronização de Dados")
+        st.write("Clique abaixo para higienizar a base de dados antes de a enviar para o Motor de Inteligência Artificial.")
+        
+        if st.button("⚙️ Executar Tratamento de Dados"):
+            with st.spinner("A aplicar algoritmos de limpeza..."):
+                import time
+                time.sleep(1) # Charme de carregamento
+                
+                # 2. Processo de ETL (Data Cleaning)
+                df_tratado = df_interno.copy()
+                
+                # Padronizar nomes de colunas (tira espaços, coloca primeira letra maiúscula)
+                df_tratado.columns = df_tratado.columns.str.title().str.strip()
+                
+                # Remover linhas completamente vazias que possam ter vindo do Excel
+                df_tratado = df_tratado.dropna(how='all')
+                
+                # Padronizar a coluna de Produtos (tudo em minúsculo e sem espaços sobrando)
+                if 'Produto' in df_tratado.columns:
+                    df_tratado['Produto'] = df_tratado['Produto'].str.lower().str.strip()
+                
+                # Guarda os dados limpos na memória do sistema
+                st.session_state['dados_internos'] = df_tratado
+                
+                st.write("#### ✨ Dados Tratados e Prontos para Análise")
+                st.dataframe(df_tratado, width='stretch')
+                
+                linhas_removidas = len(df_interno) - len(df_tratado)
+                st.success(f"Operação concluída! {linhas_removidas} linhas inválidas removidas. Nomenclatura de produtos padronizada.")
