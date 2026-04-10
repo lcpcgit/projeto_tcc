@@ -1,10 +1,17 @@
 import streamlit as st
 import pandas as pd
+import sys
+import os
 
-# 1. IMPORTAÇÃO CORRIGIDA: Agora importamos a função de busca!
-from bot_scraping import escanear_mercado_completo
+# 1. ENSINANDO O CAMINHO: Faz o Python olhar para a pasta principal do projeto
+pasta_principal = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(pasta_principal)
+
+# 2. IMPORTAÇÃO CORRIGIDA: Agora ele entra na pasta 'automacao' e pega o bot
+from automacao.bot_scraping import escanear_mercado_completo
 
 st.set_page_config(page_title="Hardware Preditivo AI", layout="wide")
+# ... (o resto do seu código continua igualzinho para baixo)
 
 # ================= MENU LATERAL =================
 st.sidebar.title("🤖 IA Hardware B2B")

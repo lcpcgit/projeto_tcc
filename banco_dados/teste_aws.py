@@ -1,11 +1,21 @@
 import pandas as pd
 from sqlalchemy import create_engine
 import urllib.parse
-from bot_scraping import escanear_mercado_completo
+import sys
+import os
 
-# 1. Fazemos a busca de um produto de teste com a chave de salvar LIGADA
+# 1. O "GPS" DO PYTHON: Faz o script olhar para a pasta principal do projeto
+pasta_principal = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(pasta_principal)
+
+# 2. IMPORTAÇÃO CORRIGIDA: Agora ele entra na pasta certa para pegar o robô
+from automacao.bot_scraping import escanear_mercado_completo
+
+# 3. Fazemos a busca de um produto de teste com a chave de salvar LIGADA
 print("Iniciando o teste de injeção na nuvem...")
 resultados = escanear_mercado_completo("rtx 5060", salvar_no_banco=True)
+
+# ... (o resto do seu código continua igualzinho para baixo)
 
 # 2. Vamos ler o banco de dados diretamente da AWS para provar que os dados chegaram lá!
 print("\n🔍 Lendo os dados diretamente do SQL Server na AWS para confirmação...")

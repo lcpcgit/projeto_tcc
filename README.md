@@ -33,4 +33,3 @@ Módulo 5: Motor de Previsão com Inteligência Artificial
 Previsão de Demanda: O Machine Learning analisa o histórico interno e os dados do mercado para prever o volume de vendas futuras de um hardware
 
 Intervalos de Confiança: O sistema fornece faixa segura (ex: "entre 140 e 160")
-

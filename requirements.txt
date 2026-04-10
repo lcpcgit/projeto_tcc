@@ -1,0 +1,17 @@
+# Manipulação de Dados
+pandas==2.2.1
+
+# Web Scraping e Automação
+selenium==4.18.1
+webdriver-manager==4.0.1
+
+# Banco de Dados
+SQLAlchemy==2.0.28
+pyodbc==5.1.0
+
+# Interface Gráfica 
+streamlit==1.32.2
+
+# Ajustes
+scikit-learn==1.4.1.post1
+plotly==5.20.0

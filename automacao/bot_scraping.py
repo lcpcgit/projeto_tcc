@@ -233,34 +233,56 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
             
         data_atual = datetime.now().strftime("%Y-%m-%d") 
         
-        # ================= 1. RASPANDO A KABUM =================
+# ================= 1. RASPANDO A KABUM ================
         try:
             for pagina in range(1, 6):  
                 url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number={pagina}&page_size=100"
+                print(f"\n🔍 [DEBUG KABUM] Acessando página {pagina}: {url_kabum}")
                 navegador.get(url_kabum)
-                time.sleep(4) 
+                time.sleep(5) # Tempo extra para o React carregar
                 
+                # Rolar a página para forçar o carregamento das imagens e preços (Lazy Load)
                 for _ in range(8):
                     navegador.execute_script("window.scrollBy(0, 800);")
                     time.sleep(0.5)
                 
-                cards_kabum = navegador.find_elements(By.CSS_SELECTOR, 'article.productCard')
-                if len(cards_kabum) == 0: break
+                # 🚀 A BALA DE PRATA: Procurando todos os links que apontam para um "/produto/"
+                cards_kabum = navegador.find_elements(By.XPATH, "//a[contains(@href, '/produto/')]")
+                
+                print(f"📦 [DEBUG KABUM] Foram encontrados {len(cards_kabum)} 'cartões' de produto na tela.")
+                
+                if len(cards_kabum) == 0: 
+                    print("⚠️ [DEBUG KABUM] Nenhum produto achado nesta página. Parando a busca na Kabum.")
+                    break
                 
                 for card in cards_kabum:
                     try:
-                        nome_el = card.find_element(By.CSS_SELECTOR, 'span.line-clamp-2.text-ellipsis')
+                        # Pega TODO o texto de dentro do link usando innerText
+                        texto_do_cartao = card.get_attribute('innerText').strip()
+                        
+                        # 🚀 Pegando o nome exato do produto
+                        nome_el = card.find_element(By.XPATH, ".//*[contains(@class, 'line-clamp')]")
                         nome_completo = nome_el.get_attribute('textContent').strip()
+                        
+                        # Passa no nosso filtro (elimina OpenBox, peças usadas, etc)
                         if not produto_eh_valido(nome_completo, termo_busca): continue
                         
-                        preco_el = card.find_element(By.XPATH, './/span[contains(text(), "R$")]/..')
-                        preco_texto = preco_el.get_attribute('textContent')
-                        match = re.search(r'R\$?\s*([\d\.]+,\d{2})', preco_texto)
+                        # 🧹 Limpador: Apaga as frases de parcelamento (ex: "10x de R$ 500,00")
+                        texto_sem_parcelas = re.sub(r'\b\d+x\s+de\s+(?:R\$?\s*)?\d{1,3}(?:\.\d{3})*,\d{2}', '', texto_do_cartao, flags=re.IGNORECASE)
                         
-                        if match:
-                            preco_limpo = match.group(1).replace('.', '').replace(',', '.')
+                        # O Regex Mágico: acha o preço real (R$ 5.400,00) no texto limpo
+                        precos_encontrados = re.findall(r'(\d{1,3}(?:\.\d{3})*,\d{2})', texto_sem_parcelas)
+                        
+                        if precos_encontrados:
+                            # Converte a lista de textos ['6.499,99', '5.411,70'] para números
+                            precos_numericos = [float(p.replace('.', '').replace(',', '.')) for p in precos_encontrados]
+                            
+                            # Pega sempre o menor preço (que será o valor à vista, pois apagamos as parcelas)
+                            preco_limpo = min(precos_numericos)
+                            
                             marca = extrair_marca(nome_completo)
                             
+                            # Corta o nome para ficar bonito na tabela
                             partes_nome = re.split(r',\s*|;\s*|\s+-\s+', nome_completo, maxsplit=1)
                             nome_curto = partes_nome[0].strip()
                             descricao = partes_nome[1].strip() if len(partes_nome) > 1 else ""
@@ -271,10 +293,13 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
                                 "Marca": marca,
                                 "Produto": nome_curto,
                                 "Descrição": descricao,
-                                "Preço": float(preco_limpo)
+                                "Preço": preco_limpo
                             })
-                    except: pass
-        except: pass
+                    except Exception as erro_card:
+                        # Se um produto der erro, o loop ignora ele e pula pro próximo
+                        pass
+        except Exception as erro_geral:
+            print(f"❌ [DEBUG KABUM] Erro fatal no bloco Kabum: {erro_geral}")
 
         # ================= 2. RASPANDO A TERABYTE =================
         try:
