@@ -48,7 +48,6 @@ menu = st.sidebar.radio(
 )
 
 # ================= PÁGINA 1: DASHBOARD =================
-# ================= PÁGINA 1: DASHBOARD =================
 if menu == "📊 Dashboard e Mercado":
     st.title("📊 Inteligência de Mercado: Scanner B2B")
     
@@ -60,14 +59,13 @@ if menu == "📊 Dashboard e Mercado":
     if not df_historico.empty:
         st.write("### 📈 Tendência de Preços na Concorrência")
         
-        # --- A GRANDE ATUALIZAÇÃO: RÁDIO DE SELEÇÃO DE VISÃO ---
         modo_visao = st.radio(
             "Selecione o Nível de Análise:", 
             ["🌐 Visão Geral (Média de Preços da Família)", "🔍 Visão Específica (Produto Exato)"],
             horizontal=True
         )
         
-        st.markdown("<br>", unsafe_allow_html=True) # Dá só um espacinho visual
+        st.markdown("<br>", unsafe_allow_html=True) 
         
         if modo_visao == "🌐 Visão Geral (Média de Preços da Família)":
             st.info("Aqui você digita a família da peça (Ex: RTX 5070, B650, RX 7600) e o sistema calcula a **média de preços** de todos os modelos daquela linha no dia.")
@@ -75,12 +73,13 @@ if menu == "📊 Dashboard e Mercado":
             familia_input = st.text_input("Digite a Família do Hardware:", value="rtx 5070")
             
             if familia_input:
-                # 1. Filtra a tabela onde o nome do produto contém a palavra digitada (ignorando maiúsculas/minúsculas)
                 df_filtrado = df_historico[df_historico['Produto'].str.contains(familia_input, case=False, na=False)]
                 
                 if not df_filtrado.empty:
-                    # 2. A MÁGICA DOS DADOS: Agrupa pelo Dia e pela Loja, e calcula a MÉDIA do preço
                     df_agrupado = df_filtrado.groupby(['DataCaptura', 'Loja'])['Preco'].mean().reset_index()
+                    
+                    # 🚀 CRIA O RÓTULO FORMATADO (Ex: R$ 5.400,00)
+                    df_agrupado['Preco_Label'] = df_agrupado['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                     
                     fig = px.line(
                         df_agrupado, 
@@ -88,11 +87,14 @@ if menu == "📊 Dashboard e Mercado":
                         y="Preco", 
                         color="Loja", 
                         markers=True, 
+                        text="Preco_Label", # 🚀 Pendura o texto no gráfico
                         title=f"Média de Mercado da Família: {familia_input.upper()}",
                         labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Loja": "Loja Monitorada"}
                     )
                     
-                    # 🚀 CORREÇÃO DO EIXO X: Mostra apenas Dia/Mês/Ano
+                    # 🚀 COLOCA O TEXTO EM CIMA DO PONTO E FORMATA A DATA
+                    fig.update_traces(textposition="top center")
+                    fig.update_layout(yaxis=dict(range=[df_agrupado['Preco'].min() * 0.9, df_agrupado['Preco'].max() * 1.1])) # Dá um espaço extra no teto do gráfico
                     fig.update_xaxes(tickformat="%d/%m/%Y")
                     
                     st.plotly_chart(fig, use_container_width=True)
@@ -110,7 +112,10 @@ if menu == "📊 Dashboard e Mercado":
                 lista_produtos
             )
             
-            df_filtrado = df_historico[df_historico['Produto'] == produto_escolhido]
+            df_filtrado = df_historico[df_historico['Produto'] == produto_escolhido].copy()
+            
+            # 🚀 CRIA O RÓTULO FORMATADO PARA A VISÃO ESPECÍFICA
+            df_filtrado['Preco_Label'] = df_filtrado['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             
             fig = px.line(
                 df_filtrado, 
@@ -118,11 +123,14 @@ if menu == "📊 Dashboard e Mercado":
                 y="Preco", 
                 color="Loja", 
                 markers=True, 
+                text="Preco_Label", # 🚀 Pendura o texto no gráfico
                 title=f"Histórico Específico: {produto_escolhido}",
                 labels={"DataCaptura": "Data da Extração", "Preco": "Preço à Vista (R$)", "Loja": "Loja Monitorada"}
             )
             
-            # 🚀 CORREÇÃO DO EIXO X: Mostra apenas Dia/Mês/Ano
+            # 🚀 COLOCA O TEXTO EM CIMA DO PONTO E FORMATA A DATA
+            fig.update_traces(textposition="top center")
+            fig.update_layout(yaxis=dict(range=[df_filtrado['Preco'].min() * 0.9, df_filtrado['Preco'].max() * 1.1])) # Espaço extra no teto
             fig.update_xaxes(tickformat="%d/%m/%Y")
             
             st.plotly_chart(fig, use_container_width=True)
