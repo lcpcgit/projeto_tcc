@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import sys
 import os
+import plotly.express as px
+from sqlalchemy import create_engine
+import urllib.parse
 
 # 1. ENSINANDO O CAMINHO: Faz o Python olhar para a pasta principal do projeto
 pasta_principal = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -11,7 +14,27 @@ sys.path.append(pasta_principal)
 from automacao.bot_scraping import escanear_mercado_completo
 
 st.set_page_config(page_title="Hardware Preditivo AI", layout="wide")
-# ... (o resto do seu código continua igualzinho para baixo)
+
+# ================= FUNÇÕES DE DADOS =================
+@st.cache_data(ttl=600) 
+def carregar_dados_aws():
+    endpoint_aws = "hardwares-tcc.cveowcsuansb.sa-east-1.rds.amazonaws.com"
+    senha_aws = urllib.parse.quote_plus("milanhaverso2")
+    usuario_aws = "lcpctcc"
+    url_conexao = f"mssql+pyodbc://{usuario_aws}:{senha_aws}@{endpoint_aws}/tcc_hardware?driver=ODBC+Driver+17+for+SQL+Server"
+    
+    try:
+        engine = create_engine(url_conexao)
+        # Traz apenas as colunas que importam para o gráfico
+        df = pd.read_sql("SELECT DataCaptura, Loja, Produto, Preco FROM HistoricoPrecos", engine)
+        
+        # Garante que o Pandas entenda a coluna como "Tempo" para o gráfico ficar ordenado
+        df['DataCaptura'] = pd.to_datetime(df['DataCaptura']) 
+        df = df.sort_values('DataCaptura')
+        return df
+    except Exception as e:
+        st.error(f"Erro ao conectar na AWS: {e}")
+        return pd.DataFrame()
 
 # ================= MENU LATERAL =================
 st.sidebar.title("🤖 IA Hardware B2B")
@@ -25,45 +48,107 @@ menu = st.sidebar.radio(
 )
 
 # ================= PÁGINA 1: DASHBOARD =================
+# ================= PÁGINA 1: DASHBOARD =================
 if menu == "📊 Dashboard e Mercado":
     st.title("📊 Inteligência de Mercado: Scanner B2B")
     
-    st.write("Acompanhe o histórico do preço praticado pela nossa loja vs. o mercado.")
-    dados_mock = pd.DataFrame({
-        'Mês': ['Jan', 'Fev', 'Mar', 'Abr', 'Mai'],
-        'Nosso Preço Médio': [1600, 1550, 1500, 1450, 1450],
-        'Mercado (Média)': [1550, 1500, 1400, 1399, 1399]
-    }).set_index('Mês')
-    st.line_chart(dados_mock)
+    st.write("Acompanhe o histórico de preços reais praticados pelos maiores e-commerces (Kabum e Terabyte).")
     
-    st.markdown("---")
+    # Chama a nossa função para pegar os dados da AWS
+    df_historico = carregar_dados_aws()
     
-    # --- SECÇÃO DO ROBÔ ATUALIZADA ---
+    if not df_historico.empty:
+        st.write("### 📈 Tendência de Preços na Concorrência")
+        
+        # --- A GRANDE ATUALIZAÇÃO: RÁDIO DE SELEÇÃO DE VISÃO ---
+        modo_visao = st.radio(
+            "Selecione o Nível de Análise:", 
+            ["🌐 Visão Geral (Média de Preços da Família)", "🔍 Visão Específica (Produto Exato)"],
+            horizontal=True
+        )
+        
+        st.markdown("<br>", unsafe_allow_html=True) # Dá só um espacinho visual
+        
+        if modo_visao == "🌐 Visão Geral (Média de Preços da Família)":
+            st.info("Aqui você digita a família da peça (Ex: RTX 5070, B650, RX 7600) e o sistema calcula a **média de preços** de todos os modelos daquela linha no dia.")
+            
+            familia_input = st.text_input("Digite a Família do Hardware:", value="rtx 5070")
+            
+            if familia_input:
+                # 1. Filtra a tabela onde o nome do produto contém a palavra digitada (ignorando maiúsculas/minúsculas)
+                df_filtrado = df_historico[df_historico['Produto'].str.contains(familia_input, case=False, na=False)]
+                
+                if not df_filtrado.empty:
+                    # 2. A MÁGICA DOS DADOS: Agrupa pelo Dia e pela Loja, e calcula a MÉDIA do preço
+                    df_agrupado = df_filtrado.groupby(['DataCaptura', 'Loja'])['Preco'].mean().reset_index()
+                    
+                    fig = px.line(
+                        df_agrupado, 
+                        x="DataCaptura", 
+                        y="Preco", 
+                        color="Loja", 
+                        markers=True, 
+                        title=f"Média de Mercado da Família: {familia_input.upper()}",
+                        labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Loja": "Loja Monitorada"}
+                    )
+                    
+                    # 🚀 CORREÇÃO DO EIXO X: Mostra apenas Dia/Mês/Ano
+                    fig.update_xaxes(tickformat="%d/%m/%Y")
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.warning(f"O sistema ainda não possui dados históricos para a família '{familia_input}'.")
+                    
+        else:
+            # --- A LÓGICA ANTIGA (VISÃO ESPECÍFICA) ---
+            st.info("Aqui você seleciona o modelo **exato** para analisar o preço dele.")
+            
+            lista_produtos = sorted(df_historico['Produto'].unique())
+            
+            produto_escolhido = st.selectbox(
+                "Escolha o Hardware específico na base de dados:", 
+                lista_produtos
+            )
+            
+            df_filtrado = df_historico[df_historico['Produto'] == produto_escolhido]
+            
+            fig = px.line(
+                df_filtrado, 
+                x="DataCaptura", 
+                y="Preco", 
+                color="Loja", 
+                markers=True, 
+                title=f"Histórico Específico: {produto_escolhido}",
+                labels={"DataCaptura": "Data da Extração", "Preco": "Preço à Vista (R$)", "Loja": "Loja Monitorada"}
+            )
+            
+            # 🚀 CORREÇÃO DO EIXO X: Mostra apenas Dia/Mês/Ano
+            fig.update_xaxes(tickformat="%d/%m/%Y")
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+    else:
+        st.warning("Aguardando dados da nuvem AWS...")
+    # --- SECÇÃO DO ROBÔ DE BUSCA ---
     st.subheader("🤖 Scanner de Mercado em Tempo Real")
     st.write("Pesquise um componente para varrer os preços atuais da concorrência e calcular a média de mercado.")
     
-    # Novo input: agora o gestor digita apenas o nome da peça!
     termo_input = st.text_input("Buscar Hardware no Mercado (Ex: gtx 1660, rtx 4060, ryzen 5):", value="gtx 1660")
     
     if st.button("🔍 Escanear Mercado Agora"):
         with st.spinner(f"O robô está a varrer as lojas à procura de '{termo_input}'..."):
             
-            # Chama a NOVA função
             resultado_robo = escanear_mercado_completo(termo_input)
             
             if resultado_robo:
                 st.success(f"✅ Varredura concluída! Foram encontrados {resultado_robo['total_encontrados']} modelos compatíveis.")
                 
-                # -------------------------------------------------------------
-                # OS NOVOS CONTADORES POR LOJA
-                # -------------------------------------------------------------
                 st.write("### 🏪 Distribuição de Estoque por Loja")
                 col_k, col_t = st.columns(2)
                 col_k.metric("🥷 Kabum", f"{resultado_robo['total_kabum']} produtos")
                 col_t.metric("🦖 Terabyte", f"{resultado_robo['total_terabyte']} produtos")
                 st.markdown("---")
                 
-                # Exibindo os cálculos de preço que já tínhamos
                 st.write("### 💰 Análise de Preços")
                 col1, col2, col3 = st.columns(3)
                 col1.metric("Preço Médio (Mercado)", f"R$ {resultado_robo['preco_medio']:.2f}")
@@ -74,7 +159,6 @@ if menu == "📊 Dashboard e Mercado":
                 st.write("### 📋 Tabela de Produtos Raspados")
                 st.write("Abaixo está a base de dados bruta extraída pelo robô neste exato segundo:")
                 
-                # A NOVA TABELA FORMATADA
                 st.dataframe(
                     resultado_robo['dados_completos'], 
                     width='stretch',
@@ -94,9 +178,8 @@ elif menu == "🔮 Previsão de IA":
     st.title("🔮 Motor de Previsão de Vendas (Machine Learning)")
     st.write("Treinando o algoritmo Random Forest com dados históricos para prever a demanda futura.")
     
-    # Imports necessários para a IA (pode colocá-los lá no topo do ficheiro depois, se preferir)
     import numpy as np
-    import plotly.express as px # Biblioteca linda para gráficos interativos
+    import plotly.express as px
     import time
 
     produto_ia = st.selectbox("Selecione o Hardware para Análise Preditiva:", ["GTX 1660", "RTX 4060", "RX 7600"])
@@ -104,35 +187,27 @@ elif menu == "🔮 Previsão de IA":
     
     if st.button("🚀 Treinar IA e Gerar Previsão"):
         with st.spinner("Treinando o modelo Random Forest com 12 meses de histórico..."):
-            time.sleep(1.5) # Charme de carregamento
+            time.sleep(1.5) 
             
             try:
                 from sklearn.ensemble import RandomForestRegressor
                 
-                # 1. CRIANDO O HISTÓRICO FALSO (Até ter o SQL Server)
-                # Vamos simular que quanto menor o preço, mais placas vendemos.
-                meses_historico = np.arange(1, 13).reshape(-1, 1) # Meses de 1 a 12
+                meses_historico = np.arange(1, 13).reshape(-1, 1) 
                 precos_historico = np.array([1600, 1580, 1620, 1500, 1450, 1400, 1380, 1420, 1450, 1480, 1500, 1490])
                 vendas_historico = np.array([80, 85, 70, 100, 120, 130, 140, 110, 100, 95, 90, 92])
                 
-                # 2. PREPARANDO OS DADOS PARA A IA
-                # A IA vai aprender olhando para: [Mês, Preço Médio] -> Para prever: [Vendas]
                 X_treino = np.column_stack((meses_historico, precos_historico))
                 y_treino = vendas_historico
                 
-                # 3. TREINANDO O ALGORITMO (O Coração do seu TCC)
                 modelo_ia = RandomForestRegressor(n_estimators=100, random_state=42)
                 modelo_ia.fit(X_treino, y_treino)
                 
-                # 4. FAZENDO A PREVISÃO
                 mes_futuro = 13 if mes_alvo == "Próximo Mês (Mês 13)" else 14
-                preco_estimado = 1450 # Preço médio que esperamos praticar
+                preco_estimado = 1450 
                 
-                # A IA faz a mágica aqui:
                 previsao_ia = modelo_ia.predict([[mes_futuro, preco_estimado]])[0]
                 previsao_arredondada = int(previsao_ia)
                 
-                # 5. EXIBINDO OS RESULTADOS COM ESTILO
                 st.success(f"✅ Treinamento concluído! A Inteligência Artificial analisou os padrões de '{produto_ia}'.")
                 
                 st.markdown("### Cenários Projetados (Margem de Confiança)")
@@ -144,7 +219,6 @@ elif menu == "🔮 Previsão de IA":
                 st.markdown("---")
                 st.markdown("### 📊 Gráfico de Tendência (Histórico vs. Previsão)")
                 
-                # Juntando o passado com o futuro para desenhar o gráfico
                 meses_grafico = list(range(1, 13)) + [mes_futuro]
                 vendas_grafico = list(vendas_historico) + [previsao_arredondada]
                 tipo_dado = ['Histórico Real'] * 12 + ['Previsão IA']
@@ -155,7 +229,6 @@ elif menu == "🔮 Previsão de IA":
                     "Tipo": tipo_dado
                 })
                 
-                # Desenha um gráfico interativo no Streamlit
                 fig = px.line(df_grafico, x="Mês", y="Unidades Vendidas", color="Tipo", markers=True, title="Comportamento de Vendas")
                 st.plotly_chart(fig, use_container_width=True)
                 
@@ -163,14 +236,7 @@ elif menu == "🔮 Previsão de IA":
                 
             except ImportError:
                 st.error("🚨 **Erro Crítico de IA:** A biblioteca Scikit-Learn não foi encontrada!")
-                st.markdown("""
-                Para resolver isso, você precisa instalar a biblioteca no mesmo terminal onde roda o Streamlit.
-                
-                Pare o Streamlit (Ctrl+C no terminal) e digite este comando:
-                `pip install scikit-learn`
-                
-                Depois, inicie o Streamlit novamente.
-                """)
+                st.markdown("Pare o Streamlit (Ctrl+C no terminal) e digite: `pip install scikit-learn`")
 
 elif menu == "⚠️ Alertas de Estoque":
     st.title("⚠️ Alertas Inteligentes de Ruptura e Capital Parado")
@@ -186,9 +252,7 @@ elif menu == "📂 Gestão de Dados":
     arquivo_upload = st.file_uploader("Suba o arquivo CSV de vendas internas:", type=["csv"])
     
     if arquivo_upload is not None:
-        # 1. Ingestão dos Dados Brutos
         df_interno = pd.read_csv(arquivo_upload)
-        
         st.success("✅ Ficheiro carregado com sucesso!")
         
         st.write("### 🗄️ Dados Brutos (Raw Data)")
@@ -201,22 +265,15 @@ elif menu == "📂 Gestão de Dados":
         if st.button("⚙️ Executar Tratamento de Dados"):
             with st.spinner("A aplicar algoritmos de limpeza..."):
                 import time
-                time.sleep(1) # Charme de carregamento
+                time.sleep(1) 
                 
-                # 2. Processo de ETL (Data Cleaning)
                 df_tratado = df_interno.copy()
-                
-                # Padronizar nomes de colunas (tira espaços, coloca primeira letra maiúscula)
                 df_tratado.columns = df_tratado.columns.str.title().str.strip()
-                
-                # Remover linhas completamente vazias que possam ter vindo do Excel
                 df_tratado = df_tratado.dropna(how='all')
                 
-                # Padronizar a coluna de Produtos (tudo em minúsculo e sem espaços sobrando)
                 if 'Produto' in df_tratado.columns:
                     df_tratado['Produto'] = df_tratado['Produto'].str.lower().str.strip()
                 
-                # Guarda os dados limpos na memória do sistema
                 st.session_state['dados_internos'] = df_tratado
                 
                 st.write("#### ✨ Dados Tratados e Prontos para Análise")
