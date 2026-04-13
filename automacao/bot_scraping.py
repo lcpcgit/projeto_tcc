@@ -235,8 +235,8 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
         
 # ================= 1. RASPANDO A KABUM ================
         try:
-            for pagina in range(1, 6):  
-                url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number={pagina}&page_size=100"
+            for pagina in range(1, 3):  
+                url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number={pagina}&page_size=20"
                 print(f"\n🔍 [DEBUG KABUM] Acessando página {pagina}: {url_kabum}")
                 navegador.get(url_kabum)
                 time.sleep(5) # Tempo extra para o React carregar
