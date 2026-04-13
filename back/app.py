@@ -114,6 +114,29 @@ if menu == "📊 Dashboard e Mercado":
             
             df_filtrado = df_historico[df_historico['Produto'] == produto_escolhido].copy()
             
+            # --- CORREÇÃO DO ERRO ---
+            # Só tenta formatar o texto do Rótulo se a tabela não estiver vazia
+            if not df_filtrado.empty:
+                df_filtrado['Preco_Label'] = df_filtrado['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                
+                fig = px.line(
+                    df_filtrado, 
+                    x="DataCaptura", 
+                    y="Preco", 
+                    color="Loja", 
+                    markers=True, 
+                    text="Preco_Label", # Pendura o texto no gráfico
+                    title=f"Histórico Específico: {produto_escolhido}",
+                    labels={"DataCaptura": "Data da Extração", "Preco": "Preço à Vista (R$)", "Loja": "Loja Monitorada"}
+                )
+                
+                fig.update_traces(textposition="top center")
+                fig.update_layout(yaxis=dict(range=[df_filtrado['Preco'].min() * 0.9, df_filtrado['Preco'].max() * 1.1]))
+                fig.update_xaxes(tickformat="%d/%m/%Y")
+                
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("Sem dados suficientes para gerar o gráfico deste produto específico.")
             # 🚀 CRIA O RÓTULO FORMATADO PARA A VISÃO ESPECÍFICA
             df_filtrado['Preco_Label'] = df_filtrado['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             
