@@ -1,6 +1,10 @@
 import time
 from datetime import datetime
 from bot_scraping import escanear_mercado_completo
+import requests
+import pandas as pd
+from sqlalchemy import create_engine
+import urllib.parse
 
 # 1. A Lista Oficial de Peças para o seu TCC (Pode adicionar ou remover as que quiser)
 # 1. A Lista Oficial de Peças para o seu TCC (Focada em alto volume de vendas)
@@ -188,6 +192,47 @@ pecas_para_monitorar = [
     "notebook core i5",
     "notebook gamer",
 ]
+def registrar_dolar_do_dia():
+    print("\n==================================================")
+    print("💵 INICIANDO CAPTURA DO DÓLAR (API BANCÁRIA)")
+    print("==================================================")
+    try:
+        # 1. Bate na porta da API pública de moedas
+        resposta = requests.get("https://economia.awesomeapi.com.br/last/USD-BRL")
+        dados = resposta.json()
+        
+        # 2. Extrai o valor de compra (bid)
+        valor_dolar = float(dados['USDBRL']['bid'])
+        data_hoje = datetime.now().strftime("%Y-%m-%d")
+        
+        print(f"💰 Dólar Hoje ({data_hoje}): R$ {valor_dolar:.2f}")
+        
+        # 3. Prepara a mini-tabela do Pandas
+        df_dolar = pd.DataFrame({
+            "DataCaptura": [data_hoje],
+            "ValorDolar": [valor_dolar]
+        })
+        
+        # 4. Injeta na nova tabela da AWS
+        endpoint_aws = "hardwares-tcc.cveowcsuansb.sa-east-1.rds.amazonaws.com"
+        senha_aws = urllib.parse.quote_plus("milanhaverso2")
+        usuario_aws = "lcpctcc"
+        url_conexao = f"mssql+pyodbc://{usuario_aws}:{senha_aws}@{endpoint_aws}/tcc_hardware?driver=ODBC+Driver+17+for+SQL+Server"
+        
+        engine = create_engine(url_conexao)
+        
+        # if_exists='append' vai criar a tabela HistoricoDolar na AWS se ela não existir!
+        df_dolar.to_sql('HistoricoDolar', con=engine, if_exists='append', index=False)
+        print("✅ Dólar salvo na nuvem AWS com sucesso!")
+        
+    except Exception as e:
+        print(f"❌ Erro ao capturar/salvar o dólar: {e}")
+
+# =========================================================
+# CHAMA A FUNÇÃO DO DÓLAR ANTES DE COMEÇAR O SCRAPING
+# =========================================================
+registrar_dolar_do_dia()
+
 print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 🚀 INICIANDO ROTINA DE EXTRAÇÃO SEMANAL...")
 print(f"Total de itens a pesquisar: {len(pecas_para_monitorar)}")
 
