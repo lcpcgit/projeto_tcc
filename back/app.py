@@ -1,17 +1,8 @@
 import streamlit as st
 import pandas as pd
-import sys
-import os
 import plotly.express as px
 from sqlalchemy import create_engine
 import urllib.parse
-
-# 1. ENSINANDO O CAMINHO: Faz o Python olhar para a pasta principal do projeto
-pasta_principal = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.append(pasta_principal)
-
-# 2. IMPORTAÇÃO CORRIGIDA: Agora ele entra na pasta 'automacao' e pega o bot
-from automacao.bot_scraping import escanear_mercado_completo
 
 st.set_page_config(page_title="Hardware Preditivo AI", layout="wide")
 
@@ -43,8 +34,7 @@ menu = st.sidebar.radio(
     "Navegação do Sistema:",
     ["📊 Dashboard e Mercado", 
      "🔮 Previsão de IA", 
-     "⚠️ Alertas de Estoque", 
-     "📂 Gestão de Dados"]
+     "📂 Gestão de Dados"] # Gestão de Dados voltou, Alertas removidos!
 )
 
 # ================= PÁGINA 1: DASHBOARD =================
@@ -78,7 +68,7 @@ if menu == "📊 Dashboard e Mercado":
                 if not df_filtrado.empty:
                     df_agrupado = df_filtrado.groupby(['DataCaptura', 'Loja'])['Preco'].mean().reset_index()
                     
-                    # 🚀 CRIA O RÓTULO FORMATADO (Ex: R$ 5.400,00)
+                    # CRIA O RÓTULO FORMATADO (Ex: R$ 5.400,00)
                     df_agrupado['Preco_Label'] = df_agrupado['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                     
                     fig = px.line(
@@ -87,14 +77,13 @@ if menu == "📊 Dashboard e Mercado":
                         y="Preco", 
                         color="Loja", 
                         markers=True, 
-                        text="Preco_Label", # 🚀 Pendura o texto no gráfico
+                        text="Preco_Label", 
                         title=f"Média de Mercado da Família: {familia_input.upper()}",
                         labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Loja": "Loja Monitorada"}
                     )
                     
-                    # 🚀 COLOCA O TEXTO EM CIMA DO PONTO E FORMATA A DATA
                     fig.update_traces(textposition="top center")
-                    fig.update_layout(yaxis=dict(range=[df_agrupado['Preco'].min() * 0.9, df_agrupado['Preco'].max() * 1.1])) # Dá um espaço extra no teto do gráfico
+                    fig.update_layout(yaxis=dict(range=[df_agrupado['Preco'].min() * 0.9, df_agrupado['Preco'].max() * 1.1])) 
                     fig.update_xaxes(tickformat="%d/%m/%Y")
                     
                     st.plotly_chart(fig, use_container_width=True)
@@ -102,7 +91,7 @@ if menu == "📊 Dashboard e Mercado":
                     st.warning(f"O sistema ainda não possui dados históricos para a família '{familia_input}'.")
                     
         else:
-            # --- A LÓGICA ANTIGA (VISÃO ESPECÍFICA) ---
+            # --- VISÃO ESPECÍFICA ---
             st.info("Aqui você seleciona o modelo **exato** para analisar o preço dele.")
             
             lista_produtos = sorted(df_historico['Produto'].unique())
@@ -114,8 +103,6 @@ if menu == "📊 Dashboard e Mercado":
             
             df_filtrado = df_historico[df_historico['Produto'] == produto_escolhido].copy()
             
-            # --- CORREÇÃO DO ERRO ---
-            # Só tenta formatar o texto do Rótulo se a tabela não estiver vazia
             if not df_filtrado.empty:
                 df_filtrado['Preco_Label'] = df_filtrado['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                 
@@ -125,7 +112,7 @@ if menu == "📊 Dashboard e Mercado":
                     y="Preco", 
                     color="Loja", 
                     markers=True, 
-                    text="Preco_Label", # Pendura o texto no gráfico
+                    text="Preco_Label",
                     title=f"Histórico Específico: {produto_escolhido}",
                     labels={"DataCaptura": "Data da Extração", "Preco": "Preço à Vista (R$)", "Loja": "Loja Monitorada"}
                 )
@@ -137,80 +124,16 @@ if menu == "📊 Dashboard e Mercado":
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.warning("Sem dados suficientes para gerar o gráfico deste produto específico.")
-            # 🚀 CRIA O RÓTULO FORMATADO PARA A VISÃO ESPECÍFICA
-            df_filtrado['Preco_Label'] = df_filtrado['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-            
-            fig = px.line(
-                df_filtrado, 
-                x="DataCaptura", 
-                y="Preco", 
-                color="Loja", 
-                markers=True, 
-                text="Preco_Label", # 🚀 Pendura o texto no gráfico
-                title=f"Histórico Específico: {produto_escolhido}",
-                labels={"DataCaptura": "Data da Extração", "Preco": "Preço à Vista (R$)", "Loja": "Loja Monitorada"}
-            )
-            
-            # 🚀 COLOCA O TEXTO EM CIMA DO PONTO E FORMATA A DATA
-            fig.update_traces(textposition="top center")
-            fig.update_layout(yaxis=dict(range=[df_filtrado['Preco'].min() * 0.9, df_filtrado['Preco'].max() * 1.1])) # Espaço extra no teto
-            fig.update_xaxes(tickformat="%d/%m/%Y")
-            
-            st.plotly_chart(fig, use_container_width=True)
             
     else:
         st.warning("Aguardando dados da nuvem AWS...")
-    # --- SECÇÃO DO ROBÔ DE BUSCA ---
-    st.subheader("🤖 Scanner de Mercado em Tempo Real")
-    st.write("Pesquise um componente para varrer os preços atuais da concorrência e calcular a média de mercado.")
-    
-    termo_input = st.text_input("Buscar Hardware no Mercado (Ex: gtx 1660, rtx 4060, ryzen 5):", value="gtx 1660")
-    
-    if st.button("🔍 Escanear Mercado Agora"):
-        with st.spinner(f"O robô está a varrer as lojas à procura de '{termo_input}'..."):
-            
-            resultado_robo = escanear_mercado_completo(termo_input)
-            
-            if resultado_robo:
-                st.success(f"✅ Varredura concluída! Foram encontrados {resultado_robo['total_encontrados']} modelos compatíveis.")
-                
-                st.write("### 🏪 Distribuição de Estoque por Loja")
-                col_k, col_t = st.columns(2)
-                col_k.metric("🥷 Kabum", f"{resultado_robo['total_kabum']} produtos")
-                col_t.metric("🦖 Terabyte", f"{resultado_robo['total_terabyte']} produtos")
-                st.markdown("---")
-                
-                st.write("### 💰 Análise de Preços")
-                col1, col2, col3 = st.columns(3)
-                col1.metric("Preço Médio (Mercado)", f"R$ {resultado_robo['preco_medio']:.2f}")
-                col2.metric("Menor Preço Encontrado", f"R$ {resultado_robo['preco_minimo']:.2f}")
-                col3.metric("O Nosso Preço (Fictício)", "R$ 1.450,00", f"{resultado_robo['preco_medio'] - 1450:.2f} diferença")
-                
-                st.markdown("---")
-                st.write("### 📋 Tabela de Produtos Raspados")
-                st.write("Abaixo está a base de dados bruta extraída pelo robô neste exato segundo:")
-                
-                st.dataframe(
-                    resultado_robo['dados_completos'], 
-                    width='stretch',
-                    column_config={
-                        "Preço (R$)": st.column_config.NumberColumn(
-                            "Preço de Mercado",
-                            help="Preço convertido para reais",
-                            format="R$ %.2f"
-                        )
-                    }
-                )
-            else:
-                st.error("❌ O robô não conseguiu encontrar dados. Verifique o terminal para erros de HTML.")
 
-# ================= OUTRAS PÁGINAS (Mantidas iguais) =================
+# ================= PÁGINA 2: PREVISÃO DE IA =================
 elif menu == "🔮 Previsão de IA":
     st.title("🔮 Motor de Previsão de Vendas (Machine Learning)")
     st.write("Treinando o algoritmo Random Forest com dados históricos para prever a demanda futura.")
     
     import numpy as np
-    import plotly.express as px
     import time
 
     produto_ia = st.selectbox("Selecione o Hardware para Análise Preditiva:", ["GTX 1660", "RTX 4060", "RX 7600"])
@@ -269,11 +192,7 @@ elif menu == "🔮 Previsão de IA":
                 st.error("🚨 **Erro Crítico de IA:** A biblioteca Scikit-Learn não foi encontrada!")
                 st.markdown("Pare o Streamlit (Ctrl+C no terminal) e digite: `pip install scikit-learn`")
 
-elif menu == "⚠️ Alertas de Estoque":
-    st.title("⚠️ Alertas Inteligentes de Ruptura e Capital Parado")
-    st.warning("⚠️ **ALERTA AMARELO: Estoque Encalhado!**\n\n**Produto:** Placa-Mãe B550\n**Estoque:** 200 unid.\n**Previsão IA:** 20 unid.")
-
-# ================= PÁGINA 4: GESTÃO DE DADOS =================
+# ================= PÁGINA 3: GESTÃO DE DADOS =================
 elif menu == "📂 Gestão de Dados":
     st.title("📂 Ingestão, Limpeza e Tratamento")
     st.write("Módulo dedicado ao carregamento e padronização (Data Cleaning) do histórico de vendas da empresa.")
