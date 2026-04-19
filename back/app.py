@@ -197,16 +197,28 @@ elif menu == "📂 Gestão de Dados":
     st.title("📂 Ingestão, Limpeza e Tratamento")
     st.write("Módulo dedicado ao carregamento e padronização (Data Cleaning) do histórico de vendas da empresa.")
     
+    # 🚀 Inicializa as variáveis na memória do Streamlit
+    if 'dados_brutos' not in st.session_state:
+        st.session_state['dados_brutos'] = None
+    if 'dados_tratados' not in st.session_state:
+        st.session_state['dados_tratados'] = None
+    if 'linhas_removidas' not in st.session_state:
+        st.session_state['linhas_removidas'] = 0
+
     st.info("💡 **Formato esperado do CSV:** O seu ficheiro deve conter as colunas de vendas (ex: Data, Produto, Quantidade, Preco).")
     
     arquivo_upload = st.file_uploader("Suba o arquivo CSV de vendas internas:", type=["csv"])
     
     if arquivo_upload is not None:
-        df_interno = pd.read_csv(arquivo_upload)
+        # Se subiu arquivo novo, guarda o bruto na memória e zera o tratado
+        st.session_state['dados_brutos'] = pd.read_csv(arquivo_upload)
+        st.session_state['dados_tratados'] = None
+    
+    if st.session_state['dados_brutos'] is not None:
         st.success("✅ Ficheiro carregado com sucesso!")
         
         st.write("### 🗄️ Dados Brutos (Raw Data)")
-        st.dataframe(df_interno, width='stretch')
+        st.dataframe(st.session_state['dados_brutos'], width='stretch')
         
         st.markdown("---")
         st.write("### 🧹 Limpeza e Padronização de Dados")
@@ -217,17 +229,26 @@ elif menu == "📂 Gestão de Dados":
                 import time
                 time.sleep(1) 
                 
-                df_tratado = df_interno.copy()
+                df_tratado = st.session_state['dados_brutos'].copy()
                 df_tratado.columns = df_tratado.columns.str.title().str.strip()
                 df_tratado = df_tratado.dropna(how='all')
                 
                 if 'Produto' in df_tratado.columns:
                     df_tratado['Produto'] = df_tratado['Produto'].str.lower().str.strip()
                 
-                st.session_state['dados_internos'] = df_tratado
+                # Guarda os dados tratados na memória
+                st.session_state['dados_tratados'] = df_tratado
+                st.session_state['linhas_removidas'] = len(st.session_state['dados_brutos']) - len(df_tratado)
                 
-                st.write("#### ✨ Dados Tratados e Prontos para Análise")
-                st.dataframe(df_tratado, width='stretch')
-                
-                linhas_removidas = len(df_interno) - len(df_tratado)
-                st.success(f"Operação concluída! {linhas_removidas} linhas inválidas removidas. Nomenclatura de produtos padronizada.")
+    # 🚀 Se os dados já foram tratados, exibe a tabela tratada (mesmo se mudar de aba)
+    if st.session_state['dados_tratados'] is not None:
+        st.write("#### ✨ Dados Tratados e Prontos para Análise")
+        st.dataframe(st.session_state['dados_tratados'], width='stretch')
+        
+        st.success(f"Operação concluída! {st.session_state['linhas_removidas']} linhas inválidas removidas. Nomenclatura de produtos padronizada.")
+        
+        if st.button("🗑️ Limpar Memória"):
+            st.session_state['dados_brutos'] = None
+            st.session_state['dados_tratados'] = None
+            st.session_state['linhas_removidas'] = 0
+            st.rerun()
