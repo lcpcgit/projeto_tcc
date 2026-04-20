@@ -205,49 +205,86 @@ elif menu == "📂 Gestão de Dados":
     if 'linhas_removidas' not in st.session_state:
         st.session_state['linhas_removidas'] = 0
 
-    st.info("💡 **Formato esperado do CSV:** O seu ficheiro deve conter as colunas de vendas (ex: Data, Produto, Quantidade, Preco).")
+    st.markdown("---")
+    st.write("### 📌 Padrão Exigido para o CSV")
+    st.info("""
+    Para o modelo de Inteligência Artificial cruzar o seu histórico de vendas com os preços da concorrência, o seu ficheiro CSV deve ter **exatamente** estas colunas (a ordem não importa, mas os nomes devem ser estes, sem acentos):
+    * **DataCaptura** (Data da venda)
+    * **Marca** (Marca da peça, ex: Asus, Gigabyte)
+    * **Produto** (O nome curto limpo, ex: RTX 4060)
+    * **Descricao** (As características extras da peça)
+    * **Preco** (O valor unitário de venda)
+    * **Quantidade** (Quantas unidades foram vendidas neste dia)
+    """)
     
     arquivo_upload = st.file_uploader("Suba o arquivo CSV de vendas internas:", type=["csv"])
     
     if arquivo_upload is not None:
-        # Se subiu arquivo novo, guarda o bruto na memória e zera o tratado
-        st.session_state['dados_brutos'] = pd.read_csv(arquivo_upload)
-        st.session_state['dados_tratados'] = None
+        try:
+            df_teste = pd.read_csv(arquivo_upload)
+            
+            # 🚀 A BARREIRA DE VALIDAÇÃO COM O NOVO PADRÃO
+            colunas_obrigatorias = ['DataCaptura', 'Marca', 'Produto', 'Descricao', 'Preco', 'Quantidade']
+            colunas_ausentes = [col for col in colunas_obrigatorias if col not in df_teste.columns]
+            
+            if len(colunas_ausentes) > 0:
+                st.error(f"❌ Erro de Formatação! Faltam as seguintes colunas no seu CSV: {', '.join(colunas_ausentes)}")
+                st.warning("Ajuste o cabeçalho do seu ficheiro Excel/CSV para coincidir exatamente com as colunas exigidas acima e tente de novo.")
+            else:
+                st.session_state['dados_brutos'] = df_teste
+                st.session_state['dados_tratados'] = None
+                
+        except Exception as e:
+            st.error(f"Erro ao ler o ficheiro: {e}")
     
     if st.session_state['dados_brutos'] is not None:
-        st.success("✅ Ficheiro carregado com sucesso!")
+        st.success("✅ Ficheiro validado e carregado com sucesso!")
         
         st.write("### 🗄️ Dados Brutos (Raw Data)")
         st.dataframe(st.session_state['dados_brutos'], width='stretch')
         
         st.markdown("---")
         st.write("### 🧹 Limpeza e Padronização de Dados")
-        st.write("Clique abaixo para higienizar a base de dados antes de a enviar para o Motor de Inteligência Artificial.")
+        st.write("Clique abaixo para padronizar os dados internos com a base de dados da Nuvem AWS.")
         
         if st.button("⚙️ Executar Tratamento de Dados"):
-            with st.spinner("A aplicar algoritmos de limpeza..."):
+            with st.spinner("A aplicar algoritmos de normalização..."):
                 import time
                 time.sleep(1) 
                 
                 df_tratado = st.session_state['dados_brutos'].copy()
-                df_tratado.columns = df_tratado.columns.str.title().str.strip()
+                
+                # 1. Tira espaços em branco dos nomes das colunas
+                df_tratado.columns = df_tratado.columns.str.strip()
+                
+                # 2. Dropa linhas completamente vazias
                 df_tratado = df_tratado.dropna(how='all')
                 
-                if 'Produto' in df_tratado.columns:
-                    df_tratado['Produto'] = df_tratado['Produto'].str.lower().str.strip()
+                # 3. Padroniza os textos para bater com a AWS (tudo minúsculo)
+                colunas_texto = ['Marca', 'Produto', 'Descricao']
+                for col in colunas_texto:
+                    if col in df_tratado.columns:
+                        df_tratado[col] = df_tratado[col].astype(str).str.lower().str.strip()
+                    
+                # 4. Força a Data para o formato correto
+                if 'DataCaptura' in df_tratado.columns:
+                     try:
+                         df_tratado['DataCaptura'] = pd.to_datetime(df_tratado['DataCaptura']).dt.date
+                     except:
+                         pass 
                 
                 # Guarda os dados tratados na memória
                 st.session_state['dados_tratados'] = df_tratado
                 st.session_state['linhas_removidas'] = len(st.session_state['dados_brutos']) - len(df_tratado)
                 
-    # 🚀 Se os dados já foram tratados, exibe a tabela tratada (mesmo se mudar de aba)
+    # 🚀 EXIBIÇÃO DA TABELA FINAL
     if st.session_state['dados_tratados'] is not None:
-        st.write("#### ✨ Dados Tratados e Prontos para Análise")
+        st.write("#### ✨ Dados Normalizados e Prontos para a IA")
         st.dataframe(st.session_state['dados_tratados'], width='stretch')
         
-        st.success(f"Operação concluída! {st.session_state['linhas_removidas']} linhas inválidas removidas. Nomenclatura de produtos padronizada.")
+        st.success(f"Operação concluída! {st.session_state['linhas_removidas']} linhas inválidas removidas. Nomenclatura e datas alinhadas com o banco AWS.")
         
-        if st.button("🗑️ Limpar Memória"):
+        if st.button("🗑️ Limpar Memória e Subir Novo Arquivo"):
             st.session_state['dados_brutos'] = None
             st.session_state['dados_tratados'] = None
             st.session_state['linhas_removidas'] = 0
