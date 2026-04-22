@@ -6,23 +6,13 @@ import pandas as pd
 from sqlalchemy import create_engine
 import urllib.parse
 
-# 1. A Lista Oficial de Peças para o seu TCC (Pode adicionar ou remover as que quiser)
-# 1. A Lista Oficial de Peças para o seu TCC (Focada em alto volume de vendas)
 pecas_para_monitorar = [
 
     # 🎮 PLACAS DE VÍDEO - NVIDIA (Mais completa)
     "rtx 3050",
     "rtx 3060",
-    "rtx 3060 ti",
-    "rtx 3090",
-    "rtx 3090 ti",
     "rtx 4060",
     "rtx 4060 ti",
-    "rtx 4070",
-    "rtx 4070 super",
-    "rtx 4070 ti",
-    "rtx 4070 ti super",
-    "rtx 4090",
     "rtx 5050",
     "rtx 5060",
     "rtx 5060 ti",
@@ -34,15 +24,10 @@ pecas_para_monitorar = [
     # 🎮 PLACAS DE VÍDEO - AMD
     "rx 6500 xt",
     "rx 6600",
-    "rx 6650 xt",
-    "rx 6700 xt",
     "rx 6750 xt",
     "rx 7600",
     "rx 7600 xt",
     "rx 7700 xt",
-    "rx 7800 xt",
-    "rx 7900 xt",
-    "rx 7900 xtx",
     "rx 9070",
     "rx 9070 xt",
     "rx 9060 xt",
@@ -60,7 +45,6 @@ pecas_para_monitorar = [
 
     # --- Série 4000 (APUs e Entrada) ---
     "ryzen 3 4100", "ryzen 5 4600g", "ryzen 5 4600ge", "ryzen 7 4700g", "ryzen 7 4700ge",
-    
     # --- Série 5000 (O grande volume do mercado) ---
     "ryzen 5 5600", "ryzen 5 5600x", "ryzen 5 5600g", "ryzen 5 5600f", "ryzen 5 5600x3d",
     "ryzen 7 5700", "ryzen 7 5700x", "ryzen 7 5700x3d", "ryzen 7 5700g", "ryzen 7 5700ge",
@@ -186,11 +170,6 @@ pecas_para_monitorar = [
     "webcam full hd",
     "soundbar",
     "microfone",
-
-  # 💻 NOTEBOOKS (pra monitorar mercado geral)
-    "notebook ryzen 5",
-    "notebook core i5",
-    "notebook gamer",
 ]
 def registrar_dolar_do_dia():
     print("\n==================================================")
@@ -246,6 +225,6 @@ for i, peca in enumerate(pecas_para_monitorar, 1):
     # Pausa de 15 segundos entre cada pesquisa para não bloquear o seu IP nas lojas!
     if i < len(pecas_para_monitorar):
         print("⏳ Pausando 15 segundos para evitar bloqueios de segurança...")
-        time.sleep(15)
+        time.sleep(25)
 
 print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ✅ ROTINA FINALIZADA COM SUCESSO!")

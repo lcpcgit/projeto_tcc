@@ -191,7 +191,9 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
                 if 'gaveta' in nome_limpo or 'case' in nome_limpo or 'dissipador' in nome_limpo or 'enclosure' in nome_limpo:
                     return False
             
-            if re.search(r'\bhd\b', termo_limpo) or 'ssd' in termo_limpo or 'disco' in termo_limpo or 'armazenamento' in termo_limpo:
+            # 🚀 CORREÇÃO 4: Filtro Inteligente de HD (Disco) vs HD (Resolução)
+            buscando_armazenamento = (re.search(r'\bhd\b', termo_limpo) and 'monitor' not in termo_limpo) or 'ssd' in termo_limpo or 'disco' in termo_limpo
+            if buscando_armazenamento:
                 if 'monitor ' in nome_limpo or 'tela ' in nome_limpo or 'webcam' in nome_limpo or 'camera' in nome_limpo or 'smart tv' in nome_limpo or 'televisao' in nome_limpo:
                     return False
             
@@ -202,7 +204,11 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
             if 'placa-mae' not in termo_limpo and 'placa mae' not in termo_limpo and 'motherboard' not in termo_limpo:
                 if 'placa-mae' in nome_limpo or 'placa mae' in nome_limpo or 'motherboard' in nome_limpo or 'mainboard' in nome_limpo: return False
             
-            if 'gabinete' not in termo_limpo and 'cpu' not in termo_limpo and 'processador' not in termo_limpo:
+            # 🚀 CORREÇÃO 1: Filtro inteligente para famílias de processadores
+            familias_processadores = ['ryzen', 'core', 'xeon', 'pentium', 'celeron', 'athlon']
+            buscando_familia = any(fam in termo_limpo for fam in familias_processadores)
+            
+            if 'gabinete' not in termo_limpo and 'cpu' not in termo_limpo and 'processador' not in termo_limpo and not buscando_familia:
                 if nome_limpo.startswith('gabinete'): return False
                 if nome_limpo.startswith('processador'): return False
             
@@ -211,7 +217,10 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
                 if 'cooler para' in nome_limpo or 'cooler processador' in nome_limpo or 'water cooler' in nome_limpo or 'watercooler' in nome_limpo: return False
                 if 'ventoinha' in nome_limpo or 'dissipador' in nome_limpo: return False
             
-            if 'notebook' in nome_limpo or 'laptop' in nome_limpo or 'book' in nome_limpo or 'tela' in nome_limpo: return False
+            # 🚀 CORREÇÃO 5: Liberação da palavra "Tela" se o alvo for um monitor
+            if 'notebook' in nome_limpo or 'laptop' in nome_limpo or 'book' in nome_limpo: return False
+            if 'monitor' not in termo_limpo and 'tela' not in termo_limpo and 'tela' in nome_limpo: return False
+            
             if 'kit' in nome_limpo or 'combo' in nome_limpo or 'upgrade' in nome_limpo: return False
             
             if 'enterprise' in nome_limpo or 'servidor' in nome_limpo or 'server' in nome_limpo: return False
@@ -221,11 +230,31 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
             if 'xt' not in termo_limpo and re.search(r'\bxt\b', nome_limpo): return False
             if 'xtx' not in termo_limpo and re.search(r'\bxtx\b', nome_limpo): return False
                 
+            # 🚀 CORREÇÕES 2, 3 e 6: Filtro flexível para Placa-Mãe, Memórias, Gabinetes e Valores Alfanuméricos
             palavras_da_busca = termo_limpo.split()
+            
+            # Flexibilidade Placa-Mãe
+            if "placa" in palavras_da_busca and "mae" in palavras_da_busca:
+                palavras_da_busca = [p for p in palavras_da_busca if p not in ["placa", "mae"]]
+                
+            # Flexibilidade Memória RAM
+            if "memoria" in palavras_da_busca and "ram" in palavras_da_busca:
+                palavras_da_busca.remove("ram")
+                
+            # Flexibilidade Gabinete
+            if "gabinete" in palavras_da_busca and "gamer" in palavras_da_busca:
+                palavras_da_busca.remove("gamer")
+
             for palavra in palavras_da_busca:
+                # Se for número puro
                 if palavra.isdigit():
                     if not re.search(rf'(?<!\d){palavra}(?!\d)', nome_limpo):
                         return False
+                # Se for alfanumérico (ex: 8gb, 3200mhz)
+                elif any(char.isdigit() for char in palavra):
+                    if palavra not in nome_limpo:
+                        return False
+                # Se for palavra normal
                 else:
                     if palavra not in nome_limpo:
                         return False
