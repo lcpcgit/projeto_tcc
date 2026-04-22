@@ -63,8 +63,39 @@ if menu == "📊 Dashboard e Mercado":
             familia_input = st.text_input("Digite a Família do Hardware:", value="rtx 5070")
             
             if familia_input:
-                df_filtrado = df_historico[df_historico['Produto'].str.contains(familia_input, case=False, na=False)]
+                import unicodedata
+                import re
+
+                # 🚀 A MÁGICA DA BUSCA INTELIGENTE: Limpa acentos e caracteres especiais
+                def limpar_texto_busca(texto):
+                    if not isinstance(texto, str):
+                        return ""
+                    # Tira acentos
+                    texto = ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
+                    # Deixa tudo minúsculo e tira espaços extras
+                    texto = texto.lower().strip()
+                    # Remove hífens e pontuações para que "placa-mae" vire "placa mae"
+                    texto = re.sub(r'[^\w\s]', ' ', texto)
+                    # Remove espaços duplos
+                    texto = re.sub(r'\s+', ' ', texto)
+                    return texto
+
+                # 1. Limpa o que o usuário digitou
+                busca_limpa = limpar_texto_busca(familia_input)
                 
+                # 2. Divide em palavras (ex: "placa", "mae", "b550")
+                palavras_busca = busca_limpa.split()
+
+                # 3. Cria uma coluna temporária no DataFrame com o nome do produto limpo
+                df_historico['ProdutoLimpo'] = df_historico['Produto'].apply(limpar_texto_busca)
+
+                # 4. Filtra! Exige que TODAS as palavras digitadas existam no nome limpo
+                mascara_filtro = df_historico['ProdutoLimpo'].apply(lambda nome: all(palavra in nome for palavra in palavras_busca))
+                df_filtrado = df_historico[mascara_filtro].copy()
+
+                # Apaga a coluna temporária para não sujar a tabela
+                df_historico = df_historico.drop(columns=['ProdutoLimpo'])
+
                 if not df_filtrado.empty:
                     df_agrupado = df_filtrado.groupby(['DataCaptura', 'Loja'])['Preco'].mean().reset_index()
                     
@@ -88,7 +119,7 @@ if menu == "📊 Dashboard e Mercado":
                     
                     st.plotly_chart(fig, use_container_width=True)
                 else:
-                    st.warning(f"O sistema ainda não possui dados históricos para a família '{familia_input}'.")
+                    st.warning(f"O sistema ainda não possui dados históricos para a família '{familia_input}'. Tente ser mais genérico (Ex: digite apenas 'b550' em vez de 'placa mae b550').")
                     
         else:
             # --- VISÃO ESPECÍFICA ---
