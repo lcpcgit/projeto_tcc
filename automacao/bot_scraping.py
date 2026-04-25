@@ -169,17 +169,64 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
             if not buscando_pc:
                 if re.search(r'\bpc\b', nome_limpo) or 'computador' in nome_limpo or 'desktop' in nome_limpo or 'ilha' in nome_limpo or 'workstation' in nome_limpo or 'setup' in nome_limpo: return False
             
-            if 'mouse' in termo_limpo:
+            # FILTRO APRIMORADO PARA MOUSES E MOUSEPADS
+            buscando_mousepad = 'mousepad' in termo_limpo or 'mouse pad' in termo_limpo
+            
+            # Só aplica os bloqueios de mouse SE o utilizador NÃO estiver à procura de um mousepad
+            if 'mouse' in termo_limpo and not buscando_mousepad:
+                # 1. Bloqueia acessórios (porque o utilizador quer um MOUSE de verdade)
                 if 'mousepad' in nome_limpo or 'mouse pad' in nome_limpo or 'bungee' in nome_limpo or 'grip tape' in nome_limpo or 'skate' in nome_limpo or 'feet' in nome_limpo:
                     return False
+                
+                # 2. Bloqueia "Kits", "Combos" e "Teclados" disfarçados de mouse
+                if 'teclado' in nome_limpo or 'kit' in nome_limpo or 'combo' in nome_limpo:
+                    return False
+
+                # 3. A Regra do "Gamer"
+                if 'gamer' not in termo_limpo and 'gamer' in nome_limpo:
+                    return False
             
+            # FILTRO APRIMORADO PARA HEADSETS
+            if 'headset' in termo_limpo:
+                # 1. Bloqueia acessórios e peças de reposição (almofadas, suportes, etc.)
+                acessorios_headset = ['suporte', 'almofada', 'espuma', 'earpad', 'estojo', 'case', 'arco', 'haste']
+                if any(acessorio in nome_limpo for acessorio in acessorios_headset):
+                    return False
+                
+                # 2. Bloqueia Kits (reforço para evitar combos de teclado/mouse/headset)
+                if 'kit' in nome_limpo or 'combo' in nome_limpo:
+                    return False
+
+                # 3. A Regra do "Gamer"
+                # Se o usuário NÃO digitou "gamer" na busca, bloqueia os headsets que são gamer no nome
+                if 'gamer' not in termo_limpo and 'gamer' in nome_limpo:
+                    return False
+
             if 'monitor' in termo_limpo or 'tela' in termo_limpo:
                 if 'suporte' in nome_limpo or 'braco' in nome_limpo or 'articulado' in nome_limpo or 'pistao' in nome_limpo or 'barra de led' in nome_limpo or 'limpeza' in nome_limpo:
                     return False
             
+            # FILTRO APRIMORADO PARA TECLADOS
             if 'teclado' in termo_limpo:
+                # 1. Bloqueia acessórios (peças e mods)
                 if 'keycap' in nome_limpo or 'switch ' in nome_limpo or 'apoio' in nome_limpo or 'mousepad' in nome_limpo or 'adesivo' in nome_limpo or 'lubrificante' in nome_limpo:
                     return False
+                
+                # 2. Bloqueia "Kits" e "Combos" (Teclado + Mouse)
+                if 'mouse' in nome_limpo or 'kit' in nome_limpo or 'combo' in nome_limpo:
+                    return False
+
+                # 3. Separação de Mecânico e Magnético
+                buscou_mecanico = 'mecanico' in termo_limpo
+                buscou_magnetico = 'magnetico' in termo_limpo
+
+                if buscou_mecanico and not buscou_magnetico:
+                    # Se buscou mecânico, bloqueia se tiver "magnetico" no nome do produto
+                    if 'magnetico' in nome_limpo:
+                        return False
+                elif buscou_magnetico and not buscou_mecanico:
+                    # Se buscou magnético, a palavra "magnetico" passará a ser obrigatória
+                    pass # O filtro final dará conta de exigir a palavra "magnetico"
                 
             if 'cabo' in nome_limpo or 'adaptador' in nome_limpo: return False
             
@@ -264,8 +311,8 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
         
 # ================= 1. RASPANDO A KABUM ================
         try:
-            for pagina in range(1, 3):  
-                url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number={pagina}&page_size=20"
+            for pagina in range(1, 4):  
+                url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number={pagina}&page_size=60"
                 print(f"\n🔍 [DEBUG KABUM] Acessando página {pagina}: {url_kabum}")
                 navegador.get(url_kabum)
                 time.sleep(5) # Tempo extra para o React carregar

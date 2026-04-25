@@ -9,6 +9,20 @@ import urllib.parse
 pecas_para_monitorar = [
 
     # 🎮 PLACAS DE VÍDEO - NVIDIA (Mais completa)
+    "gt610",
+    "gt730",
+    "gt740",
+    "gtx 750 ti",
+    "gtx960",
+    "gtx1050 ti",
+    "gtx 1650",
+    "gtx 1650ti",
+    "gtx 1660",
+    "gtx 1660 ti",
+    "gtx 1660 super",
+    "rtx 2060",
+    "rtx 2080",
+    "rtx 2080 super",
     "rtx 3050",
     "rtx 3060",
     "rtx 4060",
@@ -22,6 +36,12 @@ pecas_para_monitorar = [
     "rtx 5090",
 
     # 🎮 PLACAS DE VÍDEO - AMD
+    "rx 560",
+    "rx 550",
+    "rx 570",
+    "rx 580",
+    "rx 590",
+    "rx 6400",
     "rx 6500 xt",
     "rx 6600",
     "rx 6750 xt",
@@ -32,10 +52,12 @@ pecas_para_monitorar = [
     "rx 9070 xt",
     "rx 9060 xt",
     "rx 9060",
+    "rx 9070",
     "rx 9070 gre",
 
     # 🔵 PLACAS DE VÍDEO - INTEL
     "arc a580",
+    "arc a380",
     "arc a750",
     "arc a770",
     "arc b570",
@@ -64,6 +86,7 @@ pecas_para_monitorar = [
     "ryzen 5 9500f", "ryzen 5 9600x", 
     "ryzen 7 9700f", "ryzen 7 9700x", 
     "ryzen 9 9900x", "ryzen 9 9950x",
+    "ryzen 9 9950x3d",
    
     # 🧠 PROCESSADORES INTEL (A "Sala dos Professores" Azul)
     
@@ -90,7 +113,7 @@ pecas_para_monitorar = [
     # --- AMD AM4 (Para Ryzen 3000, 4000 e 5000) ---
     "placa mae a320m", "placa mae a520m", 
     "placa mae b450m", "placa mae b550m", 
-    "placa mae b550", "placa mae x570",
+    "placa mae b550", "placa mae b450",
     
     # --- AMD AM5 (Para Ryzen 7000, 8000 e 9000) ---
     "placa mae a620m", "placa mae b650m", 
@@ -162,10 +185,11 @@ pecas_para_monitorar = [
 
     # 🎮 PERIFÉRICOS/COMPLEMENTOS
     "mouse gamer",
-    "mouse sem fio",
+    "mouse",
     "teclado mecanico",
     "teclado magnético",
     "headset gamer",
+    "headset",
     "mousepad gamer",
     "webcam full hd",
     "soundbar",
@@ -207,9 +231,8 @@ def registrar_dolar_do_dia():
     except Exception as e:
         print(f"❌ Erro ao capturar/salvar o dólar: {e}")
 
-# =========================================================
 # CHAMA A FUNÇÃO DO DÓLAR ANTES DE COMEÇAR O SCRAPING
-# =========================================================
+
 registrar_dolar_do_dia()
 
 print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 🚀 INICIANDO ROTINA DE EXTRAÇÃO SEMANAL...")
@@ -224,7 +247,7 @@ for i, peca in enumerate(pecas_para_monitorar, 1):
     
     # Pausa de 15 segundos entre cada pesquisa para não bloquear o seu IP nas lojas!
     if i < len(pecas_para_monitorar):
-        print("⏳ Pausando 15 segundos para evitar bloqueios de segurança...")
-        time.sleep(25)
+        print("⏳ Pausando 10 segundos para evitar bloqueios de segurança...")
+        time.sleep(10)
 
 print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ✅ ROTINA FINALIZADA COM SUCESSO!")
