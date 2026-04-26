@@ -34,7 +34,7 @@ menu = st.sidebar.radio(
     "Navegação do Sistema:",
     ["📊 Dashboard e Mercado", 
      "🔮 Previsão de IA", 
-     "📂 Gestão de Dados"] # Gestão de Dados voltou, Alertas removidos!
+     "📂 Gestão de Dados"]
 )
 
 # ================= PÁGINA 1: DASHBOARD =================
@@ -89,8 +89,17 @@ if menu == "📊 Dashboard e Mercado":
                 # 3. Cria uma coluna temporária no DataFrame com o nome do produto limpo
                 df_historico['ProdutoLimpo'] = df_historico['Produto'].apply(limpar_texto_busca)
 
-                # 4. Filtra! Exige que TODAS as palavras digitadas existam no nome limpo
-                mascara_filtro = df_historico['ProdutoLimpo'].apply(lambda nome: all(palavra in nome for palavra in palavras_busca))
+                # 4. FILTRO INTELIGENTE CORRIGIDO (Separa Mouse de Mouse Gamer)
+                def aplicar_filtro_exclusivo(nome_do_produto, palavras_da_pesquisa):
+                    # Se o usuário pesquisou apenas "mouse" (sem a palavra gamer)
+                    if 'mouse' in palavras_da_pesquisa and 'gamer' not in palavras_da_pesquisa:
+                        # Retorna True apenas se tiver "mouse" E NÃO tiver "gamer" no nome do banco de dados
+                        return 'mouse' in nome_do_produto and 'gamer' not in nome_do_produto
+                    
+                    # Para qualquer outra peça, exige que todas as palavras digitadas existam no nome limpo
+                    return all(palavra in nome_do_produto for palavra in palavras_da_pesquisa)
+
+                mascara_filtro = df_historico['ProdutoLimpo'].apply(lambda nome: aplicar_filtro_exclusivo(nome, palavras_busca))
                 df_filtrado = df_historico[mascara_filtro].copy()
 
                 # Apaga a coluna temporária para não sujar a tabela

@@ -297,10 +297,26 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
                 if palavra.isdigit():
                     if not re.search(rf'(?<!\d){palavra}(?!\d)', nome_limpo):
                         return False
-                # Se for alfanumérico (ex: 8gb, 3200mhz)
+                        
+                # Se for alfanumérico (ex: 8gb, 3200mhz, 13600k)
                 elif any(char.isdigit() for char in palavra):
-                    if palavra not in nome_limpo:
-                        return False
+                    # 🚀 NOVO: Flexibilidade para processadores com letras (K, F, KF, X, XT, X3D)
+                    # Verifica se a palavra está no nome OU se a palavra sem a última letra está no nome
+                    # Ex: se palavra for "13600k", aceita se achar "13600k" ou "13600 k" ou apenas "13600" (se for o caso da loja omitir)
+                    match = re.match(r'^(\d+)([a-zA-Z]+)$', palavra)
+                    if match:
+                        num_part = match.group(1)
+                        letra_part = match.group(2)
+                        
+                        # Tenta achar exato (13600k), com espaço (13600 k) ou só o número com limite
+                        if palavra in nome_limpo or f"{num_part} {letra_part}" in nome_limpo:
+                             pass # Passou
+                        else:
+                             return False
+                    else:
+                        if palavra not in nome_limpo:
+                            return False
+                            
                 # Se for palavra normal
                 else:
                     if palavra not in nome_limpo:

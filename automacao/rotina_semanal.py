@@ -66,27 +66,27 @@ pecas_para_monitorar = [
     # 🧠 PROCESSADORES (A "SALA DOS PROFESSORES" DA AMD)
 
     # --- Série 4000 (APUs e Entrada) ---
-    "ryzen 3 4100", "ryzen 5 4600g", "ryzen 5 4600ge", "ryzen 7 4700g", "ryzen 7 4700ge",
+    "ryzen 3 4100", "ryzen 5 4500",
     # --- Série 5000 (O grande volume do mercado) ---
-    "ryzen 5 5600", "ryzen 5 5600x", "ryzen 5 5600g", "ryzen 5 5600f", "ryzen 5 5600x3d",
-    "ryzen 7 5700", "ryzen 7 5700x", "ryzen 7 5700x3d", "ryzen 7 5700g", "ryzen 7 5700ge",
-    "ryzen 7 5800", "ryzen 7 5800x", "ryzen 7 5800x3d",
-    "ryzen 9 5900x", "ryzen 9 5950x",
+    "ryzen 5 5600", "ryzen 5 5600x", "ryzen 5 5600g","ryzen 5 5600gt",
+    "ryzen 7 5700", "ryzen 7 5700x", "ryzen 7 5700g",
+    "ryzen 7 5800", "ryzen 7 5800x",
+    "ryzen 9 5900x",
     
     # --- Série 7000 (Zen 4 Principais e X3D) ---
-    "ryzen 5 7500f", "ryzen 5 7600", "ryzen 5 7600x", 
+    "ryzen 5 7600", "ryzen 5 7600x", 
     "ryzen 7 7700x", "ryzen 7 7800x3d", 
-    "ryzen 9 7900", "ryzen 9 7900x", "ryzen 9 7900x3d", 
-    "ryzen 9 7950x", "ryzen 9 7950x3d",
+    "ryzen 9 7900", "ryzen 9 7900x",
+    "ryzen 9 7950x",
     
     # --- Série 8000 (APUs Zen 4) ---
     "ryzen 5 8500g", "ryzen 5 8600g", "ryzen 7 8700g",
     
     # --- Série 9000 (Nova Geração Zen 5) ---
-    "ryzen 5 9500f", "ryzen 5 9600x", 
-    "ryzen 7 9700f", "ryzen 7 9700x", 
+    "ryzen 5 9600x", 
+    "ryzen 7 9700x", 
     "ryzen 9 9900x", "ryzen 9 9950x",
-    "ryzen 9 9950x3d",
+    "ryzen 9 9950x3d","ryzen 9 9900x3d",
    
     # 🧠 PROCESSADORES INTEL (A "Sala dos Professores" Azul)
     
@@ -95,13 +95,12 @@ pecas_para_monitorar = [
     "core i7 12700k", "core i9 12900k",
     
     # --- 13ª Geração (Raptor Lake - Alto Volume de Vendas) ---
-    "core i3 13100f", "core i5 13400f", "core i5 13600k", "core i5 13600kf",
-    "core i7 13700k", "core i7 13700kf", "core i9 13900k", "core i9 13900kf",
+    "core i3 13100f", "core i5 13400f", "core i5 13600k",
+    "core i7 13700k",
     
     # --- 14ª Geração (Raptor Lake Refresh - Alta Performance) ---
     "core i3 14100f", "core i5 14400f", "core i5 14600k", "core i5 14600kf",
-    "core i7 14700k", "core i7 14700kf", "core i9 14900k", "core i9 14900ks",
-    
+    "core i7 14700k", "core i7 14700kf", "core i9 14900k",
     # --- Core Ultra (Nova Nomenclatura / Última Geração) ---
     "core ultra 5 245k", "core ultra 5 245kf", 
     "core ultra 7 265k", "core ultra 7 265kf", 
@@ -118,7 +117,7 @@ pecas_para_monitorar = [
     # --- AMD AM5 (Para Ryzen 7000, 8000 e 9000) ---
     "placa mae a620m", "placa mae b650m", 
     "placa mae b650", "placa mae b650e",
-    "placa mae x670", "placa mae x670e",
+    "placa mae x670",
     "placa mae x870", "placa mae x870e",
     
     # --- Intel LGA 1700 (Para 12ª, 13ª e 14ª Geração) ---
@@ -191,7 +190,7 @@ pecas_para_monitorar = [
     "headset gamer",
     "headset",
     "mousepad gamer",
-    "webcam full hd",
+    "webcam",
     "soundbar",
     "microfone",
 ]
