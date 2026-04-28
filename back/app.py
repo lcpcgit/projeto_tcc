@@ -106,22 +106,59 @@ if menu == "📊 Dashboard e Mercado":
                 else:
                     st.warning(f"Sem dados históricos para a família '{familia_input}'.")
                     
-        else:
+        elif modo_visao == "🔍 Visão Específica (Produto Exato)":
+            # --- VISÃO ESPECÍFICA ---
             st.info("Aqui você seleciona o modelo **exato** para analisar o preço dele.")
-            lista_produtos = sorted(df_historico['Produto'].unique())
-            produto_escolhido = st.selectbox("Escolha o Hardware específico na base de dados:", lista_produtos)
             
-            df_filtrado = df_historico[df_historico['Produto'] == produto_escolhido].copy()
-            if not df_filtrado.empty:
-                df_filtrado['Preco_Label'] = df_filtrado['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                fig = px.line(df_filtrado, x="DataCaptura", y="Preco", color="Loja", markers=True, text="Preco_Label", title=f"Histórico Específico: {produto_escolhido}", labels={"DataCaptura": "Data", "Preco": "Preço à Vista (R$)", "Loja": "Loja"})
-                fig.update_traces(textposition="top center")
-                fig.update_layout(yaxis=dict(range=[df_filtrado['Preco'].min() * 0.9, df_filtrado['Preco'].max() * 1.1]))
-                fig.update_xaxes(tickformat="%d/%m/%Y")
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("Sem dados suficientes.")
+            lista_produtos = sorted(df_historico['Produto'].unique())
+            
+            # 🚀 SOLUÇÃO DO RESET: Usa a memória do Streamlit para a Visão Específica
+            if 'ultimo_produto_especifico' not in st.session_state:
+                # Se não tem memória, o padrão é o primeiro produto da lista (para evitar erros)
+                st.session_state['ultimo_produto_especifico'] = lista_produtos[0] if lista_produtos else None
+            
+            # Tenta encontrar o índice do produto salvo na lista atual. Se não achar, usa 0.
+            try:
+                indice_padrao = lista_produtos.index(st.session_state['ultimo_produto_especifico'])
+            except ValueError:
+                indice_padrao = 0
+
+            produto_escolhido = st.selectbox(
+                "Escolha o Hardware específico na base de dados:", 
+                lista_produtos,
+                index=indice_padrao
+            )
+            
+            # Atualiza a memória com o que o usuário acabou de selecionar
+            st.session_state['ultimo_produto_especifico'] = produto_escolhido
+            
+            # Trava de segurança: Só prossegue se houver realmente um produto escolhido
+            if produto_escolhido:
+                df_filtrado = df_historico[df_historico['Produto'] == produto_escolhido].copy()
                 
+                if not df_filtrado.empty:
+                    df_filtrado['Preco_Label'] = df_filtrado['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    
+                    fig = px.line(
+                        df_filtrado, 
+                        x="DataCaptura", 
+                        y="Preco", 
+                        color="Loja", 
+                        markers=True, 
+                        text="Preco_Label",
+                        title=f"Histórico Específico: {produto_escolhido}",
+                        labels={"DataCaptura": "Data da Extração", "Preco": "Preço à Vista (R$)", "Loja": "Loja Monitorada"}
+                    )
+                    
+                    fig.update_traces(textposition="top center")
+                    fig.update_layout(yaxis=dict(range=[df_filtrado['Preco'].min() * 0.9, df_filtrado['Preco'].max() * 1.1]))
+                    fig.update_xaxes(tickformat="%d/%m/%Y")
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.warning("Sem dados suficientes para gerar o gráfico deste produto específico.")
+            else:
+                 st.info("Por favor, selecione um produto na lista acima.")
 # =======================================================
         # 🚀 NOVO MÓDULO: ANÁLISE DRILL-DOWN EM CASCATA 4 NÍVEIS
         # =======================================================
