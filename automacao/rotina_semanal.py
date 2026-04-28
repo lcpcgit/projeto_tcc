@@ -95,8 +95,7 @@ pecas_para_monitorar = [
     "core i7 12700k", "core i9 12900k",
     
     # --- 13ª Geração (Raptor Lake - Alto Volume de Vendas) ---
-    "core i3 13100f", "core i5 13400f", "core i5 13600k",
-    "core i7 13700k",
+    "core i3 13100f", "core i5 13400f","core i7 13700k",
     
     # --- 14ª Geração (Raptor Lake Refresh - Alta Performance) ---
     "core i3 14100f", "core i5 14400f", "core i5 14600k", "core i5 14600kf",

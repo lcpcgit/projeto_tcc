@@ -62,7 +62,15 @@ if menu == "📊 Dashboard e Mercado":
         
         if modo_visao == "🌐 Visão Geral (Média de Preços da Família)":
             st.info("Aqui você digita a família da peça (Ex: RTX 5070, B650, RX 7600) e o sistema calcula a **média de preços** de todos os modelos daquela linha no dia.")
-            familia_input = st.text_input("Digite a Família do Hardware:", value="rtx 5070")
+            
+            # 🚀 SOLUÇÃO DO RESET: Usa a memória do Streamlit
+            if 'ultima_busca' not in st.session_state:
+                st.session_state['ultima_busca'] = "rtx 5070" # Valor padrão inicial
+                
+            familia_input = st.text_input("Digite a Família do Hardware:", value=st.session_state['ultima_busca'])
+            
+            # Atualiza a memória com o que o usuário acabou de digitar
+            st.session_state['ultima_busca'] = familia_input
             
             if familia_input:
                 def limpar_texto_busca(texto):
@@ -114,7 +122,7 @@ if menu == "📊 Dashboard e Mercado":
             else:
                 st.warning("Sem dados suficientes.")
                 
-   # =======================================================
+# =======================================================
         # 🚀 NOVO MÓDULO: ANÁLISE DRILL-DOWN EM CASCATA 4 NÍVEIS
         # =======================================================
         st.markdown("---")
@@ -125,22 +133,53 @@ if menu == "📊 Dashboard e Mercado":
         categorias_base = [
             "Placa de Vídeo", "Processador", "Placa Mãe", "Memória RAM", "SSD", "HD", 
             "Monitor", "Fonte", "Gabinete", "Water Cooler", "Air Cooler", "Fan",
-            "Mouse Gamer", "Mouse", "Teclado Mecânico", "Teclado Magnético", "Headset Gamer"
+            "Mouse Gamer", "Mouse", "Teclado Mecânico", "Teclado Magnético", "Headset Gamer",
+            "Mousepad Gamer", "Webcam", "Soundbar", "Microfone"
         ]
 
-        # 🚀 DICIONÁRIO DE MODELOS MAPEADO DO SEU BOT
+        # 🚀 DICIONÁRIO DE MODELOS MAPEADO 100% DO SEU BOT
         mapa_subcategorias = {
-            "Placa de Vídeo": ["GT610", "GT730", "GTX 750 Ti", "GTX 1050 Ti", "GTX 1650", "GTX 1660", "RTX 2060", "RTX 3050", "RTX 3060", "RTX 4060", "RTX 4060 Ti", "RTX 5070", "RTX 5080", "RTX 5090", "RX 580", "RX 6600", "RX 6750 XT", "RX 7600", "Arc A750"],
-            "Processador": ["Ryzen 5 4500", "Ryzen 5 5600", "Ryzen 5 5600G", "Ryzen 7 5700X", "Ryzen 7 5800X3D", "Ryzen 5 7600", "Ryzen 7 7800X3D", "Ryzen 9 9950X", "Core i3 12100F", "Core i5 12400F", "Core i5 13400F", "Core i5 14600K", "Core i7 14700K", "Core Ultra 5 245K"],
-            "Placa Mãe": ["A320M", "A520M", "B450M", "B550M", "A620M", "B650M", "X670", "X870", "H610M", "B660M", "B760M", "Z790", "Z890"],
+            "Placa de Vídeo": [
+                "GT 610", "GT 730", "GT 740", "GTX 750 Ti", "GTX 960", "GTX 1050 Ti", 
+                "GTX 1650", "GTX 1650 Ti", "GTX 1660", "GTX 1660 Ti", "GTX 1660 Super", 
+                "RTX 2060", "RTX 2080", "RTX 2080 Super", "RTX 3050", "RTX 3060", 
+                "RTX 4060", "RTX 4060 Ti", "RTX 5050", "RTX 5060", "RTX 5060 Ti", 
+                "RTX 5070", "RTX 5070 Ti", "RTX 5080", "RTX 5090", 
+                "RX 550", "RX 560", "RX 570", "RX 580", "RX 590", "RX 6400", "RX 6500 XT", 
+                "RX 6600", "RX 6750 XT", "RX 7600", "RX 7600 XT", "RX 7700 XT", 
+                "RX 9060", "RX 9060 XT", "RX 9070", "RX 9070 GRE", "RX 9070 XT",
+                "Arc A380", "Arc A580", "Arc A750", "Arc A770", "Arc B570", "Arc B580"
+            ],
+            "Processador": [
+                "Ryzen 3 4100", "Ryzen 5 4500", "Ryzen 5 5600", "Ryzen 5 5600X", 
+                "Ryzen 5 5600G", "Ryzen 5 5600GT", "Ryzen 7 5700", "Ryzen 7 5700X", 
+                "Ryzen 7 5700G", "Ryzen 7 5800", "Ryzen 7 5800X", "Ryzen 9 5900X", 
+                "Ryzen 5 7600", "Ryzen 5 7600X", "Ryzen 7 7700X", "Ryzen 7 7800X3D", 
+                "Ryzen 9 7900", "Ryzen 9 7900X", "Ryzen 9 7950X", "Ryzen 5 8500G", 
+                "Ryzen 5 8600G", "Ryzen 7 8700G", "Ryzen 5 9600X", "Ryzen 7 9700X", 
+                "Ryzen 9 9900X", "Ryzen 9 9950X", "Ryzen 9 9900X3D", "Ryzen 9 9950X3D",
+                "Core i3 12100F", "Core i5 12400F", "Core i5 12600K", "Core i7 12700K", "Core i9 12900K",
+                "Core i3 13100F", "Core i5 13400F", "Core i5 13600K", "Core i7 13700K",
+                "Core i3 14100F", "Core i5 14400F", "Core i5 14600K", "Core i5 14600KF", 
+                "Core i7 14700K", "Core i7 14700KF", "Core i9 14900K",
+                "Core Ultra 5 245K", "Core Ultra 5 245KF", "Core Ultra 7 265K", 
+                "Core Ultra 7 265KF", "Core Ultra 9 285K"
+            ],
+            "Placa Mãe": [
+                "A320M", "A520M", "B450M", "B450", "B550M", "B550", "A620M", 
+                "B650M", "B650", "B650E", "X670", "X870", "X870E", 
+                "H610M", "B660M", "B760M", "B760", "Z690", "Z790", "Z890", "Z890M"
+            ],
             "Memória RAM": ["8GB", "16GB", "32GB", "64GB", "DDR4", "DDR5"],
-            "SSD": ["480GB", "500GB", "1TB", "2TB", "4TB", "NVMe"],
+            "SSD": ["480GB", "500GB", "1TB", "2TB", "4TB"],
             "HD": ["1TB", "2TB", "4TB"],
-            "Monitor": ["75hz", "144hz", "165hz", "240hz", "360hz", "4K", "Ultrawide"],
-            "Fonte": ["500W", "600W", "650W", "750W", "850W", "1000W"],
+            "Monitor": ["75hz", "100hz", "144hz", "165hz", "240hz", "280hz", "360hz", "2K", "4K", "Ultrawide"],
+            "Fonte": ["500w", "600w", "650w", "750w", "850w", "1000w", "1200w"],
             "Gabinete": ["Aquario", "Mid Tower", "Full Tower", "Mini ITX"],
             "Water Cooler": ["120mm", "240mm", "360mm"],
-            "Fan": ["120mm", "140mm", "RGB"]
+            "Fan": ["120mm", "140mm", "RGB"],
+            "Mouse Gamer": [], "Mouse": [], "Teclado Mecânico": [], "Teclado Magnético": [], 
+            "Headset Gamer": [], "Mousepad Gamer": [], "Webcam": [], "Soundbar": [], "Microfone": []
         }
         
         col1, col2, col3, col4 = st.columns(4)
@@ -150,9 +189,13 @@ if menu == "📊 Dashboard e Mercado":
             
         with col2:
             opcoes_sub = [""]
-            if cat_escolhida in mapa_subcategorias:
+            # Se a categoria escolhida tem submodelos cadastrados, preenche a lista
+            if cat_escolhida in mapa_subcategorias and len(mapa_subcategorias[cat_escolhida]) > 0:
                 opcoes_sub += sorted(mapa_subcategorias[cat_escolhida])
-            subcat_escolhida = st.selectbox("2. Modelo:", opcoes_sub, disabled=not cat_escolhida)
+                subcat_escolhida = st.selectbox("2. Modelo:", opcoes_sub)
+            else:
+                # Se não tem submodelos (ex: Webcam), desabilita
+                subcat_escolhida = st.selectbox("2. Modelo:", ["N/A"], disabled=True)
             
         with col3:
             # 🚀 FILTRO DINÂMICO DE MARCAS (CATEGORIA + MODELO)
@@ -160,23 +203,30 @@ if menu == "📊 Dashboard e Mercado":
                 df_marcas_disponiveis = df_historico.copy()
                 termo_cat_limpo = ''.join(c for c in unicodedata.normalize('NFD', cat_escolhida) if unicodedata.category(c) != 'Mn').lower()
                 
-                # Filtro de Categoria
+                # Filtro de Categoria Base
                 if termo_cat_limpo == "mouse":
                     df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('mouse', na=False) & ~df_marcas_disponiveis['Produto'].str.lower().str.contains('gamer', na=False)]
                 elif termo_cat_limpo == "mouse gamer":
                     df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('mouse', na=False) & df_marcas_disponiveis['Produto'].str.lower().str.contains('gamer', na=False)]
+                elif termo_cat_limpo == "teclado mecanico":
+                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('teclado', na=False) & df_marcas_disponiveis['Produto'].str.lower().str.contains('mecanico|mecânico', na=False)]
+                elif termo_cat_limpo == "teclado magnetico":
+                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('teclado', na=False) & df_marcas_disponiveis['Produto'].str.lower().str.contains('magnetico|magnético', na=False)]
                 else:
                     for palavra in termo_cat_limpo.split():
                         df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains(palavra, na=False)]
                 
-                # Filtro de Modelo (Subcategoria)
-                if subcat_escolhida:
-                    termo_sub = subcat_escolhida.lower().replace(" ", "")
-                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.replace(" ", "").str.contains(termo_sub, na=False)]
+                # Filtro de Modelo
+                if subcat_escolhida and subcat_escolhida != "N/A":
+                    # Retira os espaços para a busca ser à prova de erros de digitação do lojista (ex: "RTX 4060" vira "rtx4060")
+                    termo_sub_sem_espaco = subcat_escolhida.lower().replace(" ", "")
+                    # Pega os itens onde o produto sem espaços tem o modelo
+                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.replace(" ", "").str.contains(termo_sub_sem_espaco, na=False)]
                 
                 marcas_filtradas = sorted([m for m in df_marcas_disponiveis['Marca'].dropna().unique() if m != "Outra/Genérica"])
             else:
                 marcas_filtradas = []
+                
             marcas_escolhidas = st.multiselect("3. Marcas:", marcas_filtradas, disabled=not cat_escolhida)
             
         with col4:
@@ -185,31 +235,45 @@ if menu == "📊 Dashboard e Mercado":
         if cat_escolhida: 
             df_drill = df_historico.copy()
             
-            # Aplicação final dos filtros no DataFrame do gráfico
+            # 1. Aplicando Filtro de Categoria no Gráfico
             termo_cat_limpo = ''.join(c for c in unicodedata.normalize('NFD', cat_escolhida) if unicodedata.category(c) != 'Mn').lower()
             if termo_cat_limpo == "mouse":
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('mouse', na=False) & ~df_drill['Produto'].str.lower().str.contains('gamer', na=False)]
             elif termo_cat_limpo == "mouse gamer":
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('mouse', na=False) & df_drill['Produto'].str.lower().str.contains('gamer', na=False)]
+            elif termo_cat_limpo == "teclado mecanico":
+                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('teclado', na=False) & df_drill['Produto'].str.lower().str.contains('mecanico|mecânico', na=False)]
+            elif termo_cat_limpo == "teclado magnetico":
+                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('teclado', na=False) & df_drill['Produto'].str.lower().str.contains('magnetico|magnético', na=False)]
             else:
-                for palavra in termo_cat_limpo.split():
-                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains(palavra, na=False)]
+                 for palavra in termo_cat_limpo.split():
+                     df_drill = df_drill[df_drill['Produto'].str.lower().str.contains(palavra, na=False)]
             
-            if subcat_escolhida:
-                termo_sub = subcat_escolhida.lower().replace(" ", "")
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(termo_sub, na=False)]
+            # 2. Aplicando Filtro de Modelo no Gráfico
+            if subcat_escolhida and subcat_escolhida != "N/A":
+                termo_sub_sem_espaco = subcat_escolhida.lower().replace(" ", "")
+                df_drill = df_drill[df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(termo_sub_sem_espaco, na=False)]
 
+            # 3. Aplicando Filtro de Marcas
             if len(marcas_escolhidas) > 0:
                 df_drill = df_drill[df_drill['Marca'].isin(marcas_escolhidas)]
                 
+            # 4. Aplicando Especificação
             if especificacao_extra:
                 espec_limpa = ''.join(c for c in unicodedata.normalize('NFD', especificacao_extra) if unicodedata.category(c) != 'Mn').lower()
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains(espec_limpa, na=False)]
                 
+            # Gerando o Gráfico
             if not df_drill.empty:
                 df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Marca'])['Preco'].mean().reset_index()
                 df_agrupado_drill['Preco_Label'] = df_agrupado_drill['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                 df_agrupado_drill['Legenda'] = df_agrupado_drill['Loja'] + " - " + df_agrupado_drill['Marca']
+                
+                titulo_modelo = subcat_escolhida if subcat_escolhida and subcat_escolhida != "N/A" else ""
+                titulo_graf = f"{cat_escolhida.upper()} {titulo_modelo}".strip()
+                
+                subtitulo = f"Marcas: {', '.join(marcas_escolhidas)}" if marcas_escolhidas else "Todas as marcas"
+                subtitulo += f" | Esp: {especificacao_extra}" if especificacao_extra else ""
                 
                 fig_drill = px.line(
                     df_agrupado_drill, 
@@ -218,22 +282,20 @@ if menu == "📊 Dashboard e Mercado":
                     color="Legenda", 
                     markers=True, 
                     text="Preco_Label", 
-                    title=f"Drill-Down: {cat_escolhida.upper()} {subcat_escolhida}", 
-                    labels={"DataCaptura": "Data", "Preco": "Preço Médio (R$)", "Legenda": "Loja - Marca"}
+                    title=f"Drill-Down: {titulo_graf} ({subtitulo})", 
+                    labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Legenda": "Loja - Marca"}
                 )
                 
                 fig_drill.update_traces(textposition="top center")
                 fig_drill.update_layout(yaxis=dict(range=[df_agrupado_drill['Preco'].min() * 0.9, df_agrupado_drill['Preco'].max() * 1.1]))
                 fig_drill.update_xaxes(tickformat="%d/%m/%Y")
+                
                 st.plotly_chart(fig_drill, use_container_width=True)
                 
                 with st.expander("Ver produtos englobados neste filtro"):
                     st.dataframe(df_drill[['Loja', 'Marca', 'Produto', 'Preco']].drop_duplicates(subset=['Produto']).head(20), width='stretch')
             else:
                  st.warning("Nenhum hardware encontrado com essa combinação exata.")
-            
-    else:
-        st.warning("Aguardando dados da nuvem AWS...")
 # ================= PÁGINA 2: PREVISÃO DE IA =================
 elif menu == "🔮 Previsão de IA":
     st.title("🔮 Motor de Previsão de Vendas (Machine Learning)")
