@@ -253,12 +253,20 @@ if menu == "📊 Dashboard e Mercado":
                     for palavra in termo_cat_limpo.split():
                         df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains(palavra, na=False)]
                 
-                # Filtro de Modelo
+                # Filtro de Modelo CORRIGIDO PARA IGNORAR VARIANTES QUANDO NÃO SOLICITADAS
                 if subcat_escolhida and subcat_escolhida != "N/A":
-                    # Retira os espaços para a busca ser à prova de erros de digitação do lojista (ex: "RTX 4060" vira "rtx4060")
                     termo_sub_sem_espaco = subcat_escolhida.lower().replace(" ", "")
-                    # Pega os itens onde o produto sem espaços tem o modelo
+                    # Primeiro pega tudo que contém a base (ex: acha 5070 e 5070ti)
                     df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.replace(" ", "").str.contains(termo_sub_sem_espaco, na=False)]
+                    
+                    # 🚀 A MÁGICA ACONTECE AQUI:
+                    # Se o usuário NÃO pesquisou por Ti, Super ou XT, nós apagamos elas dos resultados!
+                    if not any(sufixo in termo_sub_sem_espaco for sufixo in ['ti', 'super', 'xt']):
+                        df_marcas_disponiveis = df_marcas_disponiveis[
+                            ~df_marcas_disponiveis['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}ti", na=False) &
+                            ~df_marcas_disponiveis['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}super", na=False) &
+                            ~df_marcas_disponiveis['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}xt", na=False)
+                        ]
                 
                 marcas_filtradas = sorted([m for m in df_marcas_disponiveis['Marca'].dropna().unique() if m != "Outra/Genérica"])
             else:
@@ -286,10 +294,18 @@ if menu == "📊 Dashboard e Mercado":
                  for palavra in termo_cat_limpo.split():
                      df_drill = df_drill[df_drill['Produto'].str.lower().str.contains(palavra, na=False)]
             
-            # 2. Aplicando Filtro de Modelo no Gráfico
+            # 2. Aplicando Filtro de Modelo no Gráfico CORRIGIDO
             if subcat_escolhida and subcat_escolhida != "N/A":
                 termo_sub_sem_espaco = subcat_escolhida.lower().replace(" ", "")
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(termo_sub_sem_espaco, na=False)]
+                
+                # 🚀 REPETINDO A MÁGICA PARA O GRÁFICO FINAL
+                if not any(sufixo in termo_sub_sem_espaco for sufixo in ['ti', 'super', 'xt']):
+                    df_drill = df_drill[
+                        ~df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}ti", na=False) &
+                        ~df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}super", na=False) &
+                        ~df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}xt", na=False)
+                    ]
 
             # 3. Aplicando Filtro de Marcas
             if len(marcas_escolhidas) > 0:
