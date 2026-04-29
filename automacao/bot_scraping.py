@@ -325,77 +325,86 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
             
         data_atual = datetime.now().strftime("%Y-%m-%d") 
         
-# ================= 1. RASPANDO A KABUM ================
+# ================= 1. RASPANDO A KABUM =================
         try:
-            for pagina in range(1, 4):  
-                url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-').lower()}?page_number={pagina}&page_size=60"
-                print(f"\n🔍 [DEBUG KABUM] Acessando página {pagina}: {url_kabum}")
-                navegador.get(url_kabum)
-                time.sleep(5) # Tempo extra para o React carregar
-                
-                # Rolar a página para forçar o carregamento das imagens e preços (Lazy Load)
-                for _ in range(8):
-                    navegador.execute_script("window.scrollBy(0, 800);")
-                    time.sleep(0.5)
-                
-                # 🚀 A BALA DE PRATA: Procurando todos os links que apontam para um "/produto/"
-                cards_kabum = navegador.find_elements(By.XPATH, "//a[contains(@href, '/produto/')]")
-                
-                print(f"📦 [DEBUG KABUM] Foram encontrados {len(cards_kabum)} 'cartões' de produto na tela.")
-                
-                if len(cards_kabum) == 0: 
-                    print("⚠️ [DEBUG KABUM] Nenhum produto achado nesta página. Parando a busca na Kabum.")
-                    break
-                
-                for card in cards_kabum:
-                    try:
-                        # Pega TODO o texto de dentro do link usando innerText
-                        texto_do_cartao = card.get_attribute('innerText').strip()
-                        
-                        # 🚀 Pegando o nome exato do produto
-                        nome_el = card.find_element(By.XPATH, ".//*[contains(@class, 'line-clamp')]")
-                        nome_completo = nome_el.get_attribute('textContent').strip()
-                        
-                        # Passa no nosso filtro (elimina OpenBox, peças usadas, etc)
-                        if not produto_eh_valido(nome_completo, termo_busca): continue
-                        
-                        # 🧹 Limpador: Apaga as frases de parcelamento (ex: "10x de R$ 500,00")
-                        texto_sem_parcelas = re.sub(r'\b\d+x\s+de\s+(?:R\$?\s*)?\d{1,3}(?:\.\d{3})*,\d{2}', '', texto_do_cartao, flags=re.IGNORECASE)
-                        
-                        # O Regex Mágico: acha o preço real (R$ 5.400,00) no texto limpo
-                        precos_encontrados = re.findall(r'(\d{1,3}(?:\.\d{3})*,\d{2})', texto_sem_parcelas)
-                        
-                        if precos_encontrados:
-                            # Converte a lista de textos ['6.499,99', '5.411,70'] para números
-                            precos_numericos = [float(p.replace('.', '').replace(',', '.')) for p in precos_encontrados]
-                            
-                            # Pega sempre o menor preço (que será o valor à vista, pois apagamos as parcelas)
-                            preco_limpo = min(precos_numericos)
-                            
-                            marca = extrair_marca(nome_completo)
-                            
-                            # Corta o nome para ficar bonito na tabela
-                            partes_nome = re.split(r',\s*|;\s*|\s+-\s+', nome_completo, maxsplit=1)
-                            nome_curto = partes_nome[0].strip()
-                            descricao = partes_nome[1].strip() if len(partes_nome) > 1 else ""
-                            
-                            lista_produtos.append({
-                                "Data": data_atual, 
-                                "Loja": "Kabum",
-                                "Marca": marca,
-                                "Produto": nome_curto,
-                                "Descrição": descricao,
-                                "Preço": preco_limpo
-                            })
-                    except Exception as erro_card:
-                        # Se um produto der erro, o loop ignora ele e pula pro próximo
-                        pass
-        except Exception as erro_geral:
-            print(f"❌ [DEBUG KABUM] Erro fatal no bloco Kabum: {erro_geral}")
+            url_kabum = f"https://www.kabum.com.br/busca/{termo_busca.replace(' ', '-')}"
+            print(f"\n🔍 [DEBUG KBM] Acessando: {url_kabum}")
+            navegador.get(url_kabum)
+            time.sleep(5) 
+            
+            for _ in range(5):
+                navegador.execute_script("window.scrollBy(0, 1000);")
+                time.sleep(1)
 
-        # ================= 2. RASPANDO A TERABYTE =================
+            # 🚀 NOVA ESTRATÉGIA: Procura pelos links dos produtos diretamente!
+            cards = navegador.find_elements(By.XPATH, "//a[contains(@href, '/produto/')]")
+            print(f"📦 [DEBUG KBM] Encontrados {len(cards)} cards de produtos.")
+
+            for card in cards:
+                try:
+                    # Todo o ouro está escondido no "aria-label" agora!
+                    texto_completo = card.get_attribute('aria-label')
+                    
+                    if not texto_completo:
+                        # Se não tiver aria-label, tenta pegar o texto normal do card como plano B
+                        texto_completo = card.text.replace('\n', ' ')
+                        
+                    if not texto_completo:
+                        continue # Se estiver vazio, pula pro próximo
+
+                    # Separa o nome do resto usando o texto "avaliação" ou "R$" como base
+                    # Ex: "Placa RTX 5070..., avaliação 5 estrelas..., R$ 4699.99..."
+                    nome_separado = re.split(r', avaliação|, R\$', texto_completo)[0].strip()
+                    
+                    if not produto_eh_valido(nome_separado, termo_busca):
+                        continue
+
+                    # Procura apenas os valores em Reais (R$) no texto
+                    valores_encontrados = re.findall(r'R\$\s*([\d\.,]+)', texto_completo)
+                    
+                    precos_validos = []
+                    for valor in valores_encontrados:
+                        # O bot vai achar "4699.99" e "552,93". Vamos limpar e transformar em float.
+                        numero_limpo = valor.replace('.', '').replace(',', '.')
+                        # Corrige caso a formatação venha estranha da Kabum (ex: 469999)
+                        if numero_limpo.count('.') > 1:
+                            numero_limpo = numero_limpo.rsplit('.', 1)[0].replace('.', '') + '.' + numero_limpo.rsplit('.', 1)[1]
+                        elif '.' not in numero_limpo and len(numero_limpo) > 2:
+                             # Se for um valor gigante sem ponto, assume que os 2 últimos são centavos (ex: 469999 -> 4699.99)
+                             numero_limpo = numero_limpo[:-2] + '.' + numero_limpo[-2:]
+                             
+                        try:
+                            precos_validos.append(float(numero_limpo))
+                        except:
+                            pass
+                    
+                    if precos_validos:
+                        # O preço real à vista é sempre o maior valor num card da Kabum
+                        preco_final = max(precos_validos)
+                        
+                        marca = extrair_marca(nome_separado)
+                        partes_nome = re.split(r',\s*|;\s*|\s+-\s+', nome_separado, maxsplit=1)
+                        nome_curto = partes_nome[0].strip()
+                        descricao = partes_nome[1].strip() if len(partes_nome) > 1 else ""
+                        
+                        lista_produtos.append({
+                            "Data": data_atual,
+                            "Loja": "Kabum",
+                            "Marca": marca,
+                            "Produto": nome_curto,
+                            "Descrição": descricao,
+                            "Preço": preco_final
+                        })
+                except Exception as inner_e:
+                     pass # Ignora silenciosamente se um card estiver quebrado e continua
+
+        except Exception as e:
+            print(f"❌ [DEBUG KBM] Erro fatal ao raspar Kabum: {e}")
+
+# ================= 2. RASPANDO A TERABYTE =================
         try:
             url_terabyte = f"https://www.terabyteshop.com.br/busca?str={termo_busca.replace(' ', '+')}"
+            print(f"\n🔍 [DEBUG TERA] Acessando: {url_terabyte}")
             navegador.get(url_terabyte)
             time.sleep(5) 
             
@@ -403,8 +412,11 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
                 navegador.execute_script("window.scrollBy(0, 1000);")
                 time.sleep(1)
             
-            nomes_tera = navegador.find_elements(By.CSS_SELECTOR, '.product-item__name')
-            precos_tera = navegador.find_elements(By.CSS_SELECTOR, '.product-item__new-price')
+            # 🚀 AS NOVAS CLASSES ATUALIZADAS AQUI:
+            nomes_tera = navegador.find_elements(By.CSS_SELECTOR, '.tss-card-name')
+            precos_tera = navegador.find_elements(By.CSS_SELECTOR, '.tss-card-price')
+            
+            print(f"📦 [DEBUG TERA] Encontrados {len(nomes_tera)} nomes e {len(precos_tera)} preços.")
             
             for nome_el, preco_el in zip(nomes_tera, precos_tera):
                 nome_completo = nome_el.get_attribute('textContent').strip()
@@ -421,16 +433,18 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
                     nome_curto = partes_nome[0].strip()
                     descricao = partes_nome[1].strip() if len(partes_nome) > 1 else ""
                     
-                    try: lista_produtos.append({
-                        "Data": data_atual, 
-                        "Loja": "Terabyte",
-                        "Marca": marca,
-                        "Produto": nome_curto,          
-                        "Descrição": descricao,         
-                        "Preço": float(preco_limpo)
-                    })
+                    try: 
+                        lista_produtos.append({
+                            "Data": data_atual, 
+                            "Loja": "Terabyte",
+                            "Marca": marca,
+                            "Produto": nome_curto,          
+                            "Descrição": descricao,         
+                            "Preço": float(preco_limpo)
+                        })
                     except: pass
-        except: pass
+        except Exception as e:
+            print(f"❌ [DEBUG TERA] Erro ao raspar Terabyte: {e}")
 
         navegador.quit()
         
