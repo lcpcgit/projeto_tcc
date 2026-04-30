@@ -277,29 +277,32 @@ if menu == "📊 Dashboard e Mercado":
         with col4:
             especificacao_extra = st.text_input("4. Especificação (Ex: Branco, OC):", disabled=not cat_escolhida)
             
+        # 🚀 GERAÇÃO DO GRÁFICO (COM TRAVA DE MODELO)
         if cat_escolhida: 
-            df_drill = df_historico.copy()
-            
-            # 1. Aplicando Filtro de Categoria no Gráfico
-            termo_cat_limpo = ''.join(c for c in unicodedata.normalize('NFD', cat_escolhida) if unicodedata.category(c) != 'Mn').lower()
-            if termo_cat_limpo == "mouse":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('mouse', na=False) & ~df_drill['Produto'].str.lower().str.contains('gamer', na=False)]
-            elif termo_cat_limpo == "mouse gamer":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('mouse', na=False) & df_drill['Produto'].str.lower().str.contains('gamer', na=False)]
-            elif termo_cat_limpo == "teclado mecanico":
-                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('teclado', na=False) & df_drill['Produto'].str.lower().str.contains('mecanico|mecânico', na=False)]
-            elif termo_cat_limpo == "teclado magnetico":
-                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('teclado', na=False) & df_drill['Produto'].str.lower().str.contains('magnetico|magnético', na=False)]
+            # Trava: Verifica se o Modelo (Subcategoria) foi escolhido validamente
+            if not subcat_escolhida or subcat_escolhida == "N/A":
+                st.info("👆 Por favor, selecione um **Modelo** no filtro acima para visualizar o histórico de preços.")
             else:
-                 for palavra in termo_cat_limpo.split():
-                     df_drill = df_drill[df_drill['Produto'].str.lower().str.contains(palavra, na=False)]
-            
-            # 2. Aplicando Filtro de Modelo no Gráfico CORRIGIDO
-            if subcat_escolhida and subcat_escolhida != "N/A":
+                df_drill = df_historico.copy()
+                
+                # 1. Aplicando Filtro de Categoria no Gráfico
+                termo_cat_limpo = ''.join(c for c in unicodedata.normalize('NFD', cat_escolhida) if unicodedata.category(c) != 'Mn').lower()
+                if termo_cat_limpo == "mouse":
+                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('mouse', na=False) & ~df_drill['Produto'].str.lower().str.contains('gamer', na=False)]
+                elif termo_cat_limpo == "mouse gamer":
+                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('mouse', na=False) & df_drill['Produto'].str.lower().str.contains('gamer', na=False)]
+                elif termo_cat_limpo == "teclado mecanico":
+                     df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('teclado', na=False) & df_drill['Produto'].str.lower().str.contains('mecanico|mecânico', na=False)]
+                elif termo_cat_limpo == "teclado magnetico":
+                     df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('teclado', na=False) & df_drill['Produto'].str.lower().str.contains('magnetico|magnético', na=False)]
+                else:
+                     for palavra in termo_cat_limpo.split():
+                         df_drill = df_drill[df_drill['Produto'].str.lower().str.contains(palavra, na=False)]
+                
+                # 2. Aplicando Filtro de Modelo no Gráfico (Já sabemos que ele existe aqui)
                 termo_sub_sem_espaco = subcat_escolhida.lower().replace(" ", "")
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(termo_sub_sem_espaco, na=False)]
                 
-                # 🚀 REPETINDO A MÁGICA PARA O GRÁFICO FINAL
                 if not any(sufixo in termo_sub_sem_espaco for sufixo in ['ti', 'super', 'xt']):
                     df_drill = df_drill[
                         ~df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}ti", na=False) &
@@ -307,48 +310,48 @@ if menu == "📊 Dashboard e Mercado":
                         ~df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}xt", na=False)
                     ]
 
-            # 3. Aplicando Filtro de Marcas
-            if len(marcas_escolhidas) > 0:
-                df_drill = df_drill[df_drill['Marca'].isin(marcas_escolhidas)]
-                
-            # 4. Aplicando Especificação
-            if especificacao_extra:
-                espec_limpa = ''.join(c for c in unicodedata.normalize('NFD', especificacao_extra) if unicodedata.category(c) != 'Mn').lower()
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains(espec_limpa, na=False)]
-                
-            # Gerando o Gráfico
-            if not df_drill.empty:
-                df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Marca'])['Preco'].mean().reset_index()
-                df_agrupado_drill['Preco_Label'] = df_agrupado_drill['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                df_agrupado_drill['Legenda'] = df_agrupado_drill['Loja'] + " - " + df_agrupado_drill['Marca']
-                
-                titulo_modelo = subcat_escolhida if subcat_escolhida and subcat_escolhida != "N/A" else ""
-                titulo_graf = f"{cat_escolhida.upper()} {titulo_modelo}".strip()
-                
-                subtitulo = f"Marcas: {', '.join(marcas_escolhidas)}" if marcas_escolhidas else "Todas as marcas"
-                subtitulo += f" | Esp: {especificacao_extra}" if especificacao_extra else ""
-                
-                fig_drill = px.line(
-                    df_agrupado_drill, 
-                    x="DataCaptura", 
-                    y="Preco", 
-                    color="Legenda", 
-                    markers=True, 
-                    text="Preco_Label", 
-                    title=f"Drill-Down: {titulo_graf} ({subtitulo})", 
-                    labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Legenda": "Loja - Marca"}
-                )
-                
-                fig_drill.update_traces(textposition="top center")
-                fig_drill.update_layout(yaxis=dict(range=[df_agrupado_drill['Preco'].min() * 0.9, df_agrupado_drill['Preco'].max() * 1.1]))
-                fig_drill.update_xaxes(tickformat="%d/%m/%Y")
-                
-                st.plotly_chart(fig_drill, use_container_width=True)
-                
-                with st.expander("Ver produtos englobados neste filtro"):
-                    st.dataframe(df_drill[['Loja', 'Marca', 'Produto', 'Preco']].drop_duplicates(subset=['Produto']).head(20), width='stretch')
-            else:
-                 st.warning("Nenhum hardware encontrado com essa combinação exata.")
+                # 3. Aplicando Filtro de Marcas
+                if len(marcas_escolhidas) > 0:
+                    df_drill = df_drill[df_drill['Marca'].isin(marcas_escolhidas)]
+                    
+                # 4. Aplicando Especificação
+                if especificacao_extra:
+                    espec_limpa = ''.join(c for c in unicodedata.normalize('NFD', especificacao_extra) if unicodedata.category(c) != 'Mn').lower()
+                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains(espec_limpa, na=False)]
+                    
+                # Gerando o Gráfico
+                if not df_drill.empty:
+                    df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Marca'])['Preco'].mean().reset_index()
+                    df_agrupado_drill['Preco_Label'] = df_agrupado_drill['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    df_agrupado_drill['Legenda'] = df_agrupado_drill['Loja'] + " - " + df_agrupado_drill['Marca']
+                    
+                    titulo_modelo = subcat_escolhida if subcat_escolhida and subcat_escolhida != "N/A" else ""
+                    titulo_graf = f"{cat_escolhida.upper()} {titulo_modelo}".strip()
+                    
+                    subtitulo = f"Marcas: {', '.join(marcas_escolhidas)}" if marcas_escolhidas else "Todas as marcas"
+                    subtitulo += f" | Esp: {especificacao_extra}" if especificacao_extra else ""
+                    
+                    fig_drill = px.line(
+                        df_agrupado_drill, 
+                        x="DataCaptura", 
+                        y="Preco", 
+                        color="Legenda", 
+                        markers=True, 
+                        text="Preco_Label", 
+                        title=f"Drill-Down: {titulo_graf} ({subtitulo})", 
+                        labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Legenda": "Loja - Marca"}
+                    )
+                    
+                    fig_drill.update_traces(textposition="top center")
+                    fig_drill.update_layout(yaxis=dict(range=[df_agrupado_drill['Preco'].min() * 0.9, df_agrupado_drill['Preco'].max() * 1.1]))
+                    fig_drill.update_xaxes(tickformat="%d/%m/%Y")
+                    
+                    st.plotly_chart(fig_drill, use_container_width=True)
+                    
+                    with st.expander("Ver produtos englobados neste filtro"):
+                        st.dataframe(df_drill[['Loja', 'Marca', 'Produto', 'Preco']].drop_duplicates(subset=['Produto']).head(20), width='stretch')
+                else:
+                     st.warning("Nenhum hardware encontrado com essa combinação exata.")
 # ================= PÁGINA 2: PREVISÃO DE IA =================
 elif menu == "🔮 Previsão de IA":
     st.title("🔮 Motor de Previsão de Vendas (Machine Learning)")
