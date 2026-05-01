@@ -242,7 +242,7 @@ if menu == "📊 Dashboard e Mercado":
                 
                 # 🚀 Filtro de Categoria Base (COM SINÔNIMOS)
                 if termo_cat_limpo == "placa de video":
-                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('video|vga|geforce|radeon|rtx|gtx|rx', na=False)]
+                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('video|vídeo|vga|geforce|radeon|rtx|gtx|rx|arc', na=False)]
                 elif termo_cat_limpo == "placa mae":
                     df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('placa|motherboard|mainboard', na=False)]
                 elif termo_cat_limpo == "memoria ram":
@@ -297,7 +297,7 @@ if menu == "📊 Dashboard e Mercado":
                 termo_cat_limpo = ''.join(c for c in unicodedata.normalize('NFD', cat_escolhida) if unicodedata.category(c) != 'Mn').lower()
                 
                 if termo_cat_limpo == "placa de video":
-                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('video|vga|geforce|radeon|rtx|gtx|rx', na=False)]
+                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('video|vídeo|vga|geforce|radeon|rtx|gtx|rx|arc', na=False)]
                 elif termo_cat_limpo == "placa mae":
                     df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('placa|motherboard|mainboard', na=False)]
                 elif termo_cat_limpo == "memoria ram":
