@@ -336,56 +336,64 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
                 navegador.execute_script("window.scrollBy(0, 1000);")
                 time.sleep(1)
 
-            # 🚀 NOVA ESTRATÉGIA: Procura pelos links dos produtos diretamente!
             cards = navegador.find_elements(By.XPATH, "//a[contains(@href, '/produto/')]")
             print(f"📦 [DEBUG KBM] Encontrados {len(cards)} cards de produtos.")
 
             for card in cards:
                 try:
-                    # Todo o ouro está escondido no "aria-label" agora!
                     texto_completo = card.get_attribute('aria-label')
-                    
                     if not texto_completo:
-                        # Se não tiver aria-label, tenta pegar o texto normal do card como plano B
                         texto_completo = card.text.replace('\n', ' ')
                         
                     if not texto_completo:
-                        continue # Se estiver vazio, pula pro próximo
+                        continue 
 
-                    # Separa o nome do resto usando o texto "avaliação" ou "R$" como base
-                    # Ex: "Placa RTX 5070..., avaliação 5 estrelas..., R$ 4699.99..."
                     nome_separado = re.split(r', avaliação|, R\$', texto_completo)[0].strip()
                     
+                    # 🚀 TRAVA DE SEGURANÇA (Anti Falsos Positivos do "Ti")
+                    termo_busca_minusculo = termo_busca.lower()
+                    nome_minusculo = nome_separado.lower()
+                    if " ti" in termo_busca_minusculo and " ti" not in nome_minusculo:
+                        continue 
+                        
                     if not produto_eh_valido(nome_separado, termo_busca):
                         continue
 
-                    # Procura apenas os valores em Reais (R$) no texto
-                    valores_encontrados = re.findall(r'R\$\s*([\d\.,]+)', texto_completo)
+                    # 🚀 O NOVO EXTRATOR BLINDADO (Imune a espaços e formatações exóticas)
+                    valores_encontrados = re.findall(r'R\$\s*([0-9]+(?:[\.,\s]+[0-9]+)*)', texto_completo)
                     
                     precos_validos = []
                     for valor in valores_encontrados:
-                        # O bot vai achar "4699.99" e "552,93". Vamos limpar e transformar em float.
-                        numero_limpo = valor.replace('.', '').replace(',', '.')
-                        # Corrige caso a formatação venha estranha da Kabum (ex: 469999)
-                        if numero_limpo.count('.') > 1:
-                            numero_limpo = numero_limpo.rsplit('.', 1)[0].replace('.', '') + '.' + numero_limpo.rsplit('.', 1)[1]
-                        elif '.' not in numero_limpo and len(numero_limpo) > 2:
-                             # Se for um valor gigante sem ponto, assume que os 2 últimos são centavos (ex: 469999 -> 4699.99)
-                             numero_limpo = numero_limpo[:-2] + '.' + numero_limpo[-2:]
-                             
+                        valor_limpo = valor.strip()
+                        # Procura o último separador (ponto ou vírgula) para isolar os centavos
+                        match = re.search(r'([\.,])(\d{1,2})$', valor_limpo)
                         try:
-                            precos_validos.append(float(numero_limpo))
+                            if match:
+                                cents = match.group(2)
+                                if len(cents) == 1: cents += '0'
+                                # Pega tudo antes dos centavos e arranca espaços ou pontos de milhar
+                                inteiros = re.sub(r'\D', '', valor_limpo[:match.start()])
+                                if inteiros == '': inteiros = '0'
+                                precos_validos.append(float(f"{inteiros}.{cents}"))
+                            else:
+                                inteiros = re.sub(r'\D', '', valor_limpo)
+                                if inteiros: precos_validos.append(float(inteiros))
                         except:
                             pass
                     
                     if precos_validos:
-                        # O preço real à vista é sempre o maior valor num card da Kabum
+                        # Agora sim! Como os números gigantes foram lidos corretamente, ele vai escolher o preço cheio!
                         preco_final = max(precos_validos)
                         
                         marca = extrair_marca(nome_separado)
                         partes_nome = re.split(r',\s*|;\s*|\s+-\s+', nome_separado, maxsplit=1)
                         nome_curto = partes_nome[0].strip()
                         descricao = partes_nome[1].strip() if len(partes_nome) > 1 else ""
+                        
+                        # 🚀 NOVA BLINDAGEM DE PADRONIZAÇÃO NO BANCO
+                        nome_curto = nome_curto.upper()
+                        nome_curto = re.sub(r'\s+\|\s+TERABYTE.*|\s+\|\s+KABUM.*', '', nome_curto)
+                        nome_curto = re.sub(r'\s+', ' ', nome_curto).strip()
                         
                         lista_produtos.append({
                             "Data": data_atual,
@@ -396,11 +404,68 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
                             "Preço": preco_final
                         })
                 except Exception as inner_e:
-                     pass # Ignora silenciosamente se um card estiver quebrado e continua
+                     pass 
 
         except Exception as e:
             print(f"❌ [DEBUG KBM] Erro fatal ao raspar Kabum: {e}")
 
+        # ================= 2. RASPANDO A TERABYTE =================
+        try:
+            url_terabyte = f"https://www.terabyteshop.com.br/busca?str={termo_busca.replace(' ', '+')}"
+            print(f"\n🔍 [DEBUG TERA] Acessando: {url_terabyte}")
+            navegador.get(url_terabyte)
+            time.sleep(5) 
+            
+            for _ in range(10):
+                navegador.execute_script("window.scrollBy(0, 1000);")
+                time.sleep(1)
+            
+            # 🚀 AS NOVAS CLASSES ATUALIZADAS AQUI:
+            nomes_tera = navegador.find_elements(By.CSS_SELECTOR, '.tss-card-name')
+            precos_tera = navegador.find_elements(By.CSS_SELECTOR, '.tss-card-price')
+            
+            print(f"📦 [DEBUG TERA] Encontrados {len(nomes_tera)} nomes e {len(precos_tera)} preços.")
+            
+            for nome_el, preco_el in zip(nomes_tera, precos_tera):
+                nome_completo = nome_el.get_attribute('textContent').strip()
+                if not produto_eh_valido(nome_completo, termo_busca): continue
+                    
+                preco_texto = preco_el.get_attribute('textContent')
+                numeros_e_virgula = re.sub(r'[^\d,]', '', preco_texto)
+                
+                if numeros_e_virgula:
+                    preco_limpo = numeros_e_virgula.replace(',', '.')
+                    marca = extrair_marca(nome_completo)
+                    
+                    partes_nome = re.split(r',\s*|;\s*|\s+-\s+', nome_completo, maxsplit=1)
+                    nome_curto = partes_nome[0].strip()
+                    descricao = partes_nome[1].strip() if len(partes_nome) > 1 else ""
+                    
+                    # 🚀 NOVA BLINDAGEM DE PADRONIZAÇÃO NO BANCO
+                    nome_curto = nome_curto.upper()
+                    nome_curto = re.sub(r'\s+\|\s+TERABYTE.*|\s+\|\s+KABUM.*', '', nome_curto)
+                    nome_curto = re.sub(r'\s+', ' ', nome_curto).strip()
+                    
+                    try: 
+                        lista_produtos.append({
+                            "Data": data_atual, 
+                            "Loja": "Terabyte",
+                            "Marca": marca,
+                            "Produto": nome_curto,          
+                            "Descrição": descricao,         
+                            "Preço": float(preco_limpo)
+                        })
+                    except: pass
+        except Exception as e:
+            print(f"❌ [DEBUG TERA] Erro ao raspar Terabyte: {e}")
+
+        navegador.quit()
+        
+        if len(lista_produtos) > 0:
+            df_resultados = pd.DataFrame(lista_produtos)
+            
+            df_resultados = df_resultados.drop_duplicates(subset=['Loja', 'Produto', 'Descrição'], keep='first')
+            df_resultados = df_resultados.sort_values(by="Preço", ascending=True).reset_index(drop=True)
 # ================= 2. RASPANDO A TERABYTE =================
         try:
             url_terabyte = f"https://www.terabyteshop.com.br/busca?str={termo_busca.replace(' ', '+')}"
