@@ -240,8 +240,16 @@ if menu == "📊 Dashboard e Mercado":
                 df_marcas_disponiveis = df_historico.copy()
                 termo_cat_limpo = ''.join(c for c in unicodedata.normalize('NFD', cat_escolhida) if unicodedata.category(c) != 'Mn').lower()
                 
-                # Filtro de Categoria Base
-                if termo_cat_limpo == "mouse":
+                # 🚀 Filtro de Categoria Base (COM SINÔNIMOS)
+                if termo_cat_limpo == "placa de video":
+                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('video|vga|geforce|radeon|rtx|gtx|rx', na=False)]
+                elif termo_cat_limpo == "placa mae":
+                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('placa|motherboard|mainboard', na=False)]
+                elif termo_cat_limpo == "memoria ram":
+                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('memoria|ram|ddr', na=False)]
+                elif "fonte" in termo_cat_limpo:
+                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('fonte|atx|power', na=False)]
+                elif termo_cat_limpo == "mouse":
                     df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('mouse', na=False) & ~df_marcas_disponiveis['Produto'].str.lower().str.contains('gamer', na=False)]
                 elif termo_cat_limpo == "mouse gamer":
                     df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('mouse', na=False) & df_marcas_disponiveis['Produto'].str.lower().str.contains('gamer', na=False)]
@@ -285,9 +293,18 @@ if menu == "📊 Dashboard e Mercado":
             else:
                 df_drill = df_historico.copy()
                 
-                # 1. Aplicando Filtro de Categoria no Gráfico
+                # 🚀 1. Aplicando Filtro de Categoria no Gráfico (COM SINÔNIMOS)
                 termo_cat_limpo = ''.join(c for c in unicodedata.normalize('NFD', cat_escolhida) if unicodedata.category(c) != 'Mn').lower()
-                if termo_cat_limpo == "mouse":
+                
+                if termo_cat_limpo == "placa de video":
+                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('video|vga|geforce|radeon|rtx|gtx|rx', na=False)]
+                elif termo_cat_limpo == "placa mae":
+                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('placa|motherboard|mainboard', na=False)]
+                elif termo_cat_limpo == "memoria ram":
+                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('memoria|ram|ddr', na=False)]
+                elif "fonte" in termo_cat_limpo:
+                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('fonte|atx|power', na=False)]
+                elif termo_cat_limpo == "mouse":
                     df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('mouse', na=False) & ~df_drill['Produto'].str.lower().str.contains('gamer', na=False)]
                 elif termo_cat_limpo == "mouse gamer":
                     df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('mouse', na=False) & df_drill['Produto'].str.lower().str.contains('gamer', na=False)]
