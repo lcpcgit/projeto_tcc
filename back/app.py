@@ -160,7 +160,7 @@ if menu == "📊 Dashboard e Mercado":
             else:
                  st.info("Por favor, selecione um produto na lista acima.")
 # =======================================================
-        # 🚀 NOVO MÓDULO: ANÁLISE DRILL-DOWN EM CASCATA 4 NÍVEIS
+        # 🚀 NOVO MÓDULO: ANÁLISE DRILL-DOWN (CASCATA INTELIGENTE)
         # =======================================================
         st.markdown("---")
         st.write("### 🔬 Análise Drill-Down (Filtros Avançados)")
@@ -174,7 +174,7 @@ if menu == "📊 Dashboard e Mercado":
             "Mousepad Gamer", "Webcam", "Soundbar", "Microfone"
         ]
 
-        # 🚀 DICIONÁRIO DE MODELOS MAPEADO 100% DO SEU BOT
+        # 🚀 DICIONÁRIO DE MODELOS MAPEADO 100%
         mapa_subcategorias = {
             "Placa de Vídeo": [
                 "GT 610", "GT 730", "GT 740", "GTX 750 Ti", "GTX 960", "GTX 1050 Ti", 
@@ -218,157 +218,143 @@ if menu == "📊 Dashboard e Mercado":
             "Mouse Gamer": [], "Mouse": [], "Teclado Mecânico": [], "Teclado Magnético": [], 
             "Headset Gamer": [], "Mousepad Gamer": [], "Webcam": [], "Soundbar": [], "Microfone": []
         }
+
+        todos_os_modelos = sorted(list(set(sum(mapa_subcategorias.values(), []))))
         
         col1, col2, col3, col4 = st.columns(4)
         
+        # --- 1. CATEGORIA ---
         with col1:
-            cat_escolhida = st.selectbox("1. Categoria:", [""] + sorted(categorias_base))
+            cat_escolhida = st.selectbox("1. Categoria (Opcional):", [""] + sorted(categorias_base))
+            
+        # --- 2. MODELO (Filtra baseado na Categoria) ---
+        if cat_escolhida:
+            modelos_da_cat = mapa_subcategorias.get(cat_escolhida, [])
+            if len(modelos_da_cat) > 0:
+                opcoes_modelo = [""] + sorted(modelos_da_cat)
+                disabled_mod = False
+            else:
+                opcoes_modelo = ["N/A"]
+                disabled_mod = True
+        else:
+            opcoes_modelo = [""] + todos_os_modelos
+            disabled_mod = False
             
         with col2:
-            opcoes_sub = [""]
-            # Se a categoria escolhida tem submodelos cadastrados, preenche a lista
-            if cat_escolhida in mapa_subcategorias and len(mapa_subcategorias[cat_escolhida]) > 0:
-                opcoes_sub += sorted(mapa_subcategorias[cat_escolhida])
-                subcat_escolhida = st.selectbox("2. Modelo:", opcoes_sub)
-            else:
-                # Se não tem submodelos (ex: Webcam), desabilita
-                subcat_escolhida = st.selectbox("2. Modelo:", ["N/A"], disabled=True)
-            
-        with col3:
-            # 🚀 FILTRO DINÂMICO DE MARCAS (CATEGORIA + MODELO)
-            if cat_escolhida:
-                df_marcas_disponiveis = df_historico.copy()
-                termo_cat_limpo = ''.join(c for c in unicodedata.normalize('NFD', cat_escolhida) if unicodedata.category(c) != 'Mn').lower()
-                
-                # 🚀 Filtro de Categoria Base (COM SINÔNIMOS)
-                if termo_cat_limpo == "placa de video":
-                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('video|vídeo|vga|geforce|radeon|rtx|gtx|rx|arc', na=False)]
-                elif termo_cat_limpo == "placa mae":
-                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('placa|motherboard|mainboard', na=False)]
-                elif termo_cat_limpo == "memoria ram":
-                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('memoria|ram|ddr', na=False)]
-                elif "fonte" in termo_cat_limpo:
-                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('fonte|atx|power', na=False)]
-                elif termo_cat_limpo == "mouse":
-                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('mouse', na=False) & ~df_marcas_disponiveis['Produto'].str.lower().str.contains('gamer', na=False)]
-                elif termo_cat_limpo == "mouse gamer":
-                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('mouse', na=False) & df_marcas_disponiveis['Produto'].str.lower().str.contains('gamer', na=False)]
-                elif termo_cat_limpo == "teclado mecanico":
-                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('teclado', na=False) & df_marcas_disponiveis['Produto'].str.lower().str.contains('mecanico|mecânico', na=False)]
-                elif termo_cat_limpo == "teclado magnetico":
-                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains('teclado', na=False) & df_marcas_disponiveis['Produto'].str.lower().str.contains('magnetico|magnético', na=False)]
-                else:
-                    for palavra in termo_cat_limpo.split():
-                        df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.contains(palavra, na=False)]
-                
-                # Filtro de Modelo CORRIGIDO PARA IGNORAR VARIANTES QUANDO NÃO SOLICITADAS
-                if subcat_escolhida and subcat_escolhida != "N/A":
-                    termo_sub_sem_espaco = subcat_escolhida.lower().replace(" ", "")
-                    # Primeiro pega tudo que contém a base (ex: acha 5070 e 5070ti)
-                    df_marcas_disponiveis = df_marcas_disponiveis[df_marcas_disponiveis['Produto'].str.lower().str.replace(" ", "").str.contains(termo_sub_sem_espaco, na=False)]
-                    
-                    # 🚀 A MÁGICA ACONTECE AQUI:
-                    # Se o usuário NÃO pesquisou por Ti, Super ou XT, nós apagamos elas dos resultados!
-                    if not any(sufixo in termo_sub_sem_espaco for sufixo in ['ti', 'super', 'xt']):
-                        df_marcas_disponiveis = df_marcas_disponiveis[
-                            ~df_marcas_disponiveis['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}ti", na=False) &
-                            ~df_marcas_disponiveis['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}super", na=False) &
-                            ~df_marcas_disponiveis['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}xt", na=False)
-                        ]
-                
-                marcas_filtradas = sorted([m for m in df_marcas_disponiveis['Marca'].dropna().unique() if m != "Outra/Genérica"])
-            else:
-                marcas_filtradas = []
-                
-            marcas_escolhidas = st.multiselect("3. Marcas:", marcas_filtradas, disabled=not cat_escolhida)
-            
-        with col4:
-            especificacao_extra = st.text_input("4. Especificação (Ex: Branco, OC):", disabled=not cat_escolhida)
-            
-        # 🚀 GERAÇÃO DO GRÁFICO (COM TRAVA DE MODELO)
-        if cat_escolhida: 
-            # Trava: Verifica se o Modelo (Subcategoria) foi escolhido validamente
-            if not subcat_escolhida or subcat_escolhida == "N/A":
-                st.info("👆 Por favor, selecione um **Modelo** no filtro acima para visualizar o histórico de preços.")
-            else:
-                df_drill = df_historico.copy()
-                
-                # 🚀 1. Aplicando Filtro de Categoria no Gráfico (COM SINÔNIMOS)
-                termo_cat_limpo = ''.join(c for c in unicodedata.normalize('NFD', cat_escolhida) if unicodedata.category(c) != 'Mn').lower()
-                
-                if termo_cat_limpo == "placa de video":
-                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('video|vídeo|vga|geforce|radeon|rtx|gtx|rx|arc', na=False)]
-                elif termo_cat_limpo == "placa mae":
-                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('placa|motherboard|mainboard', na=False)]
-                elif termo_cat_limpo == "memoria ram":
-                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('memoria|ram|ddr', na=False)]
-                elif "fonte" in termo_cat_limpo:
-                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('fonte|atx|power', na=False)]
-                elif termo_cat_limpo == "mouse":
-                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('mouse', na=False) & ~df_drill['Produto'].str.lower().str.contains('gamer', na=False)]
-                elif termo_cat_limpo == "mouse gamer":
-                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('mouse', na=False) & df_drill['Produto'].str.lower().str.contains('gamer', na=False)]
-                elif termo_cat_limpo == "teclado mecanico":
-                     df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('teclado', na=False) & df_drill['Produto'].str.lower().str.contains('mecanico|mecânico', na=False)]
-                elif termo_cat_limpo == "teclado magnetico":
-                     df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('teclado', na=False) & df_drill['Produto'].str.lower().str.contains('magnetico|magnético', na=False)]
-                else:
-                     for palavra in termo_cat_limpo.split():
-                         df_drill = df_drill[df_drill['Produto'].str.lower().str.contains(palavra, na=False)]
-                
-                # 2. Aplicando Filtro de Modelo no Gráfico (Já sabemos que ele existe aqui)
-                termo_sub_sem_espaco = subcat_escolhida.lower().replace(" ", "")
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(termo_sub_sem_espaco, na=False)]
-                
-                if not any(sufixo in termo_sub_sem_espaco for sufixo in ['ti', 'super', 'xt']):
-                    df_drill = df_drill[
-                        ~df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}ti", na=False) &
-                        ~df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}super", na=False) &
-                        ~df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}xt", na=False)
-                    ]
+            subcat_escolhida = st.selectbox("2. Modelo (Opcional):", opcoes_modelo, disabled=disabled_mod)
 
-                # 3. Aplicando Filtro de Marcas
-                if len(marcas_escolhidas) > 0:
-                    df_drill = df_drill[df_drill['Marca'].isin(marcas_escolhidas)]
-                    
-                # 4. Aplicando Especificação
-                if especificacao_extra:
-                    espec_limpa = ''.join(c for c in unicodedata.normalize('NFD', especificacao_extra) if unicodedata.category(c) != 'Mn').lower()
-                    df_drill = df_drill[df_drill['Produto'].str.lower().str.contains(espec_limpa, na=False)]
-                    
-                # Gerando o Gráfico
-                if not df_drill.empty:
+        # --- APLICANDO OS PRIMEIROS FILTROS NA MEMÓRIA PARA DESCOBRIR AS MARCAS ---
+        df_drill = df_historico.copy()
+        
+        if cat_escolhida:
+            termo_cat_limpo = ''.join(c for c in unicodedata.normalize('NFD', cat_escolhida) if unicodedata.category(c) != 'Mn').lower()
+            if termo_cat_limpo == "placa de video":
+                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('video|vídeo|vga|geforce|radeon|rtx|gtx|rx|arc', na=False)]
+            elif termo_cat_limpo == "placa mae":
+                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('placa|motherboard|mainboard', na=False)]
+            elif termo_cat_limpo == "memoria ram":
+                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('memoria|ram|ddr', na=False)]
+            elif "fonte" in termo_cat_limpo:
+                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('fonte|atx|power', na=False)]
+            elif termo_cat_limpo == "mouse":
+                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('mouse', na=False) & ~df_drill['Produto'].str.lower().str.contains('gamer', na=False)]
+            elif termo_cat_limpo == "mouse gamer":
+                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('mouse', na=False) & df_drill['Produto'].str.lower().str.contains('gamer', na=False)]
+            elif termo_cat_limpo == "teclado mecanico":
+                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('teclado', na=False) & df_drill['Produto'].str.lower().str.contains('mecanico|mecânico', na=False)]
+            elif termo_cat_limpo == "teclado magnetico":
+                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('teclado', na=False) & df_drill['Produto'].str.lower().str.contains('magnetico|magnético', na=False)]
+            else:
+                 for palavra in termo_cat_limpo.split():
+                     df_drill = df_drill[df_drill['Produto'].str.lower().str.contains(palavra, na=False)]
+                     
+        if subcat_escolhida and subcat_escolhida != "N/A":
+            termo_sub_sem_espaco = subcat_escolhida.lower().replace(" ", "")
+            mask = df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(termo_sub_sem_espaco, na=False)
+            
+            # Blindagem contra variantes não selecionadas (ex: pesquisa 4060, remove 4060 Ti)
+            if not any(sufixo in termo_sub_sem_espaco for sufixo in ['ti', 'super', 'xt']):
+                mask = mask & ~df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}ti", na=False)
+                mask = mask & ~df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}super", na=False)
+                mask = mask & ~df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}xt", na=False)
+            
+            df_drill = df_drill[mask]
+
+        # --- 3. MARCAS (Mostra apenas as marcas válidas baseadas no filtro acima) ---
+        marcas_validas = sorted([m for m in df_drill['Marca'].dropna().unique() if m != "Outra/Genérica"])
+        
+        with col3:
+            marcas_escolhidas = st.multiselect("3. Marcas (Opcional):", marcas_validas)
+            
+        if len(marcas_escolhidas) > 0:
+            df_drill = df_drill[df_drill['Marca'].isin(marcas_escolhidas)]
+
+        # --- 4. ESPECIFICAÇÃO ---
+        with col4:
+            especificacao_extra = st.text_input("4. Especificação (Ex: Branco, OC):")
+            
+        if especificacao_extra:
+            espec_limpa = ''.join(c for c in unicodedata.normalize('NFD', especificacao_extra) if unicodedata.category(c) != 'Mn').lower()
+            df_drill = df_drill[df_drill['Produto'].str.lower().str.contains(espec_limpa, na=False)]
+
+        # =======================================================
+        # 🚀 REGRA DAS 2 OPÇÕES E GERAÇÃO DO GRÁFICO
+        # =======================================================
+        
+        # Conta quantos filtros principais o usuário ativou
+        filtros_ativos = 0
+        if cat_escolhida: filtros_ativos += 1
+        if subcat_escolhida and subcat_escolhida != "N/A": filtros_ativos += 1
+        if len(marcas_escolhidas) > 0: filtros_ativos += 1
+        if especificacao_extra: filtros_ativos += 1
+
+        if filtros_ativos < 2:
+            st.info("👆 Por favor, preencha pelo menos **DUAS opções** (Ex: Categoria + Marca, ou Modelo + Marca) para visualizar o histórico de preços.")
+        else:
+            if not df_drill.empty:
+                # 🚀 Lógica de Agrupamento Dinâmico
+                if subcat_escolhida != "" and subcat_escolhida != "N/A":
+                    # Se tem modelo específico (Ex: RTX 4060), a linha é a Marca
                     df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Marca'])['Preco'].mean().reset_index()
-                    df_agrupado_drill['Preco_Label'] = df_agrupado_drill['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                     df_agrupado_drill['Legenda'] = df_agrupado_drill['Loja'] + " - " + df_agrupado_drill['Marca']
-                    
-                    titulo_modelo = subcat_escolhida if subcat_escolhida and subcat_escolhida != "N/A" else ""
-                    titulo_graf = f"{cat_escolhida.upper()} {titulo_modelo}".strip()
-                    
-                    subtitulo = f"Marcas: {', '.join(marcas_escolhidas)}" if marcas_escolhidas else "Todas as marcas"
-                    subtitulo += f" | Esp: {especificacao_extra}" if especificacao_extra else ""
-                    
-                    fig_drill = px.line(
-                        df_agrupado_drill, 
-                        x="DataCaptura", 
-                        y="Preco", 
-                        color="Legenda", 
-                        markers=True, 
-                        text="Preco_Label", 
-                        title=f"Drill-Down: {titulo_graf} ({subtitulo})", 
-                        labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Legenda": "Loja - Marca"}
-                    )
-                    
-                    fig_drill.update_traces(textposition="top center")
-                    fig_drill.update_layout(yaxis=dict(range=[df_agrupado_drill['Preco'].min() * 0.9, df_agrupado_drill['Preco'].max() * 1.1]))
-                    fig_drill.update_xaxes(tickformat="%d/%m/%Y")
-                    
-                    st.plotly_chart(fig_drill, use_container_width=True)
-                    
-                    with st.expander("Ver produtos englobados neste filtro"):
-                        st.dataframe(df_drill[['Loja', 'Marca', 'Produto', 'Preco']].drop_duplicates(subset=['Produto']).head(20), width='stretch')
                 else:
-                     st.warning("Nenhum hardware encontrado com essa combinação exata.")
+                    # Se não tem modelo (Ex: Mouse + Logitech), desenha uma linha para CADA produto diferente!
+                    df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Produto'])['Preco'].mean().reset_index()
+                    df_agrupado_drill['Produto_Curto'] = df_agrupado_drill['Produto'].apply(lambda x: x[:40] + "..." if len(x) > 40 else x)
+                    df_agrupado_drill['Legenda'] = df_agrupado_drill['Loja'] + " - " + df_agrupado_drill['Produto_Curto']
+                
+                df_agrupado_drill['Preco_Label'] = df_agrupado_drill['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                
+                # Montando o Título Bonitinho
+                partes_titulo = []
+                if cat_escolhida: partes_titulo.append(cat_escolhida)
+                if subcat_escolhida and subcat_escolhida != "N/A": partes_titulo.append(subcat_escolhida)
+                if marcas_escolhidas: partes_titulo.append(" | ".join(marcas_escolhidas))
+                
+                titulo_graf = " + ".join(partes_titulo)
+                subtitulo = f"Especificação: {especificacao_extra}" if especificacao_extra else ""
+                
+                fig_drill = px.line(
+                    df_agrupado_drill, 
+                    x="DataCaptura", 
+                    y="Preco", 
+                    color="Legenda", 
+                    markers=True, 
+                    text="Preco_Label", 
+                    title=f"Drill-Down: {titulo_graf} {subtitulo}", 
+                    labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Legenda": "Item"}
+                )
+                
+                fig_drill.update_traces(textposition="top center")
+                fig_drill.update_layout(yaxis=dict(range=[df_agrupado_drill['Preco'].min() * 0.9, df_agrupado_drill['Preco'].max() * 1.1]))
+                fig_drill.update_xaxes(tickformat="%d/%m/%Y")
+                
+                st.plotly_chart(fig_drill, use_container_width=True)
+                
+                with st.expander("Ver lista de produtos englobados neste filtro"):
+                    st.dataframe(df_drill[['Loja', 'Marca', 'Produto', 'Preco']].drop_duplicates(subset=['Produto']).sort_values('Preco', ascending=False), width='stretch')
+            else:
+                st.warning("Nenhum hardware encontrado no banco de dados com essa combinação exata de filtros.")
 # ================= PÁGINA 2: PREVISÃO DE IA =================
 elif menu == "🔮 Previsão de IA":
     st.title("🔮 Motor de Previsão de Vendas (Machine Learning)")
