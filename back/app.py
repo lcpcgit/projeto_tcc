@@ -272,7 +272,6 @@ if menu == "📊 Dashboard e Mercado":
             termo_sub_sem_espaco = subcat_escolhida.lower().replace(" ", "")
             mask = df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(termo_sub_sem_espaco, na=False)
             
-            # Blindagem contra variantes não selecionadas (ex: pesquisa 4060, remove 4060 Ti)
             if not any(sufixo in termo_sub_sem_espaco for sufixo in ['ti', 'super', 'xt']):
                 mask = mask & ~df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}ti", na=False)
                 mask = mask & ~df_drill['Produto'].str.lower().str.replace(" ", "").str.contains(f"{termo_sub_sem_espaco}super", na=False)
@@ -280,8 +279,8 @@ if menu == "📊 Dashboard e Mercado":
             
             df_drill = df_drill[mask]
 
-        # --- 3. MARCAS (Mostra apenas as marcas válidas baseadas no filtro acima) ---
-        marcas_validas = sorted([m for m in df_drill['Marca'].dropna().unique() if m != "Outra/Genérica"])
+        # --- 3. MARCAS ---
+        marcas_validas = sorted([m for m in df_drill['Marca'].dropna().unique()])
         
         with col3:
             marcas_escolhidas = st.multiselect("3. Marcas (Opcional):", marcas_validas)
@@ -300,8 +299,6 @@ if menu == "📊 Dashboard e Mercado":
         # =======================================================
         # 🚀 REGRA DAS 2 OPÇÕES E GERAÇÃO DO GRÁFICO
         # =======================================================
-        
-        # Conta quantos filtros principais o usuário ativou
         filtros_ativos = 0
         if cat_escolhida: filtros_ativos += 1
         if subcat_escolhida and subcat_escolhida != "N/A": filtros_ativos += 1
@@ -313,9 +310,9 @@ if menu == "📊 Dashboard e Mercado":
         else:
             if not df_drill.empty:
                 
-                # 🚀 NOVO: FILTRO DE PREÇO NO CANTO SUPERIOR DIREITO
-                st.markdown("<br>", unsafe_allow_html=True) # Espaçozinho para respirar
-                col_vazia, col_filtro_preco = st.columns([3, 1]) # Cria as colunas (A direita fica pequena)
+                # 🚀 NOVO: FILTRO DE PREÇO NO CANTO SUPERIOR DIREITO (ATUALIZADO)
+                st.markdown("<br>", unsafe_allow_html=True) 
+                col_vazia, col_filtro_preco = st.columns([3, 1]) 
                 
                 with col_filtro_preco:
                     filtro_preco = st.selectbox(
@@ -326,11 +323,13 @@ if menu == "📊 Dashboard e Mercado":
                             "R$ 100 a R$ 500", 
                             "R$ 500 a R$ 1.500", 
                             "R$ 1.500 a R$ 3.000", 
-                            "Acima de R$ 3.000"
+                            "R$ 3.000 a R$ 5.000", 
+                            "R$ 5.000 a R$ 8.000",
+                            "Acima de R$ 8.000"
                         ]
                     )
                 
-                # Aplica o filtro de preço no dataframe
+                # Aplica o filtro de preço
                 if filtro_preco == "Abaixo de R$ 100":
                     df_drill = df_drill[df_drill['Preco'] < 100]
                 elif filtro_preco == "R$ 100 a R$ 500":
@@ -339,25 +338,25 @@ if menu == "📊 Dashboard e Mercado":
                     df_drill = df_drill[(df_drill['Preco'] > 500) & (df_drill['Preco'] <= 1500)]
                 elif filtro_preco == "R$ 1.500 a R$ 3.000":
                     df_drill = df_drill[(df_drill['Preco'] > 1500) & (df_drill['Preco'] <= 3000)]
-                elif filtro_preco == "Acima de R$ 3.000":
-                    df_drill = df_drill[df_drill['Preco'] > 3000]
+                elif filtro_preco == "R$ 3.000 a R$ 5.000":
+                    df_drill = df_drill[(df_drill['Preco'] > 3000) & (df_drill['Preco'] <= 5000)]
+                elif filtro_preco == "R$ 5.000 a R$ 8.000":
+                    df_drill = df_drill[(df_drill['Preco'] > 5000) & (df_drill['Preco'] <= 8000)]
+                elif filtro_preco == "Acima de R$ 8.000":
+                    df_drill = df_drill[df_drill['Preco'] > 8000]
 
-                # Checa de novo se o dataframe não esvaziou após o filtro de preço
                 if not df_drill.empty:
-                    # 🚀 Lógica de Agrupamento Dinâmico
+                    # Agrupamento para o Gráfico
                     if subcat_escolhida != "" and subcat_escolhida != "N/A":
-                        # Se tem modelo específico (Ex: RTX 4060), a linha é a Marca
                         df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Marca'])['Preco'].mean().reset_index()
                         df_agrupado_drill['Legenda'] = df_agrupado_drill['Loja'] + " - " + df_agrupado_drill['Marca']
                     else:
-                        # Se não tem modelo (Ex: Mouse + Logitech), desenha uma linha para CADA produto diferente!
                         df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Produto'])['Preco'].mean().reset_index()
                         df_agrupado_drill['Produto_Curto'] = df_agrupado_drill['Produto'].apply(lambda x: x[:40] + "..." if len(x) > 40 else x)
                         df_agrupado_drill['Legenda'] = df_agrupado_drill['Loja'] + " - " + df_agrupado_drill['Produto_Curto']
                     
                     df_agrupado_drill['Preco_Label'] = df_agrupado_drill['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                     
-                    # Montando o Título Bonitinho
                     partes_titulo = []
                     if cat_escolhida: partes_titulo.append(cat_escolhida)
                     if subcat_escolhida and subcat_escolhida != "N/A": partes_titulo.append(subcat_escolhida)
@@ -383,8 +382,25 @@ if menu == "📊 Dashboard e Mercado":
                     
                     st.plotly_chart(fig_drill, use_container_width=True)
                     
-                    with st.expander("Ver lista de produtos englobados neste filtro"):
-                        st.dataframe(df_drill[['Loja', 'Marca', 'Produto', 'Preco']].drop_duplicates(subset=['Produto']).sort_values('Preco', ascending=False), width='stretch')
+                    # 🚀 NOVO: TABELA DE EXTRATO DOS ÚLTIMOS 7 DIAS COM VALORES REAIS
+                    with st.expander("Ver histórico detalhado de preços (Últimos 7 dias)"):
+                        df_tabela = df_drill.copy()
+                        df_tabela['DataCaptura'] = pd.to_datetime(df_tabela['DataCaptura'])
+                        
+                        # Filtra pegando a data mais recente no dataframe e voltando 7 dias
+                        data_maxima = df_tabela['DataCaptura'].max()
+                        data_limite = data_maxima - pd.Timedelta(days=7)
+                        df_7_dias = df_tabela[df_tabela['DataCaptura'] >= data_limite].copy()
+                        
+                        # Formatação visual
+                        df_7_dias['Data'] = df_7_dias['DataCaptura'].dt.strftime('%d/%m/%Y')
+                        df_7_dias['Preço Real'] = df_7_dias['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                        
+                        st.dataframe(
+                            df_7_dias.sort_values(['Produto', 'DataCaptura'], ascending=[True, False])[['Data', 'Loja', 'Marca', 'Produto', 'Preço Real']],
+                            width='stretch',
+                            hide_index=True
+                        )
                 else:
                     st.warning(f"Nenhum produto encontrado na faixa '{filtro_preco}'.")
             else:
