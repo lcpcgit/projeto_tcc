@@ -51,7 +51,39 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
                 'brx', 'tgt', 'mymax', 'fortrek', 'brazilpc', 'brazil pc', 'mach1', 'sate',
                 'storm-z', 'montech', 'ktrok', 'ps-g', 'liketec', 'hyte', 'hyrax', 'kalkan', 'dr. office',
                 'vinik', 'knup', 'bluecase', 'k-mex', 'kmex', 'primetek', 'concórdia', 'concordia',
-                'amd', 'intel' 
+                'amd', 'intel',
+
+                'havit', 'jbl', 'alienware', 'aiwa', 'akg', 'aigo', 'altomex',
+                'antec', 'aorus', 'arctic', 'arktek', 'behringer', 'bose', 'boya',
+                'coolmoon', 'creative', 'dahua', 'darkflash', 'darmoshark', 'denon',
+                'dji', 'edifier', 'elgato', 'epson', 'fantech', 'fifine', 'fnatic',
+                'fractal', 'fsp', 'genius', 'godox', 'goldentec', 'gradiente', 'harman', 'hewlett',
+            
+                'geometric future', '1stplayer', 'astro', 'klevv', 'segotep', 'tronos', 'revenger',
+                'bpc', 'hoopson', 'new hero', 'macrovip', 'arzopa', 'atk', 'tomate', 'xtrike',
+                'xiaomi', 'clanm', 'grasep', 'lamzu', 'audio-technica', 'esr', 'monocron',
+                'ugreen', 'targus', 'shure', 'jonsbo', 'maono', 'leson', 'pcwinmax', 'winnfox',
+                'peladn', 'wavlink', 'maxsun', 'ulanzi', 'hollyland', 'synco', 'sennheiser',
+                'poly', 'plantronics', 'neewer', 'mamen', 'lelong', 'be quiet', 'sharkoon',
+                'warrior', 'evolut', 'satellite', 'silverstone',
+
+                'kbm! gaming', 'rode', 'xzone', 'c3-tech', 'pioneer', 'elgin', 'tcl', 'philco',
+                'lexsen', 'kadosh', 'comica', 'lensgo', 'vimai', 'blue snowball', 'dukie',
+                'lorben', 'zoom', 'oxybr', 'walram', 'golden memory', 'hpe', 'yealink',
+                'sades', 'onikuma', 'goldenultra', 'lehmox', 'topuse', 'sony', 'panasonic',
+
+                'afox', 'vxpro', 'dex', 'phanteks', 'akasa', 'telefunken', 'klipsch', 'mondial',
+                'harmonics', 'dylan', 'streamplify', 'microsoft', 'endgame gear', 'aplus',
+                'argom', 'santana', 'pixxo', 'wanptek', 'westinghouse',
+
+                'round5', 'sevenhero', 'hq', 'axpro', 'odyssey', 'dale7', 'sansung', 'tribit', 
+                'waveone', 'cmteck', 'ilectry vision', 'xlinne', 'worldview', '3geen', 'ntc', 
+                'bestbattery', 'bestoss', 'wb black', 'synex', 'ioway', 'sgmax', 'king', 
+                'fanxiang', 'polyvox', 'vokal', 'kaidi', 'microdigi', 'snaker', 'playshop', 
+                'marvo scorpion', 'g-fire', 'joy', 'nextpc', 'gbt', 'pctop', 'mxt', 'kapbom', 
+                'ebai', 'ckmova', 'mirfak', 'sairen', 'lotus', 'storm', 'csr', 'santo angelo', 
+                'ajazz', 'cross do brasil', 'g-hox', 'byz', 'kaster'
+                
             ]
             
             nome_lower = nome.lower()
@@ -133,7 +165,63 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
                     if marca == '8bitdo': return '8BitDo'
                     if marca == 'keytime' or marca == 'keyceo': return 'Keytime'
                     if marca == 'duex' or marca == 'dxmo': return 'Duex'
-                    return marca.strip().capitalize() 
+                    if marca == 'jbl': return 'JBL'
+                    if marca == 'akg': return 'AKG'
+                    if marca == 'dji': return 'DJI'
+                    if marca == 'fsp': return 'FSP'
+                    if marca == 'atk': return 'ATK'
+                    if marca == 'bpc': return 'BPC'
+                    if marca == 'esr': return 'ESR'
+                    if marca == 'be quiet': return 'Be Quiet!'
+                    if marca == '1stplayer': return '1stPlayer'
+                    if marca == 'audio-technica': return 'Audio-Technica'
+                    if marca == 'pcwinmax': return 'PCWinmax'
+                    if marca == 'plantronics': return 'Poly'
+                    if marca == 'kinology': return 'Kinology'
+                    if marca == 'radeon': return 'AMD'
+                    if marca == 'nvidia' or marca == 'geforce' or marca == 'gforce' or marca == 'g-force': return 'NVIDIA'
+                    if marca == 'afox': return 'AFOX'
+                    if marca == 'dex': return 'DEX'
+                    if marca == 'round5': return 'Round5'
+                    if marca == 'sevenhero': return 'Sevenhero'
+                    if marca == 'hq': return 'HQ'
+                    if marca == 'axpro': return 'Axpro'
+                    if marca == 'odyssey' or marca == 'sansung' or marca == 'samsung': return 'Samsung'
+                    if marca == 'cmteck': return 'CMTECK'
+                    if marca == 'ilectry vision': return 'Ilectry Vision'
+                    if marca == 'xlinne': return 'Xlinne'
+                    if marca == 'worldview': return 'Worldview'
+                    if marca == '3geen' or marca == '3green': return '3Green'
+                    if marca == 'ntc': return 'NTC'
+                    if marca == 'bestbattery': return 'BestBattery'
+                    if marca == 'bestoss': return 'Bestoss'
+                    if marca == 'synex': return 'Synex'
+                    if marca == 'sgmax': return 'SGMAX'
+                    if marca == 'fanxiang': return 'Fanxiang'
+                    if marca == 'polyvox': return 'Polyvox'
+                    if marca == 'vokal': return 'Vokal'
+                    if marca == 'kaidi': return 'Kaidi'
+                    if marca == 'microdigi': return 'Microdigi'
+                    if marca == 'playshop': return 'Playshop'
+                    if marca == 'g-fire': return 'G-Fire'
+                    if marca == 'nextpc': return 'NextPC'
+                    if marca == 'gbt': return 'GBT'
+                    if marca == 'pctop': return 'PCTOP'
+                    if marca == 'mxt': return 'MXT'
+                    if marca == 'kapbom': return 'Kapbom'
+                    if marca == 'ebai': return 'Ebai'
+                    if marca == 'ckmova': return 'CKMOVA'
+                    if marca == 'mirfak': return 'Mirfak'
+                    if marca == 'sairen': return 'Sairen'
+                    if marca == 'csr': return 'CSR'
+                    if marca == 'santo angelo': return 'Santo Angelo'
+                    if marca == 'ajazz': return 'Ajazz'
+                    if marca == 'cross do brasil': return 'Cross do Brasil'
+                    if marca == 'g-hox': return 'G-Hox'
+                    if marca == 'byz': return 'BYZ'
+                    return marca.strip().capitalize()
+                elif marca == 'kbm! gaming' and 'kbm! gaming' in nome_lower:
+                    return 'KBM! Gaming' 
             
             return "Outra/Genérica"
         
