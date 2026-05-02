@@ -312,47 +312,81 @@ if menu == "📊 Dashboard e Mercado":
             st.info("👆 Por favor, preencha pelo menos **DUAS opções** (Ex: Categoria + Marca, ou Modelo + Marca) para visualizar o histórico de preços.")
         else:
             if not df_drill.empty:
-                # 🚀 Lógica de Agrupamento Dinâmico
-                if subcat_escolhida != "" and subcat_escolhida != "N/A":
-                    # Se tem modelo específico (Ex: RTX 4060), a linha é a Marca
-                    df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Marca'])['Preco'].mean().reset_index()
-                    df_agrupado_drill['Legenda'] = df_agrupado_drill['Loja'] + " - " + df_agrupado_drill['Marca']
+                
+                # 🚀 NOVO: FILTRO DE PREÇO NO CANTO SUPERIOR DIREITO
+                st.markdown("<br>", unsafe_allow_html=True) # Espaçozinho para respirar
+                col_vazia, col_filtro_preco = st.columns([3, 1]) # Cria as colunas (A direita fica pequena)
+                
+                with col_filtro_preco:
+                    filtro_preco = st.selectbox(
+                        "💰 Faixa de Preço:",
+                        [
+                            "Todos os Preços", 
+                            "Abaixo de R$ 100", 
+                            "R$ 100 a R$ 500", 
+                            "R$ 500 a R$ 1.500", 
+                            "R$ 1.500 a R$ 3.000", 
+                            "Acima de R$ 3.000"
+                        ]
+                    )
+                
+                # Aplica o filtro de preço no dataframe
+                if filtro_preco == "Abaixo de R$ 100":
+                    df_drill = df_drill[df_drill['Preco'] < 100]
+                elif filtro_preco == "R$ 100 a R$ 500":
+                    df_drill = df_drill[(df_drill['Preco'] >= 100) & (df_drill['Preco'] <= 500)]
+                elif filtro_preco == "R$ 500 a R$ 1.500":
+                    df_drill = df_drill[(df_drill['Preco'] > 500) & (df_drill['Preco'] <= 1500)]
+                elif filtro_preco == "R$ 1.500 a R$ 3.000":
+                    df_drill = df_drill[(df_drill['Preco'] > 1500) & (df_drill['Preco'] <= 3000)]
+                elif filtro_preco == "Acima de R$ 3.000":
+                    df_drill = df_drill[df_drill['Preco'] > 3000]
+
+                # Checa de novo se o dataframe não esvaziou após o filtro de preço
+                if not df_drill.empty:
+                    # 🚀 Lógica de Agrupamento Dinâmico
+                    if subcat_escolhida != "" and subcat_escolhida != "N/A":
+                        # Se tem modelo específico (Ex: RTX 4060), a linha é a Marca
+                        df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Marca'])['Preco'].mean().reset_index()
+                        df_agrupado_drill['Legenda'] = df_agrupado_drill['Loja'] + " - " + df_agrupado_drill['Marca']
+                    else:
+                        # Se não tem modelo (Ex: Mouse + Logitech), desenha uma linha para CADA produto diferente!
+                        df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Produto'])['Preco'].mean().reset_index()
+                        df_agrupado_drill['Produto_Curto'] = df_agrupado_drill['Produto'].apply(lambda x: x[:40] + "..." if len(x) > 40 else x)
+                        df_agrupado_drill['Legenda'] = df_agrupado_drill['Loja'] + " - " + df_agrupado_drill['Produto_Curto']
+                    
+                    df_agrupado_drill['Preco_Label'] = df_agrupado_drill['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+                    
+                    # Montando o Título Bonitinho
+                    partes_titulo = []
+                    if cat_escolhida: partes_titulo.append(cat_escolhida)
+                    if subcat_escolhida and subcat_escolhida != "N/A": partes_titulo.append(subcat_escolhida)
+                    if marcas_escolhidas: partes_titulo.append(" | ".join(marcas_escolhidas))
+                    
+                    titulo_graf = " + ".join(partes_titulo)
+                    subtitulo = f"Especificação: {especificacao_extra}" if especificacao_extra else ""
+                    
+                    fig_drill = px.line(
+                        df_agrupado_drill, 
+                        x="DataCaptura", 
+                        y="Preco", 
+                        color="Legenda", 
+                        markers=True, 
+                        text="Preco_Label", 
+                        title=f"Drill-Down: {titulo_graf} {subtitulo}", 
+                        labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Legenda": "Item"}
+                    )
+                    
+                    fig_drill.update_traces(textposition="top center")
+                    fig_drill.update_layout(yaxis=dict(range=[df_agrupado_drill['Preco'].min() * 0.9, df_agrupado_drill['Preco'].max() * 1.1]))
+                    fig_drill.update_xaxes(tickformat="%d/%m/%Y")
+                    
+                    st.plotly_chart(fig_drill, use_container_width=True)
+                    
+                    with st.expander("Ver lista de produtos englobados neste filtro"):
+                        st.dataframe(df_drill[['Loja', 'Marca', 'Produto', 'Preco']].drop_duplicates(subset=['Produto']).sort_values('Preco', ascending=False), width='stretch')
                 else:
-                    # Se não tem modelo (Ex: Mouse + Logitech), desenha uma linha para CADA produto diferente!
-                    df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Produto'])['Preco'].mean().reset_index()
-                    df_agrupado_drill['Produto_Curto'] = df_agrupado_drill['Produto'].apply(lambda x: x[:40] + "..." if len(x) > 40 else x)
-                    df_agrupado_drill['Legenda'] = df_agrupado_drill['Loja'] + " - " + df_agrupado_drill['Produto_Curto']
-                
-                df_agrupado_drill['Preco_Label'] = df_agrupado_drill['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                
-                # Montando o Título Bonitinho
-                partes_titulo = []
-                if cat_escolhida: partes_titulo.append(cat_escolhida)
-                if subcat_escolhida and subcat_escolhida != "N/A": partes_titulo.append(subcat_escolhida)
-                if marcas_escolhidas: partes_titulo.append(" | ".join(marcas_escolhidas))
-                
-                titulo_graf = " + ".join(partes_titulo)
-                subtitulo = f"Especificação: {especificacao_extra}" if especificacao_extra else ""
-                
-                fig_drill = px.line(
-                    df_agrupado_drill, 
-                    x="DataCaptura", 
-                    y="Preco", 
-                    color="Legenda", 
-                    markers=True, 
-                    text="Preco_Label", 
-                    title=f"Drill-Down: {titulo_graf} {subtitulo}", 
-                    labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Legenda": "Item"}
-                )
-                
-                fig_drill.update_traces(textposition="top center")
-                fig_drill.update_layout(yaxis=dict(range=[df_agrupado_drill['Preco'].min() * 0.9, df_agrupado_drill['Preco'].max() * 1.1]))
-                fig_drill.update_xaxes(tickformat="%d/%m/%Y")
-                
-                st.plotly_chart(fig_drill, use_container_width=True)
-                
-                with st.expander("Ver lista de produtos englobados neste filtro"):
-                    st.dataframe(df_drill[['Loja', 'Marca', 'Produto', 'Preco']].drop_duplicates(subset=['Produto']).sort_values('Preco', ascending=False), width='stretch')
+                    st.warning(f"Nenhum produto encontrado na faixa '{filtro_preco}'.")
             else:
                 st.warning("Nenhum hardware encontrado no banco de dados com essa combinação exata de filtros.")
 # ================= PÁGINA 2: PREVISÃO DE IA =================
