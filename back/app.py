@@ -110,30 +110,33 @@ if menu == "📊 Dashboard e Mercado":
             # --- VISÃO ESPECÍFICA ---
             st.info("Aqui você seleciona o modelo **exato** para analisar o preço dele.")
             
-            lista_produtos = sorted(df_historico['Produto'].unique())
+            # ==========================================
+            # 🚀 FILTRO ESTRITO DE PRODUTO ESPECÍFICO
+            # ==========================================
             
-            # 🚀 SOLUÇÃO DO RESET: Usa a memória do Streamlit para a Visão Específica
-            if 'ultimo_produto_especifico' not in st.session_state:
-                # Se não tem memória, o padrão é o primeiro produto da lista (para evitar erros)
-                st.session_state['ultimo_produto_especifico'] = lista_produtos[0] if lista_produtos else None
+            # 1. Cria uma caixinha de pesquisa primeiro
+            pesquisa_produto = st.text_input("🔍 Digite parte do nome para filtrar a lista exata (Ex: tomate, rtx 4060):")
             
-            # Tenta encontrar o índice do produto salvo na lista atual. Se não achar, usa 0.
-            try:
-                indice_padrao = lista_produtos.index(st.session_state['ultimo_produto_especifico'])
-            except ValueError:
-                indice_padrao = 0
-
+            # 2. Filtra a lista do banco de dados estritamente pelo que foi digitado
+            if pesquisa_produto:
+                # Puxa só os produtos que realmente CONTÊM a palavra junta (case-insensitive)
+                lista_filtrada = df_historico[df_historico['Produto'].str.contains(pesquisa_produto, case=False, na=False)]['Produto'].dropna().unique()
+                lista_filtrada = sorted(lista_filtrada)
+            else:
+                # Se não digitou nada, mostra a mensagem e deixa a lista "vazia"
+                lista_filtrada = ["Digite algo na pesquisa acima para encontrar o produto..."]
+                
+            # 3. Descobre se a caixinha deve ficar bloqueada ou não
+            esta_bloqueado = len(lista_filtrada) == 1 and lista_filtrada[0].startswith("Digite algo")
+            
             produto_escolhido = st.selectbox(
                 "Escolha o Hardware específico na base de dados:", 
-                lista_produtos,
-                index=indice_padrao
+                lista_filtrada,
+                disabled=esta_bloqueado
             )
             
-            # Atualiza a memória com o que o usuário acabou de selecionar
-            st.session_state['ultimo_produto_especifico'] = produto_escolhido
-            
-            # Trava de segurança: Só prossegue se houver realmente um produto escolhido
-            if produto_escolhido:
+            # Trava de segurança: Só prossegue se houver realmente um produto escolhido válido
+            if produto_escolhido and not esta_bloqueado:
                 df_filtrado = df_historico[df_historico['Produto'] == produto_escolhido].copy()
                 
                 if not df_filtrado.empty:
@@ -158,7 +161,7 @@ if menu == "📊 Dashboard e Mercado":
                 else:
                     st.warning("Sem dados suficientes para gerar o gráfico deste produto específico.")
             else:
-                 st.info("Por favor, selecione um produto na lista acima.")
+                 st.info("👆 Por favor, pesquise e selecione um produto na lista acima.")
 # =======================================================
         # 🚀 NOVO MÓDULO: ANÁLISE DRILL-DOWN (CASCATA INTELIGENTE)
         # =======================================================
