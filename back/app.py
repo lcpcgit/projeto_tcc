@@ -8,9 +8,9 @@ import re
 import numpy as np
 import time
 
-st.set_page_config(page_title="Hardware Preditivo AI", layout="wide")
+st.set_page_config(page_title="Hardware Preditivo", layout="wide")
 
-# ================= FUNÇÕES DE DADOS =================
+# FUNÇÕES DE DADOS 
 @st.cache_data(ttl=600) 
 def carregar_dados_aws():
     endpoint_aws = "hardwares-tcc.cveowcsuansb.sa-east-1.rds.amazonaws.com"
@@ -20,9 +20,9 @@ def carregar_dados_aws():
     
     try:
         engine = create_engine(url_conexao)
-        df = pd.read_sql("SELECT DataCaptura, Loja, Marca, Produto, Preco FROM HistoricoPrecos", engine) # Adicionado 'Marca' aqui!
+        df = pd.read_sql("SELECT DataCaptura, Loja, Marca, Produto, Preco FROM HistoricoPrecos", engine) 
         
-        # 🚀 Limpeza: Remove números e hífens isolados no início do nome
+        # Limpeza: Remove números e hífens isolados no início do nome
         df['Produto'] = df['Produto'].apply(lambda x: re.sub(r'^[\d\s-]+\s*', '', str(x)))
         
         df['DataCaptura'] = pd.to_datetime(df['DataCaptura']) 
@@ -32,40 +32,40 @@ def carregar_dados_aws():
         st.error(f"Erro ao conectar na AWS: {e}")
         return pd.DataFrame()
 
-# ================= MENU LATERAL =================
-st.sidebar.title("🤖 IA Hardware B2B")
+# MENU LATERAL 
+st.sidebar.title("Menu")
 st.sidebar.markdown("---")
 menu = st.sidebar.radio(
     "Navegação do Sistema:",
-    ["📊 Dashboard e Mercado", 
-     "🔮 Previsão de IA", 
-     "📂 Gestão de Dados"]
+    ["Pesquisa de Mercado", 
+     "Sistema de predição", 
+     "Gestão de Dados"]
 )
 
-# ================= PÁGINA 1: DASHBOARD =================
-if menu == "📊 Dashboard e Mercado":
-    st.title("📊 Inteligência de Mercado: Scanner B2B")
-    st.write("Acompanhe o histórico de preços reais praticados pelos maiores e-commerces (Kabum e Terabyte).")
+# DASHBOARD 
+if menu == "Pesquisa de Mercado":
+    st.title("Scanner / Dashbords do mercado")
+    st.write("Acompanhe o histórico de preços praticados pelas maiores lojas de hardware do Brasil (Kabum e Terabyte).")
     
     df_historico = carregar_dados_aws()
     
     if not df_historico.empty:
-        st.write("### 📈 Tendência de Preços na Concorrência")
+        st.write("Tendência de Preços")
         
         modo_visao = st.radio(
             "Selecione o Nível de Análise:", 
-            ["🌐 Visão Geral (Média de Preços da Família)", "🔍 Visão Específica (Produto Exato)"],
+            ["Visão Geral", "Visão Específica"],
             horizontal=True
         )
         
         st.markdown("<br>", unsafe_allow_html=True) 
         
-        if modo_visao == "🌐 Visão Geral (Média de Preços da Família)":
-            st.info("Aqui você digita a família da peça (Ex: RTX 5070, B650, RX 7600) e o sistema calcula a **média de preços** de todos os modelos daquela linha no dia.")
+        if modo_visao == "Visão Geral":
+            st.info("Digite a família da peça (Ex: RTX 5070, B650, RX 7600) e o devolvera a média de preços de todos os modelos daquela linha no dia.")
             
-            # 🚀 SOLUÇÃO DO RESET: Usa a memória do Streamlit
+            # SOLUÇÃO DO RESET: Usa a memória do Streamlit
             if 'ultima_busca' not in st.session_state:
-                st.session_state['ultima_busca'] = "rtx 5070" # Valor padrão inicial
+                st.session_state['ultima_busca'] = "rtx 5070" 
                 
             familia_input = st.text_input("Digite a Família do Hardware:", value=st.session_state['ultima_busca'])
             
@@ -82,7 +82,7 @@ if menu == "📊 Dashboard e Mercado":
                     return texto
 
                 busca_limpa = limpar_texto_busca(familia_input)
-                palavras_busca = busca_limpa.split()
+                palavras_busca = command = busca_limpa.split()
                 df_historico['ProdutoLimpo'] = df_historico['Produto'].apply(limpar_texto_busca)
 
                 def aplicar_filtro_exclusivo(nome_do_produto, palavras_da_pesquisa):
@@ -106,31 +106,27 @@ if menu == "📊 Dashboard e Mercado":
                 else:
                     st.warning(f"Sem dados históricos para a família '{familia_input}'.")
                     
-        elif modo_visao == "🔍 Visão Específica (Produto Exato)":
-            # --- VISÃO ESPECÍFICA ---
-            st.info("Aqui você seleciona o modelo **exato** para analisar o preço dele.")
+        # CORREÇÃO AQUI: "Visão Específica" em vez de "Específica"
+        elif modo_visao == "Visão Específica":
+            #VISÃO ESPECÍFICA 
+            st.info("Selecione o modelo exato para analisar o preço dele.")
             
-            # ==========================================
-            # 🚀 FILTRO ESTRITO DE PRODUTO ESPECÍFICO
-            # ==========================================
+            # FILTRO ESTRITO DE PRODUTO ESPECÍFICO
+            pesquisa_produto = st.text_input("Filtre pela família/marca do produto:")
             
-            # 1. Cria uma caixinha de pesquisa primeiro
-            pesquisa_produto = st.text_input("🔍 Digite parte do nome para filtrar a lista exata (Ex: tomate, rtx 4060):")
-            
-            # 2. Filtra a lista do banco de dados estritamente pelo que foi digitado
             if pesquisa_produto:
                 # Puxa só os produtos que realmente CONTÊM a palavra junta (case-insensitive)
                 lista_filtrada = df_historico[df_historico['Produto'].str.contains(pesquisa_produto, case=False, na=False)]['Produto'].dropna().unique()
                 lista_filtrada = sorted(lista_filtrada)
             else:
                 # Se não digitou nada, mostra a mensagem e deixa a lista "vazia"
-                lista_filtrada = ["Digite algo na pesquisa acima para encontrar o produto..."]
+                lista_filtrada = ["Digite algo na pesquisa acima para encontrar o produto"]
                 
-            # 3. Descobre se a caixinha deve ficar bloqueada ou não
+            # Descobre se a caixinha deve ficar bloqueada ou não
             esta_bloqueado = len(lista_filtrada) == 1 and lista_filtrada[0].startswith("Digite algo")
             
             produto_escolhido = st.selectbox(
-                "Escolha o Hardware específico na base de dados:", 
+                "Escolha o Hardware específico:", 
                 lista_filtrada,
                 disabled=esta_bloqueado
             )
@@ -161,12 +157,12 @@ if menu == "📊 Dashboard e Mercado":
                 else:
                     st.warning("Sem dados suficientes para gerar o gráfico deste produto específico.")
             else:
-                 st.info("👆 Por favor, pesquise e selecione um produto na lista acima.")
-# =======================================================
-        # 🚀 NOVO MÓDULO: ANÁLISE DRILL-DOWN (CASCATA INTELIGENTE)
-        # =======================================================
+                 st.info("Por favor, pesquise e selecione um produto na lista acima.")
+        
+        # NOVO MÓDULO: ANÁLISE DRILL-DOWN (CASCATA INTELIGENTE)
+
         st.markdown("---")
-        st.write("### 🔬 Análise Drill-Down (Filtros Avançados)")
+        st.write("Análise De Filtros Avançados")
         st.write("Filtre o mercado através de categorias, modelos, marcas e especificações para encontrar nichos exatos.")
         
         # Categorias principais
@@ -177,7 +173,7 @@ if menu == "📊 Dashboard e Mercado":
             "Mousepad Gamer", "Webcam", "Soundbar", "Microfone"
         ]
 
-        # 🚀 DICIONÁRIO DE MODELOS MAPEADO 100%
+        # DICIONÁRIO DE MODELOS MAPEADO 100%
         mapa_subcategorias = {
             "Placa de Vídeo": [
                 "GT 610", "GT 730", "GT 740", "GTX 750 Ti", "GTX 960", "GTX 1050 Ti", 
@@ -226,11 +222,11 @@ if menu == "📊 Dashboard e Mercado":
         
         col1, col2, col3, col4 = st.columns(4)
         
-        # --- 1. CATEGORIA ---
+        # 1. CATEGORIA -
         with col1:
             cat_escolhida = st.selectbox("1. Categoria (Opcional):", [""] + sorted(categorias_base))
             
-        # --- 2. MODELO (Filtra baseado na Categoria) ---
+        # 2. MODELO (Filtra baseado na Categoria) 
         if cat_escolhida:
             modelos_da_cat = mapa_subcategorias.get(cat_escolhida, [])
             if len(modelos_da_cat) > 0:
@@ -246,7 +242,7 @@ if menu == "📊 Dashboard e Mercado":
         with col2:
             subcat_escolhida = st.selectbox("2. Modelo (Opcional):", opcoes_modelo, disabled=disabled_mod)
 
-        # --- APLICANDO OS PRIMEIROS FILTROS NA MEMÓRIA PARA DESCOBRIR AS MARCAS ---
+        # APLICANDO OS PRIMEIROS FILTROS NA MEMÓRIA PARA DESCOBRIR AS MARCAS
         df_drill = df_historico.copy()
         
         if cat_escolhida:
@@ -282,7 +278,7 @@ if menu == "📊 Dashboard e Mercado":
             
             df_drill = df_drill[mask]
 
-        # --- 3. MARCAS ---
+        # 3. MARCAS
         marcas_validas = sorted([m for m in df_drill['Marca'].dropna().unique()])
         
         with col3:
@@ -291,7 +287,7 @@ if menu == "📊 Dashboard e Mercado":
         if len(marcas_escolhidas) > 0:
             df_drill = df_drill[df_drill['Marca'].isin(marcas_escolhidas)]
 
-        # --- 4. ESPECIFICAÇÃO ---
+        # 4. ESPECIFICAÇÃO
         with col4:
             especificacao_extra = st.text_input("4. Especificação (Ex: Branco, OC):")
             
@@ -299,9 +295,9 @@ if menu == "📊 Dashboard e Mercado":
             espec_limpa = ''.join(c for c in unicodedata.normalize('NFD', especificacao_extra) if unicodedata.category(c) != 'Mn').lower()
             df_drill = df_drill[df_drill['Produto'].str.lower().str.contains(espec_limpa, na=False)]
 
-        # =======================================================
-        # 🚀 REGRA DAS 2 OPÇÕES E GERAÇÃO DO GRÁFICO
-        # =======================================================
+       
+        # REGRA DAS 2 OPÇÕES E GERAÇÃO DO GRÁFICO
+   
         filtros_ativos = 0
         if cat_escolhida: filtros_ativos += 1
         if subcat_escolhida and subcat_escolhida != "N/A": filtros_ativos += 1
@@ -309,17 +305,17 @@ if menu == "📊 Dashboard e Mercado":
         if especificacao_extra: filtros_ativos += 1
 
         if filtros_ativos < 2:
-            st.info("👆 Por favor, preencha pelo menos **DUAS opções** (Ex: Categoria + Marca, ou Modelo + Marca) para visualizar o histórico de preços.")
+            st.info(" Preencha pelo menos **DUAS opções** (Ex: Categoria + Marca, ou Modelo + Marca) para visualizar o histórico de preços.")
         else:
             if not df_drill.empty:
                 
-                # 🚀 NOVO: FILTRO DE PREÇO NO CANTO SUPERIOR DIREITO (ATUALIZADO)
+                #NOVO: FILTRO DE PREÇO NO CANTO SUPERIOR DIREITO (ATUALIZADO)
                 st.markdown("<br>", unsafe_allow_html=True) 
                 col_vazia, col_filtro_preco = st.columns([3, 1]) 
                 
                 with col_filtro_preco:
                     filtro_preco = st.selectbox(
-                        "💰 Faixa de Preço:",
+                        "Faixa de Preço",
                         [
                             "Todos os Preços", 
                             "Abaixo de R$ 100", 
@@ -385,7 +381,7 @@ if menu == "📊 Dashboard e Mercado":
                     
                     st.plotly_chart(fig_drill, use_container_width=True)
                     
-                    # 🚀 NOVO: TABELA DE EXTRATO DOS ÚLTIMOS 7 DIAS COM VALORES REAIS
+                    # NOVO: TABELA DE EXTRATO DOS ÚLTIMOS 7 DIAS COM VALORES REAIS
                     with st.expander("Ver histórico detalhado de preços (Últimos 7 dias)"):
                         df_tabela = df_drill.copy()
                         df_tabela['DataCaptura'] = pd.to_datetime(df_tabela['DataCaptura'])
@@ -408,15 +404,14 @@ if menu == "📊 Dashboard e Mercado":
                     st.warning(f"Nenhum produto encontrado na faixa '{filtro_preco}'.")
             else:
                 st.warning("Nenhum hardware encontrado no banco de dados com essa combinação exata de filtros.")
-# ================= PÁGINA 2: PREVISÃO DE IA =================
-elif menu == "🔮 Previsão de IA":
-    st.title("🔮 Motor de Previsão de Vendas (Machine Learning)")
-    st.write("Treinando o algoritmo Random Forest com dados históricos para prever a demanda futura.")
+#  PREVISÃO DE IA 
+elif menu == "Sistema de predição":
+    st.title("predição de Vendas")
 
     produto_ia = st.selectbox("Selecione o Hardware para Análise Preditiva:", ["GTX 1660", "RTX 4060", "RX 7600"])
     mes_alvo = st.selectbox("Prever Demanda Para:", ["Próximo Mês (Mês 13)", "Daqui a 2 Meses (Mês 14)"])
     
-    if st.button("🚀 Treinar IA e Gerar Previsão"):
+    if st.button("Treinar IA e Gerar Previsão"):
         with st.spinner("Treinando o modelo Random Forest com 12 meses de histórico..."):
             time.sleep(1.5) 
             
@@ -439,7 +434,7 @@ elif menu == "🔮 Previsão de IA":
                 previsao_ia = modelo_ia.predict([[mes_futuro, preco_estimado]])[0]
                 previsao_arredondada = int(previsao_ia)
                 
-                st.success(f"✅ Treinamento concluído! A Inteligência Artificial analisou os padrões de '{produto_ia}'.")
+                st.success(f"Treinamento concluído! A Inteligência Artificial analisou os padrões de '{produto_ia}'.")
                 
                 st.markdown("### Cenários Projetados (Margem de Confiança)")
                 colA, colB, colC = st.columns(3)
@@ -448,7 +443,7 @@ elif menu == "🔮 Previsão de IA":
                 colC.metric("📈 Cenário Otimista", f"{int(previsao_arredondada * 1.15)} unid.")
                 
                 st.markdown("---")
-                st.markdown("### 📊 Gráfico de Tendência (Histórico vs. Previsão)")
+                st.markdown("###  Gráfico de Tendência (Histórico vs. Previsão)")
                 
                 meses_grafico = list(range(1, 13)) + [mes_futuro]
                 vendas_grafico = list(vendas_historico) + [previsao_arredondada]
@@ -463,16 +458,16 @@ elif menu == "🔮 Previsão de IA":
                 fig = px.line(df_grafico, x="Mês", y="Unidades Vendidas", color="Tipo", markers=True, title="Comportamento de Vendas")
                 st.plotly_chart(fig, use_container_width=True)
                 
-                st.info("💡 **Dica Técnica para a Monografia:** O modelo Random Forest conseguiu prever a demanda cruzando a variável 'Tempo' com a variável 'Preço Praticado', simulando a elasticidade de demanda do mercado de hardware.")
+                st.info("O modelo Random Forest conseguiu prever a demanda cruzando a variável 'Tempo' com a variável 'Preço Praticado', simulando a elasticidade de demanda do mercado de hardware.")
                 
             except ImportError:
-                st.error("🚨 **Erro Crítico de IA:** A biblioteca Scikit-Learn não foi encontrada!")
+                st.error("Erro Crítico de IA: A biblioteca Scikit-Learn não foi encontrada!")
                 st.markdown("Pare o Streamlit (Ctrl+C no terminal) e digite: `pip install scikit-learn`")
 
-# ================= PÁGINA 3: GESTÃO DE DADOS =================
-elif menu == "📂 Gestão de Dados":
-    st.title("📂 Ingestão, Limpeza e Tratamento")
-    st.write("Módulo dedicado ao carregamento e padronização (Data Cleaning) do histórico de vendas da empresa.")
+#PÁGINA 3: GESTÃO DE DADOS 
+elif menu == "Gestão de Dados":
+    st.title("Ingestão, Limpeza e Tratamento")
+    st.write("Carregamento e padronização do histórico de vendas.")
     
     if 'dados_brutos' not in st.session_state:
         st.session_state['dados_brutos'] = None
@@ -482,7 +477,7 @@ elif menu == "📂 Gestão de Dados":
         st.session_state['linhas_removidas'] = 0
 
     st.markdown("---")
-    st.write("### 📌 Padrão Exigido para o CSV")
+    st.write("Padrão Exigido para o CSV")
     st.info("""
     Para o modelo de Inteligência Artificial cruzar o seu histórico de vendas com os preços da concorrência, o seu ficheiro CSV deve ter **exatamente** estas colunas (a ordem não importa, mas os nomes devem ser estes, sem acentos):
     * **DataCaptura** (Data da venda)
@@ -503,7 +498,7 @@ elif menu == "📂 Gestão de Dados":
             colunas_ausentes = [col for col in colunas_obrigatorias if col not in df_teste.columns]
             
             if len(colunas_ausentes) > 0:
-                st.error(f"❌ Erro de Formatação! Faltam as seguintes colunas no seu CSV: {', '.join(colunas_ausentes)}")
+                st.error(f"Erro de Formatação Faltam as seguintes colunas no seu CSV: {', '.join(colunas_ausentes)}")
                 st.warning("Ajuste o cabeçalho do seu ficheiro Excel/CSV para coincidir exatamente com as colunas exigidas acima e tente de novo.")
             else:
                 st.session_state['dados_brutos'] = df_teste
@@ -513,14 +508,14 @@ elif menu == "📂 Gestão de Dados":
             st.error(f"Erro ao ler o ficheiro: {e}")
     
     if st.session_state['dados_brutos'] is not None:
-        st.success("✅ Ficheiro validado e carregado com sucesso!")
+        st.success("Ficheiro validado e carregado com sucesso")
         st.dataframe(st.session_state['dados_brutos'], width='stretch')
         
         st.markdown("---")
-        st.write("### 🧹 Limpeza e Padronização de Dados")
+        st.write("Limpeza e Padronização de Dados")
         st.write("Clique abaixo para padronizar os dados internos com a base de dados da Nuvem AWS.")
         
-        if st.button("⚙️ Executar Tratamento de Dados"):
+        if st.button("Executar Tratamento de Dados"):
             with st.spinner("A aplicar algoritmos de normalização..."):
                 import time
                 time.sleep(1) 
@@ -532,7 +527,8 @@ elif menu == "📂 Gestão de Dados":
                 colunas_texto = ['Marca', 'Produto', 'Descricao']
                 for col in colunas_texto:
                     if col in df_tratado.columns:
-                        df_tratado[col] = df_tratado[col].astype(str).str.lower().str.strip()
+                        # CORRIGIDO: Agora usa .str.upper() para deixar tudo em MAIÚSCULO
+                        df_tratado[col] = df_tratado[col].astype(str).str.upper().str.strip()
                     
                 if 'DataCaptura' in df_tratado.columns:
                      try:
@@ -544,12 +540,12 @@ elif menu == "📂 Gestão de Dados":
                 st.session_state['linhas_removidas'] = len(st.session_state['dados_brutos']) - len(df_tratado)
                 
     if st.session_state['dados_tratados'] is not None:
-        st.write("#### ✨ Dados Normalizados e Prontos para a IA")
+        st.write("Dados Normalizados e Prontos")
         st.dataframe(st.session_state['dados_tratados'], width='stretch')
         
-        st.success(f"Operação concluída! {st.session_state['linhas_removidas']} linhas inválidas removidas. Nomenclatura e datas alinhadas com o banco AWS.")
+        st.success(f"Operação concluída! {st.session_state['linhas_removidas']} linhas inválidas removidas. Nomenclatura em CAIXA ALTA e datas alinhadas com o banco AWS.")
         
-        if st.button("🗑️ Limpar Memória e Subir Novo Arquivo"):
+        if st.button("Limpar Memória e Subir Novo Arquivo"):
             st.session_state['dados_brutos'] = None
             st.session_state['dados_tratados'] = None
             st.session_state['linhas_removidas'] = 0
