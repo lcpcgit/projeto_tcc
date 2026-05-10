@@ -404,66 +404,135 @@ if menu == "Pesquisa de Mercado":
                     st.warning(f"Nenhum produto encontrado na faixa '{filtro_preco}'.")
             else:
                 st.warning("Nenhum hardware encontrado no banco de dados com essa combinação exata de filtros.")
-#  PREVISÃO DE IA 
+# ================= PÁGINA 2: PREVISÃO DE IA =================
 elif menu == "Sistema de predição":
-    st.title("predição de Vendas")
+    st.title("🔮 Motor de Previsão de Vendas (Machine Learning)")
+    st.write("Treinando o algoritmo Random Forest com dados históricos e do mercado para prever a demanda futura.")
 
-    produto_ia = st.selectbox("Selecione o Hardware para Análise Preditiva:", ["GTX 1660", "RTX 4060", "RX 7600"])
-    mes_alvo = st.selectbox("Prever Demanda Para:", ["Próximo Mês (Mês 13)", "Daqui a 2 Meses (Mês 14)"])
-    
-    if st.button("Treinar IA e Gerar Previsão"):
-        with st.spinner("Treinando o modelo Random Forest com 12 meses de histórico..."):
-            time.sleep(1.5) 
+    # 1. TRAVA DE SEGURANÇA: Exige os dados da aba "Gestão de Dados"
+    if st.session_state.get('dados_tratados') is None:
+        st.warning("⚠️ Atenção: A Inteligência Artificial precisa dos seus dados internos para aprender!")
+        st.info("Vá até a aba **'Gestão de Dados'**, faça o upload do seu ficheiro CSV de vendas e clique em 'Executar Tratamento de Dados' primeiro.")
+    else:
+        # Carregando os dois mundos
+        df_interno = st.session_state['dados_tratados'].copy()
+        df_aws = carregar_dados_aws()
+
+        with st.spinner("Cruzando dados internos com a nuvem AWS e preparando variáveis..."):
+            # Garantindo tipos de dados corretos no CSV interno
+            df_interno['DataCaptura'] = pd.to_datetime(df_interno['DataCaptura'])
+            df_interno['Preco'] = pd.to_numeric(df_interno['Preco'], errors='coerce')
+            df_interno['Quantidade'] = pd.to_numeric(df_interno['Quantidade'], errors='coerce')
+            df_interno = df_interno.dropna(subset=['Preco', 'Quantidade'])
+
+            # Preparando dados da AWS (Concorrência)
+            if not df_aws.empty:
+                df_aws['DataCaptura'] = pd.to_datetime(df_aws['DataCaptura']).dt.normalize() # Tira as horas
+                df_aws['Produto'] = df_aws['Produto'].str.upper().str.strip() # Padroniza maiúsculo igual o CSV
+                
+                # Agrupa os preços da concorrência por dia e produto (Tira a média se Kabum e Tera tiverem o mesmo)
+                df_concorrencia = df_aws.groupby(['DataCaptura', 'Produto'])['Preco'].mean().reset_index()
+                df_concorrencia = df_concorrencia.rename(columns={'Preco': 'Preco_Concorrencia'})
+                
+                # 🚀 O GRANDE MERGE: Junta CSV Interno + Concorrência AWS
+                df_ml = pd.merge(df_interno, df_concorrencia, on=['DataCaptura', 'Produto'], how='left')
+                
+                # Se a concorrência não vendeu aquele produto naquele dia, a IA assume o nosso próprio preço como base do mercado
+                df_ml['Preco_Concorrencia'] = df_ml['Preco_Concorrencia'].fillna(df_ml['Preco'])
+            else:
+                # Fallback caso a AWS falhe
+                df_ml = df_interno.copy()
+                df_ml['Preco_Concorrencia'] = df_ml['Preco']
+
+            # 🚀 FEATURE ENGINEERING (Criando variáveis exógenas)
+            df_ml['Mes'] = df_ml['DataCaptura'].dt.month
+            df_ml['DiaDaSemana'] = df_ml['DataCaptura'].dt.dayofweek
+
+        # Lista de produtos disponíveis no CSV da empresa
+        produtos_disponiveis = sorted(df_ml['Produto'].unique())
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            produto_ia = st.selectbox("Selecione o Hardware para Análise Preditiva:", produtos_disponiveis)
+        
+        # Filtra o dataframe apenas para o produto escolhido
+        df_alvo = df_ml[df_ml['Produto'] == produto_ia].copy()
+        
+        # Só treina se tiver histórico suficiente (ex: mais de 10 dias de venda)
+        if len(df_alvo) < 10:
+            st.error(f"🚨 Histórico insuficiente para o produto '{produto_ia}'. O algoritmo precisa de mais de 10 registros de venda para aprender padrões.")
+        else:
+            with col2:
+                st.info(f"Registros de vendas encontrados para treinamento: **{len(df_alvo)} dias**")
+                
+            st.markdown("---")
+            st.write("### ⚙️ Simulação de Cenário Futuro")
             
-            try:
-                from sklearn.ensemble import RandomForestRegressor
-                
-                meses_historico = np.arange(1, 13).reshape(-1, 1) 
-                precos_historico = np.array([1600, 1580, 1620, 1500, 1450, 1400, 1380, 1420, 1450, 1480, 1500, 1490])
-                vendas_historico = np.array([80, 85, 70, 100, 120, 130, 140, 110, 100, 95, 90, 92])
-                
-                X_treino = np.column_stack((meses_historico, precos_historico))
-                y_treino = vendas_historico
-                
-                modelo_ia = RandomForestRegressor(n_estimators=100, random_state=42)
-                modelo_ia.fit(X_treino, y_treino)
-                
-                mes_futuro = 13 if mes_alvo == "Próximo Mês (Mês 13)" else 14
-                preco_estimado = 1450 
-                
-                previsao_ia = modelo_ia.predict([[mes_futuro, preco_estimado]])[0]
-                previsao_arredondada = int(previsao_ia)
-                
-                st.success(f"Treinamento concluído! A Inteligência Artificial analisou os padrões de '{produto_ia}'.")
-                
-                st.markdown("### Cenários Projetados (Margem de Confiança)")
-                colA, colB, colC = st.columns(3)
-                colA.metric("📉 Cenário Pessimista", f"{int(previsao_arredondada * 0.85)} unid.")
-                colB.metric("🎯 Previsão Principal", f"{previsao_arredondada} unid.", "Recomendação de Compra")
-                colC.metric("📈 Cenário Otimista", f"{int(previsao_arredondada * 1.15)} unid.")
-                
-                st.markdown("---")
-                st.markdown("###  Gráfico de Tendência (Histórico vs. Previsão)")
-                
-                meses_grafico = list(range(1, 13)) + [mes_futuro]
-                vendas_grafico = list(vendas_historico) + [previsao_arredondada]
-                tipo_dado = ['Histórico Real'] * 12 + ['Previsão IA']
-                
-                df_grafico = pd.DataFrame({
-                    "Mês": meses_grafico,
-                    "Unidades Vendidas": vendas_grafico,
-                    "Tipo": tipo_dado
-                })
-                
-                fig = px.line(df_grafico, x="Mês", y="Unidades Vendidas", color="Tipo", markers=True, title="Comportamento de Vendas")
-                st.plotly_chart(fig, use_container_width=True)
-                
-                st.info("O modelo Random Forest conseguiu prever a demanda cruzando a variável 'Tempo' com a variável 'Preço Praticado', simulando a elasticidade de demanda do mercado de hardware.")
-                
-            except ImportError:
-                st.error("Erro Crítico de IA: A biblioteca Scikit-Learn não foi encontrada!")
-                st.markdown("Pare o Streamlit (Ctrl+C no terminal) e digite: `pip install scikit-learn`")
+            # Inputs do usuário para a predição futura
+            col_in1, col_in2, col_in3 = st.columns(3)
+            with col_in1:
+                mes_alvo = st.slider("Mês Futuro (1=Jan a 12=Dez):", 1, 12, 6)
+            with col_in2:
+                preco_simulado = st.number_input("Seu Preço Simulado (R$):", value=float(df_alvo['Preco'].mean()))
+            with col_in3:
+                preco_conc_simulado = st.number_input("Preço Simulado Concorrência (R$):", value=float(df_alvo['Preco_Concorrencia'].mean()))
 
+            if st.button("🚀 Treinar IA e Gerar Previsão"):
+                with st.spinner(f"Treinando o modelo Random Forest para {produto_ia}..."):
+                    from sklearn.ensemble import RandomForestRegressor
+                    from sklearn.model_selection import train_test_split
+                    from sklearn.metrics import r2_score
+                    
+                    # 1. Definindo X (Exógenas/Features) e Y (Endógena/Target)
+                    X = df_alvo[['Mes', 'DiaDaSemana', 'Preco', 'Preco_Concorrencia']]
+                    y = df_alvo['Quantidade']
+                    
+                    # 2. Divisão de Treino (80%) e Teste (20%)
+                    X_treino, X_teste, y_treino, y_teste = train_test_split(X, y, test_size=0.2, random_state=42)
+                    
+                    # 3. Treinamento
+                    modelo_ia = RandomForestRegressor(n_estimators=100, random_state=42)
+                    modelo_ia.fit(X_treino, y_treino)
+                    
+                    # 4. Avaliação (Acurácia)
+                    previsoes_teste = modelo_ia.predict(X_teste)
+                    acuracia_r2 = r2_score(y_teste, previsoes_teste)
+                    
+                    # 5. Predição do cenário simulado (Assumindo que seja uma sexta-feira = 4)
+                    X_futuro = pd.DataFrame({
+                        'Mes': [mes_alvo],
+                        'DiaDaSemana': [4], # Sexta-feira
+                        'Preco': [preco_simulado],
+                        'Preco_Concorrencia': [preco_conc_simulado]
+                    })
+                    
+                    previsao_ia = modelo_ia.predict(X_futuro)[0]
+                    previsao_arredondada = max(1, int(previsao_ia)) # Nunca prevê menos que 1
+                    
+                    st.success(f"✅ Treinamento concluído! A Inteligência Artificial analisou os padrões de '{produto_ia}'.")
+                    
+                    # Mostra a margem de acerto para a banca ver que é Machine Learning real
+                    st.caption(f"🎯 **Acurácia do Modelo (R² Score):** {acuracia_r2:.2f} (O quão bem a IA aprendeu com os testes)")
+                    
+                    st.markdown("### Cenários Projetados para o Mês Selecionado")
+                    colA, colB, colC = st.columns(3)
+                    colA.metric("📉 Cenário Pessimista", f"{int(previsao_arredondada * 0.85)} unid.")
+                    colB.metric("🎯 Previsão Principal", f"{previsao_arredondada} unid.", "Unidades Estimadas")
+                    colC.metric("📈 Cenário Otimista", f"{int(previsao_arredondada * 1.15)} unid.")
+                    
+                    # Bônus pro TCC: Feature Importance (O que mais afetou a venda?)
+                    st.markdown("---")
+                    st.markdown("### 🧠 O que a IA descobriu? (Importância das Variáveis)")
+                    importancias = modelo_ia.feature_importances_
+                    df_importancia = pd.DataFrame({
+                        "Variável": ['Mês do Ano', 'Dia da Semana', 'Seu Preço', 'Preço Concorrência'],
+                        "Peso (%)": importancias * 100
+                    }).sort_values('Peso (%)', ascending=False)
+                    
+                    fig_imp = px.bar(df_importancia, x="Variável", y="Peso (%)", title="Quais fatores mais influenciaram a venda?", color="Variável")
+                    st.plotly_chart(fig_imp, use_container_width=True)
+                    
+                    st.info("💡 **Dica Técnica para a Monografia:** A IA não apenas prevê o futuro, mas analisa a 'Feature Importance' para nos dizer matematicamente se o consumidor deste produto liga mais para a época do ano (Sazonalidade) ou se é mais sensível à Guerra de Preços (Seu Preço vs Concorrência).")
 #PÁGINA 3: GESTÃO DE DADOS 
 elif menu == "Gestão de Dados":
     st.title("Ingestão, Limpeza e Tratamento")
@@ -521,15 +590,28 @@ elif menu == "Gestão de Dados":
                 time.sleep(1) 
                 
                 df_tratado = st.session_state['dados_brutos'].copy()
+                
+                # 1. Limpa nomes das colunas e dropa linhas 100% vazias
                 df_tratado.columns = df_tratado.columns.str.strip()
                 df_tratado = df_tratado.dropna(how='all')
                 
+                # 2. NOVO: Remove colunas de índice "fantasmas" (ex: Unnamed: 0) que o Excel ou Pandas criam
+                df_tratado = df_tratado.loc[:, ~df_tratado.columns.str.contains('^Unnamed')]
+                
+                # 3. Normalização de Texto (Maiúsculo + Regex)
                 colunas_texto = ['Marca', 'Produto', 'Descricao']
                 for col in colunas_texto:
                     if col in df_tratado.columns:
-                        # CORRIGIDO: Agora usa .str.upper() para deixar tudo em MAIÚSCULO
+                        # Deixa tudo em CAIXA ALTA e remove espaços nas pontas
                         df_tratado[col] = df_tratado[col].astype(str).str.upper().str.strip()
+                        
+                        # NOVO: Se for a coluna Produto, corta os códigos/hífens do início para bater com a AWS
+                        if col == 'Produto':
+                            import re
+                            df_tratado['Produto'] = df_tratado['Produto'].apply(lambda x: re.sub(r'^[\d\s-]+\s*', '', str(x)))
+                            df_tratado['Produto'] = df_tratado['Produto'].str.strip() # Tira o espaço caso sobre depois do corte
                     
+                # 4. Formatação de Data
                 if 'DataCaptura' in df_tratado.columns:
                      try:
                          df_tratado['DataCaptura'] = pd.to_datetime(df_tratado['DataCaptura']).dt.date
