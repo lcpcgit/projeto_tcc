@@ -241,12 +241,10 @@ if menu == "Pesquisa de Mercado":
             # 🚀 FILTROS POSITIVOS E NEGATIVOS BLINDADOS (O Segredo para barrar lixo)
             if termo_cat_limpo == "placa de video":
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('video|vídeo|vga|geforce|radeon|rtx|gtx|rx|arc', na=False)]
-                # Barra agressiva de intrusos
                 df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('placa mae|placa-mae|cooler|water|espelho|suporte|cabo|fonte|mouse|teclado|monitor|headset|cadeira|mesa|ssd|hd ', na=False)]
                 
             elif termo_cat_limpo == "processador":
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('processador|ryzen|core i|athlon|celeron|pentium', na=False)]
-                # Protege o processador contra tudo que não seja ele mesmo
                 df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('placa|cooler|water|fan|gabinete|memoria|notebook|pc|computador|desktop|mouse|teclado|monitor|headset|fonte|ssd|hd ', na=False)]
                 
             elif termo_cat_limpo == "placa mae":
@@ -261,6 +259,41 @@ if menu == "Pesquisa de Mercado":
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('fonte|atx|power', na=False)]
                 df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('cabo|adaptador|placa|video|cooler|mouse|teclado|monitor|headset|processador|memoria', na=False)]
                 
+            # 🚀 NOVO: BLINDAGEM DO MONITOR
+            elif termo_cat_limpo == "monitor":
+                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('monitor|tela|display', na=False)]
+                # Barra Cabos HDMI, Suportes Articulados de Parede e Pistões
+                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('cabo|hdmi|adaptador|suporte|braco|braço|pistao|pistão|tv|televisao|televisão|placa', na=False)]
+            
+            elif termo_cat_limpo == "ssd":
+                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('ssd|nvme|m\.2|sata', na=False)]
+                # Barra Cabos, Dissipadores e principalmente HDs tradicionais (que também usam a palavra SATA)
+                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains(r'cabo|adaptador|dissipador|heatsink|case|gaveta|placa|cooler|\bhd\b|disco rigido|hard drive', na=False, regex=True)]
+                
+            elif termo_cat_limpo == "hd":
+                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('hd |disco rigido|hard drive|hd externo', na=False)]
+                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('ssd|cabo|adaptador|gaveta|case|monitor|tv|placa', na=False)]
+
+            elif termo_cat_limpo == "water cooler":
+                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('water cooler|watercooler|liquid cooler', na=False)]
+                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('gabinete|placa|processador|fan|ventoinha|ar', na=False)]
+
+            elif termo_cat_limpo == "air cooler":
+                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('air cooler|aircooler|cooler para processador', na=False)]
+                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('water|liquido|gabinete|fan |ventoinha', na=False)]
+
+            elif termo_cat_limpo == "fan":
+                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('fan|ventoinha|cooler para gabinete', na=False)]
+                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('water|air|processador|gabinete|placa', na=False)]
+
+            elif termo_cat_limpo == "gabinete":
+                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('gabinete|case', na=False)]
+                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('cooler|fan|ventoinha|placa|fonte|memoria', na=False)]
+
+            elif termo_cat_limpo == "headset gamer":
+                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('headset|fone', na=False) & df_drill['Produto'].str.lower().str.contains('gamer', na=False)]
+                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('suporte|mouse|teclado|cadeira|mesa', na=False)]
+
             elif termo_cat_limpo == "mouse":
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('mouse', na=False)]
                 df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('gamer|mousepad|pad|teclado|headset|monitor|placa|cooler|fonte|memoria|processador', na=False)]
@@ -271,9 +304,11 @@ if menu == "Pesquisa de Mercado":
                 
             elif termo_cat_limpo == "teclado mecanico":
                  df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('teclado', na=False) & df_drill['Produto'].str.lower().str.contains('mecanico|mecânico', na=False)]
+                 df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('mouse|kit|combo', na=False)]
                  
             elif termo_cat_limpo == "teclado magnetico":
                  df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('teclado', na=False) & df_drill['Produto'].str.lower().str.contains('magnetico|magnético', na=False)]
+                 df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('mouse|kit|combo', na=False)]
                  
             else:
                  for palavra in termo_cat_limpo.split():
@@ -282,14 +317,15 @@ if menu == "Pesquisa de Mercado":
         if subcat_escolhida and subcat_escolhida != "N/A":
             import re
             
-            # 1. Base Regex com LOOKAHEAD NEGATIVO (?![a-z])
-            # Isso impede que "14600K" ache "14600KF" ou "5600G" ache "5600GT" porque proíbe letras grudadas no final!
+            # 1. Base Regex com LOOKAHEAD e LOOKBEHIND NEGATIVOS
+            # (?<![a-z0-9]) -> Impede que "2TB" ache "12TB" (Barra números/letras grudados ATRÁS)
+            # (?![a-z0-9])  -> Impede que "5600G" ache "5600GT" (Barra números/letras grudados NA FRENTE)
             partes_busca = subcat_escolhida.lower().split()
-            padrao_regex = r'\s*'.join([re.escape(p) for p in partes_busca]) + r'(?![a-z])'
+            padrao_regex = r'(?<![a-z0-9])' + r'\s*'.join([re.escape(p) for p in partes_busca]) + r'(?![a-z0-9])'
             
             mask = df_drill['Produto'].str.lower().str.contains(padrao_regex, regex=True, na=False)
             
-            # 2. Exclusão Dicionário (Necessário apenas para sufixos separados, ex: "RTX 4060" não pegar "RTX 4060 Ti")
+            # 2. Exclusão Dicionário (Para sufixos separados por espaço, ex: "RTX 4060" não pegar "RTX 4060 Ti")
             modelos_derivados = []
             lista_para_verificar = mapa_subcategorias.get(cat_escolhida, todos_os_modelos) if cat_escolhida else todos_os_modelos
                 
@@ -299,8 +335,8 @@ if menu == "Pesquisa de Mercado":
                     
             for derivado in modelos_derivados:
                 partes_derivado = derivado.lower().split()
-                # Não usamos lookahead aqui para garantir que corte o lixo onde quer que ele esteja
-                padrao_exclusao = r'\s*'.join([re.escape(p) for p in partes_derivado])
+                # Aqui também não queremos pegar pedaços de palavras
+                padrao_exclusao = r'(?<![a-z0-9])' + r'\s*'.join([re.escape(p) for p in partes_derivado]) + r'(?![a-z0-9])'
                 mask = mask & ~df_drill['Produto'].str.lower().str.contains(padrao_exclusao, regex=True, na=False)
                 
             df_drill = df_drill[mask]
