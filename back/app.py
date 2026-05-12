@@ -408,13 +408,16 @@ if menu == "Pesquisa de Mercado":
                     df_drill = df_drill[df_drill['Preco'] > 8000]
 
                 if not df_drill.empty:
+                    # Agrupamento base
                     if subcat_escolhida != "" and subcat_escolhida != "N/A":
                         df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Marca'])['Preco'].mean().reset_index()
-                        df_agrupado_drill['Legenda'] = df_agrupado_drill['Loja'] + " - " + df_agrupado_drill['Marca']
+                        # Como vamos separar por loja, a legenda agora só precisa mostrar a Marca
+                        df_agrupado_drill['Legenda'] = df_agrupado_drill['Marca'] 
                     else:
                         df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Produto'])['Preco'].mean().reset_index()
                         df_agrupado_drill['Produto_Curto'] = df_agrupado_drill['Produto'].apply(lambda x: x[:40] + "..." if len(x) > 40 else x)
-                        df_agrupado_drill['Legenda'] = df_agrupado_drill['Loja'] + " - " + df_agrupado_drill['Produto_Curto']
+                        # Como vamos separar por loja, a legenda agora só precisa mostrar o Produto
+                        df_agrupado_drill['Legenda'] = df_agrupado_drill['Produto_Curto']
                     
                     df_agrupado_drill['Preco_Label'] = df_agrupado_drill['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                     
@@ -426,23 +429,32 @@ if menu == "Pesquisa de Mercado":
                     titulo_graf = " + ".join(partes_titulo)
                     subtitulo = f"Especificação: {especificacao_extra}" if especificacao_extra else ""
                     
-                    fig_drill = px.line(
-                        df_agrupado_drill, 
-                        x="DataCaptura", 
-                        y="Preco", 
-                        color="Legenda", 
-                        markers=True, 
-                        text="Preco_Label", 
-                        title=f"Drill-Down: {titulo_graf} {subtitulo}", 
-                        labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Legenda": "Item"}
-                    )
+                    # 🚀 NOVO: SEPARAÇÃO DE GRÁFICOS POR LOJA
+                    lojas_presentes = sorted(df_agrupado_drill['Loja'].unique())
                     
-                    fig_drill.update_traces(textposition="top center")
-                    fig_drill.update_layout(yaxis=dict(range=[df_agrupado_drill['Preco'].min() * 0.9, df_agrupado_drill['Preco'].max() * 1.1]))
-                    fig_drill.update_xaxes(tickformat="%d/%m/%Y")
+                    for loja in lojas_presentes:
+                        df_loja = df_agrupado_drill[df_agrupado_drill['Loja'] == loja]
+                        
+                        # Trava: Só desenha o gráfico se tiver dado para esta loja
+                        if not df_loja.empty:
+                            fig_drill = px.line(
+                                df_loja, 
+                                x="DataCaptura", 
+                                y="Preco", 
+                                color="Legenda", 
+                                markers=True, 
+                                text="Preco_Label", 
+                                title=f"🏢 {loja.upper()} | Drill-Down: {titulo_graf} {subtitulo}", 
+                                labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Legenda": "Item"}
+                            )
+                            
+                            fig_drill.update_traces(textposition="top center")
+                            fig_drill.update_layout(yaxis=dict(range=[df_loja['Preco'].min() * 0.9, df_loja['Preco'].max() * 1.1]))
+                            fig_drill.update_xaxes(tickformat="%d/%m/%Y")
+                            
+                            st.plotly_chart(fig_drill, use_container_width=True)
                     
-                    st.plotly_chart(fig_drill, use_container_width=True)
-                    
+                    # Tabela de Histórico (Mantida igual)
                     with st.expander("Ver histórico detalhado de preços (Últimos 7 dias)"):
                         df_tabela = df_drill.copy()
                         df_tabela['DataCaptura'] = pd.to_datetime(df_tabela['DataCaptura'])
