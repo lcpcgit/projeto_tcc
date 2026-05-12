@@ -50,7 +50,12 @@ mapa_subcategorias = {
         "B650M", "B650", "B650E", "X670", "X870", "X870E", 
         "H610M", "B660M", "B760M", "B760", "Z690", "Z790", "Z890", "Z890M"
     ],
-    "Memória RAM": ["8GB", "16GB", "32GB", "64GB", "DDR4", "DDR5"],
+    "Memória RAM": [
+                "8GB DDR4", "8GB DDR5", 
+                "16GB DDR4", "16GB DDR5", 
+                "32GB DDR4", "32GB DDR5", 
+                "64GB DDR4", "64GB DDR5"
+            ],
     "SSD": ["480GB", "500GB", "1TB", "2TB", "4TB"],
     "HD": ["1TB", "2TB", "4TB"],
     "Monitor": ["75hz", "100hz", "144hz", "165hz", "240hz", "280hz", "360hz", "2K", "4K", "Ultrawide"],
@@ -317,15 +322,16 @@ if menu == "Pesquisa de Mercado":
         if subcat_escolhida and subcat_escolhida != "N/A":
             import re
             
-            # 1. Base Regex com LOOKAHEAD e LOOKBEHIND NEGATIVOS
-            # (?<![a-z0-9]) -> Impede que "2TB" ache "12TB" (Barra números/letras grudados ATRÁS)
-            # (?![a-z0-9])  -> Impede que "5600G" ache "5600GT" (Barra números/letras grudados NA FRENTE)
+            # 1. Busca Iterativa (AND Lógico)
+            # Em vez de exigir que as palavras estejam juntas, exigimos que TODAS existam no nome, não importa a ordem.
+            mask = pd.Series(True, index=df_drill.index)
             partes_busca = subcat_escolhida.lower().split()
-            padrao_regex = r'(?<![a-z0-9])' + r'\s*'.join([re.escape(p) for p in partes_busca]) + r'(?![a-z0-9])'
             
-            mask = df_drill['Produto'].str.lower().str.contains(padrao_regex, regex=True, na=False)
+            for p in partes_busca:
+                padrao_parte = r'(?<![a-z0-9])' + re.escape(p) + r'(?![a-z0-9])'
+                mask = mask & df_drill['Produto'].str.lower().str.contains(padrao_parte, regex=True, na=False)
             
-            # 2. Exclusão Dicionário (Para sufixos separados por espaço, ex: "RTX 4060" não pegar "RTX 4060 Ti")
+            # 2. Exclusão de Derivados (Para evitar que "16GB" puxe o kit de "2x16GB" se for cadastrado errado)
             modelos_derivados = []
             lista_para_verificar = mapa_subcategorias.get(cat_escolhida, todos_os_modelos) if cat_escolhida else todos_os_modelos
                 
@@ -334,10 +340,12 @@ if menu == "Pesquisa de Mercado":
                     modelos_derivados.append(modelo)
                     
             for derivado in modelos_derivados:
-                partes_derivado = derivado.lower().split()
-                # Aqui também não queremos pegar pedaços de palavras
-                padrao_exclusao = r'(?<![a-z0-9])' + r'\s*'.join([re.escape(p) for p in partes_derivado]) + r'(?![a-z0-9])'
-                mask = mask & ~df_drill['Produto'].str.lower().str.contains(padrao_exclusao, regex=True, na=False)
+                mask_derivado = pd.Series(True, index=df_drill.index)
+                for p in derivado.lower().split():
+                    padrao_parte_excl = r'(?<![a-z0-9])' + re.escape(p) + r'(?![a-z0-9])'
+                    mask_derivado = mask_derivado & df_drill['Produto'].str.lower().str.contains(padrao_parte_excl, regex=True, na=False)
+                
+                mask = mask & ~mask_derivado
                 
             df_drill = df_drill[mask]
 
