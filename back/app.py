@@ -444,7 +444,7 @@ if menu == "Pesquisa de Mercado":
                                 color="Legenda", 
                                 markers=True, 
                                 text="Preco_Label", 
-                                title=f"🏢 {loja.upper()} | Drill-Down: {titulo_graf} {subtitulo}", 
+                                title=f"{loja.upper()} | {titulo_graf} {subtitulo}", 
                                 labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Legenda": "Item"}
                             )
                             
