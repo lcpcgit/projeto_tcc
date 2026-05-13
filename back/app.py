@@ -79,11 +79,13 @@ def carregar_dados_aws():
         engine = create_engine(url_conexao)
         df = pd.read_sql("SELECT DataCaptura, Loja, Marca, Produto, Preco FROM HistoricoPrecos", engine) 
         
-        # 🚀 NOVO: Filtro Anti-Lixo (Remove PCs completos e montagens)
-        palavras_proibidas = 'MÁQUINA|MAQUINA|MONTAGEM|COMPUTADOR|PC GAMER|COMPLETO|COMPLETA'
+        # 🚀 FILTRO ANTI-LIXO GLOBAL (Protege o Dash e a IA)
+        # Adicionado "CPU GAMER" e "DESKTOP" para barrar os PCs completos disfarçados
+        palavras_proibidas = 'MÁQUINA|MAQUINA|MONTAGEM|COMPUTADOR|PC GAMER|COMPLETO|COMPLETA|CPU GAMER|DESKTOP'
         df = df[~df['Produto'].str.contains(palavras_proibidas, case=False, na=False)]
         
         # Limpeza: Remove números e hífens isolados no início do nome
+        import re
         df['Produto'] = df['Produto'].apply(lambda x: re.sub(r'^[\d\s-]+\s*', '', str(x)))
         
         df['DataCaptura'] = pd.to_datetime(df['DataCaptura']) 
