@@ -245,23 +245,24 @@ if menu == "Pesquisa de Mercado":
         if cat_escolhida:
             termo_cat_limpo = ''.join(c for c in unicodedata.normalize('NFD', cat_escolhida) if unicodedata.category(c) != 'Mn').lower()
             
-            # 🚀 FILTROS POSITIVOS E NEGATIVOS BLINDADOS (O Segredo para barrar lixo)
+# 🚀 FILTROS POSITIVOS E NEGATIVOS BLINDADOS (O Segredo para barrar lixo)
             if termo_cat_limpo == "placa de video":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('video|vídeo|vga|geforce|radeon|rtx|gtx|rx|arc', na=False)]
+                # Adicionamos "gpu" aqui para garantir que ele acha a placa
+                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('video|vídeo|vga|geforce|radeon|rtx|gtx|rx|arc|gpu', na=False)]
                 df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('placa mae|placa-mae|cooler|water|espelho|suporte|cabo|fonte|mouse|teclado|monitor|headset|cadeira|mesa|ssd|hd ', na=False)]
                 
             elif termo_cat_limpo == "processador":
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('processador|ryzen|core i|athlon|celeron|pentium', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('placa|cooler|water|fan|gabinete|memoria|notebook|pc|computador|desktop|mouse|teclado|monitor|headset|fonte|ssd|hd ', na=False)]
+                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('placa|cooler|water|fan|gabinete|memoria|notebook|pc|computador|desktop|mouse|teclado|monitor|headset|fonte|ssd|hd |gpu', na=False)]
                 
             elif termo_cat_limpo == "placa mae":
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('placa|motherboard|mainboard', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('video|vídeo|cooler|mouse|teclado|monitor|headset|fonte|processador', na=False)]
+                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('video|vídeo|cooler|mouse|teclado|monitor|headset|fonte|processador|gpu', na=False)]
                 
             elif termo_cat_limpo == "memoria ram":
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('memoria|ram|ddr', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('placa|video|vídeo|cooler|mouse|teclado|monitor|headset|fonte|processador', na=False)]
-                
+                # 🚀 NOVO: Adicionado "gpu" e "gddr" para barrar as placas de vídeo fujonas
+                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('placa|video|vídeo|cooler|mouse|teclado|monitor|headset|fonte|processador|gpu|gddr', na=False)]
             elif "fonte" in termo_cat_limpo:
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('fonte|atx|power', na=False)]
                 df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('cabo|adaptador|placa|video|cooler|mouse|teclado|monitor|headset|processador|memoria', na=False)]
