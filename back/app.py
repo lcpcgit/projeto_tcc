@@ -51,11 +51,11 @@ mapa_subcategorias = {
         "H610M", "B660M", "B760M", "B760", "Z690", "Z790", "Z890", "Z890M"
     ],
     "Memória RAM": [
-                "8GB DDR4", "8GB DDR5", 
-                "16GB DDR4", "16GB DDR5", 
-                "32GB DDR4", "32GB DDR5", 
-                "64GB DDR4", "64GB DDR5"
-            ],
+        "8GB DDR4", "8GB DDR5", 
+        "16GB DDR4", "16GB DDR5", 
+        "32GB DDR4", "32GB DDR5", 
+        "64GB DDR4", "64GB DDR5"
+    ],
     "SSD": ["480GB", "500GB", "1TB", "2TB", "4TB"],
     "HD": ["1TB", "2TB", "4TB"],
     "Monitor": ["75hz", "100hz", "144hz", "165hz", "240hz", "280hz", "360hz", "2K", "4K", "Ultrawide"],
@@ -77,10 +77,28 @@ def carregar_dados_aws():
     
     try:
         engine = create_engine(url_conexao)
-        df = pd.read_sql("SELECT DataCaptura, Loja, Marca, Produto, Preco FROM HistoricoPrecos", engine) 
+        
+        # 1. Extrai os dados da tabela de Hardware
+        df_precos = pd.read_sql("SELECT DataCaptura, Loja, Marca, Produto, Preco FROM HistoricoPrecos", engine) 
+     # 2. Extrai os dados da tabela de Dólar (Usando o nome correto: ValorDolar)
+        df_dolar = pd.read_sql("SELECT DataCaptura, ValorDolar AS Dolar FROM HistoricoDolar", engine)
+        
+        # 🔒 Trava de Segurança: Como o SQL mostrou "4,98", vamos garantir que o Python entenda como número (4.98)
+        if df_dolar['Dolar'].dtype == 'object':
+            df_dolar['Dolar'] = df_dolar['Dolar'].str.replace(',', '.').astype(float)
+        
+        # 3. Normaliza as datas (Remove horas/minutos para o cruzamento bater 100%)
+        df_precos['DataCaptura'] = pd.to_datetime(df_precos['DataCaptura']).dt.normalize()
+        df_dolar['DataCaptura'] = pd.to_datetime(df_dolar['DataCaptura']).dt.normalize()
+        
+        # 4. O Cruzamento (LEFT JOIN no Pandas)
+        df = pd.merge(df_precos, df_dolar, on='DataCaptura', how='left')
+        
+        # 5. Preenche os buracos (Sábado e Domingo não tem bolsa de valores, então copiamos o dólar de sexta-feira)
+        df = df.sort_values('DataCaptura')
+        df['Dolar'] = df['Dolar'].ffill().bfill()
         
         # 🚀 FILTRO ANTI-LIXO GLOBAL (Protege o Dash e a IA)
-        # Adicionado "CPU GAMER" e "DESKTOP" para barrar os PCs completos disfarçados
         palavras_proibidas = 'MÁQUINA|MAQUINA|MONTAGEM|COMPUTADOR|PC GAMER|COMPLETO|COMPLETA|CPU GAMER|DESKTOP'
         df = df[~df['Produto'].str.contains(palavras_proibidas, case=False, na=False)]
         
@@ -88,8 +106,6 @@ def carregar_dados_aws():
         import re
         df['Produto'] = df['Produto'].apply(lambda x: re.sub(r'^[\d\s-]+\s*', '', str(x)))
         
-        df['DataCaptura'] = pd.to_datetime(df['DataCaptura']) 
-        df = df.sort_values('DataCaptura')
         return df
     except Exception as e:
         st.error(f"Erro ao conectar na AWS: {e}")
@@ -239,15 +255,14 @@ if menu == "Pesquisa de Mercado":
         with col2:
             subcat_escolhida = st.selectbox("2. Modelo (Opcional):", opcoes_modelo, disabled=disabled_mod)
 
- # APLICANDO OS PRIMEIROS FILTROS NA MEMÓRIA PARA DESCOBRIR AS MARCAS
+        # APLICANDO OS PRIMEIROS FILTROS NA MEMÓRIA PARA DESCOBRIR AS MARCAS
         df_drill = df_historico.copy()
         
         if cat_escolhida:
             termo_cat_limpo = ''.join(c for c in unicodedata.normalize('NFD', cat_escolhida) if unicodedata.category(c) != 'Mn').lower()
             
-# 🚀 FILTROS POSITIVOS E NEGATIVOS BLINDADOS (O Segredo para barrar lixo)
+            # 🚀 FILTROS POSITIVOS E NEGATIVOS BLINDADOS (O Segredo para barrar lixo)
             if termo_cat_limpo == "placa de video":
-                # Adicionamos "gpu" aqui para garantir que ele acha a placa
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('video|vídeo|vga|geforce|radeon|rtx|gtx|rx|arc|gpu', na=False)]
                 df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('placa mae|placa-mae|cooler|water|espelho|suporte|cabo|fonte|mouse|teclado|monitor|headset|cadeira|mesa|ssd|hd ', na=False)]
                 
@@ -261,21 +276,18 @@ if menu == "Pesquisa de Mercado":
                 
             elif termo_cat_limpo == "memoria ram":
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('memoria|ram|ddr', na=False)]
-                # 🚀 NOVO: Adicionado "gpu" e "gddr" para barrar as placas de vídeo fujonas
                 df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('placa|video|vídeo|cooler|mouse|teclado|monitor|headset|fonte|processador|gpu|gddr', na=False)]
+                
             elif "fonte" in termo_cat_limpo:
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('fonte|atx|power', na=False)]
                 df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('cabo|adaptador|placa|video|cooler|mouse|teclado|monitor|headset|processador|memoria', na=False)]
                 
-            # 🚀 NOVO: BLINDAGEM DO MONITOR
             elif termo_cat_limpo == "monitor":
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('monitor|tela|display', na=False)]
-                # Barra Cabos HDMI, Suportes Articulados de Parede e Pistões
                 df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('cabo|hdmi|adaptador|suporte|braco|braço|pistao|pistão|tv|televisao|televisão|placa', na=False)]
             
             elif termo_cat_limpo == "ssd":
                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('ssd|nvme|m\.2|sata', na=False)]
-                # Barra Cabos, Dissipadores e principalmente HDs tradicionais (que também usam a palavra SATA)
                 df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains(r'cabo|adaptador|dissipador|heatsink|case|gaveta|placa|cooler|\bhd\b|disco rigido|hard drive', na=False, regex=True)]
                 
             elif termo_cat_limpo == "hd":
@@ -323,18 +335,23 @@ if menu == "Pesquisa de Mercado":
                      df_drill = df_drill[df_drill['Produto'].str.lower().str.contains(palavra, na=False)]
                      
         if subcat_escolhida and subcat_escolhida != "N/A":
-            import re
-            
-            # 1. Busca Iterativa (AND Lógico)
-            # Em vez de exigir que as palavras estejam juntas, exigimos que TODAS existam no nome, não importa a ordem.
+            # 🚀 REGEX HÍBRIDO E INTELIGENTE
             mask = pd.Series(True, index=df_drill.index)
             partes_busca = subcat_escolhida.lower().split()
             
             for p in partes_busca:
-                padrao_parte = r'(?<![a-z0-9])' + re.escape(p) + r'(?![a-z0-9])'
+                # Fronteira de palavra padrão para flexibilidade (Ex: acha "3060" dentro de "rtx-3060")
+                padrao_parte = r'\b' + re.escape(p) + r'\b'
+                
+                if p.isdigit():
+                    padrao_parte = re.escape(p) # Relaxa totalmente para números
+                elif p.endswith('tb') or p.endswith('gb'):
+                    # Escudo Lookaround para Memória e HDs (Impede 2TB de achar 12TB)
+                    padrao_parte = r'(?<![a-z0-9])' + re.escape(p) + r'(?![a-z0-9])'
+                
                 mask = mask & df_drill['Produto'].str.lower().str.contains(padrao_parte, regex=True, na=False)
             
-            # 2. Exclusão de Derivados (Para evitar que "16GB" puxe o kit de "2x16GB" se for cadastrado errado)
+            # Exclusão de Derivados (Impede 14600K de achar 14600KF)
             modelos_derivados = []
             lista_para_verificar = mapa_subcategorias.get(cat_escolhida, todos_os_modelos) if cat_escolhida else todos_os_modelos
                 
@@ -345,7 +362,12 @@ if menu == "Pesquisa de Mercado":
             for derivado in modelos_derivados:
                 mask_derivado = pd.Series(True, index=df_drill.index)
                 for p in derivado.lower().split():
-                    padrao_parte_excl = r'(?<![a-z0-9])' + re.escape(p) + r'(?![a-z0-9])'
+                    padrao_parte_excl = r'\b' + re.escape(p) + r'\b'
+                    if p.isdigit():
+                        padrao_parte_excl = re.escape(p)
+                    elif p.endswith('tb') or p.endswith('gb'):
+                        padrao_parte_excl = r'(?<![a-z0-9])' + re.escape(p) + r'(?![a-z0-9])'
+                        
                     mask_derivado = mask_derivado & df_drill['Produto'].str.lower().str.contains(padrao_parte_excl, regex=True, na=False)
                 
                 mask = mask & ~mask_derivado
@@ -414,12 +436,10 @@ if menu == "Pesquisa de Mercado":
                     # Agrupamento base
                     if subcat_escolhida != "" and subcat_escolhida != "N/A":
                         df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Marca'])['Preco'].mean().reset_index()
-                        # Como vamos separar por loja, a legenda agora só precisa mostrar a Marca
                         df_agrupado_drill['Legenda'] = df_agrupado_drill['Marca'] 
                     else:
                         df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Produto'])['Preco'].mean().reset_index()
                         df_agrupado_drill['Produto_Curto'] = df_agrupado_drill['Produto'].apply(lambda x: x[:40] + "..." if len(x) > 40 else x)
-                        # Como vamos separar por loja, a legenda agora só precisa mostrar o Produto
                         df_agrupado_drill['Legenda'] = df_agrupado_drill['Produto_Curto']
                     
                     df_agrupado_drill['Preco_Label'] = df_agrupado_drill['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
@@ -432,13 +452,12 @@ if menu == "Pesquisa de Mercado":
                     titulo_graf = " + ".join(partes_titulo)
                     subtitulo = f"Especificação: {especificacao_extra}" if especificacao_extra else ""
                     
-                    # 🚀 NOVO: SEPARAÇÃO DE GRÁFICOS POR LOJA
+                    # 🚀 SEPARAÇÃO DE GRÁFICOS POR LOJA
                     lojas_presentes = sorted(df_agrupado_drill['Loja'].unique())
                     
                     for loja in lojas_presentes:
                         df_loja = df_agrupado_drill[df_agrupado_drill['Loja'] == loja]
                         
-                        # Trava: Só desenha o gráfico se tiver dado para esta loja
                         if not df_loja.empty:
                             fig_drill = px.line(
                                 df_loja, 
@@ -447,7 +466,7 @@ if menu == "Pesquisa de Mercado":
                                 color="Legenda", 
                                 markers=True, 
                                 text="Preco_Label", 
-                                title=f"{loja.upper()} | {titulo_graf} {subtitulo}", 
+                                title=f"🏢 {loja.upper()} | {titulo_graf} {subtitulo}", 
                                 labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Legenda": "Item"}
                             )
                             
@@ -457,7 +476,7 @@ if menu == "Pesquisa de Mercado":
                             
                             st.plotly_chart(fig_drill, use_container_width=True)
                     
-                    # Tabela de Histórico (Mantida igual)
+                    # Tabela de Histórico
                     with st.expander("Ver histórico detalhado de preços (Últimos 7 dias)"):
                         df_tabela = df_drill.copy()
                         df_tabela['DataCaptura'] = pd.to_datetime(df_tabela['DataCaptura'])
@@ -483,7 +502,6 @@ elif menu == "Sistema de predição":
     st.title("🔮 Motor Preditivo de Demanda")
     st.markdown("Utilize Inteligência Artificial (Random Forest) para simular cenários de mercado e prever o volume de vendas futuro.")
 
-    # 1. TRAVA DE SEGURANÇA ESTRITA
     if st.session_state.get('dados_tratados') is None or st.session_state['dados_tratados'].empty:
         st.warning("⚠️ Atenção: O Motor de IA está aguardando os dados.")
         st.info("Vá até a aba **'Gestão de Dados'**, faça o upload do seu ficheiro CSV e clique em **'Executar Tratamento'** para liberar o sistema preditivo.")
@@ -491,7 +509,7 @@ elif menu == "Sistema de predição":
         df_interno = st.session_state['dados_tratados'].copy()
         df_aws = carregar_dados_aws()
 
-        with st.spinner("Sincronizando banco de dados interno com nuvem AWS..."):
+        with st.spinner("Sincronizando banco de dados interno com nuvem AWS e cruzando Câmbio (Dólar)..."):
             df_interno['DataCaptura'] = pd.to_datetime(df_interno['DataCaptura'])
             df_interno['Preco'] = pd.to_numeric(df_interno['Preco'], errors='coerce')
             df_interno['Quantidade'] = pd.to_numeric(df_interno['Quantidade'], errors='coerce')
@@ -501,6 +519,13 @@ elif menu == "Sistema de predição":
                 df_aws_limpo = df_aws.copy()
                 df_aws_limpo['DataCaptura'] = pd.to_datetime(df_aws_limpo['DataCaptura']).dt.normalize() 
                 df_aws_limpo['Marca'] = df_aws_limpo['Marca'].astype(str).str.upper().str.strip()
+                
+                # Extraindo o histórico do Dólar da AWS para cruzar com as vendas
+                if 'Dolar' in df_aws_limpo.columns:
+                    df_aws_limpo['Dolar'] = pd.to_numeric(df_aws_limpo['Dolar'], errors='coerce')
+                    df_cotacao = df_aws_limpo[['DataCaptura', 'Dolar']].dropna().drop_duplicates(subset=['DataCaptura'])
+                else:
+                    df_cotacao = pd.DataFrame(columns=['DataCaptura', 'Dolar'])
                 
                 def extrair_modelo_curto(nome_longo):
                     nome_longo = str(nome_longo).upper()
@@ -516,16 +541,24 @@ elif menu == "Sistema de predição":
                 df_concorrencia = df_aws_limpo.groupby(['DataCaptura', 'Link_IA', 'Marca'])['Preco'].mean().reset_index()
                 df_concorrencia = df_concorrencia.rename(columns={'Preco': 'Preco_Concorrencia'})
                 
+                # 1º Merge: Traz o preço da concorrência
                 df_ml = pd.merge(df_interno, df_concorrencia, on=['DataCaptura', 'Link_IA', 'Marca'], how='left')
                 df_ml['Preco_Concorrencia'] = df_ml['Preco_Concorrencia'].fillna(df_ml['Preco'])
+                
+                # 2º Merge: Traz o Dólar do dia exato da venda
+                if not df_cotacao.empty:
+                    df_ml = pd.merge(df_ml, df_cotacao, on='DataCaptura', how='left')
+                    df_ml['Dolar'] = df_ml['Dolar'].ffill().bfill() # Preenche buracos de fins de semana
+                else:
+                    df_ml['Dolar'] = 5.00 # Fallback caso a AWS não retorne o dólar
             else:
                 df_ml = df_interno.copy()
                 df_ml['Preco_Concorrencia'] = df_ml['Preco']
+                df_ml['Dolar'] = 5.00
 
             df_ml['Mes'] = df_ml['DataCaptura'].dt.month
             df_ml['DiaDaSemana'] = df_ml['DataCaptura'].dt.dayofweek
 
-        # Painel de Seleção Superior (Clean)
         st.markdown("### 1. Seleção de Ativo")
         produtos_disponiveis = sorted(df_ml['Produto'].dropna().unique())
         
@@ -545,38 +578,47 @@ elif menu == "Sistema de predição":
             st.success(f"Base de conhecimento pronta: **{len(df_alvo)} registros** encontrados para este ativo.")
             st.markdown("---")
             
-            # NOVO VISUAL: Sistema de Abas
             tab_simulacao, tab_tecnica = st.tabs(["🎯 Painel de Simulação", "🧠 Engenharia do Modelo (TCC)"])
             
             with tab_simulacao:
                 st.markdown("### 2. Configurar Cenário Futuro")
                 st.write("Ajuste as variáveis abaixo para simular o comportamento do mercado.")
                 
-                # Container estilizado para os inputs
                 with st.container():
-                    col_in1, col_in2, col_in3 = st.columns(3)
+                    # 🚀 MUDANÇA: Agora temos 4 colunas para caber o Dólar!
+                    col_in1, col_in2, col_in3, col_in4 = st.columns(4)
                     
                     meses_nomes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
                     mes_atual_index = int(df_alvo['Mes'].max()) - 1
+                    
+                    # 🚀 Lógica para pegar o Dólar do dia mais recente no BD
+                    if 'Dolar' in df_alvo.columns and not df_alvo['Dolar'].isna().all():
+                        dolar_recente = df_alvo.sort_values('DataCaptura', ascending=False)['Dolar'].iloc[0]
+                    else:
+                        dolar_recente = 5.00
                     
                     with col_in1:
                         mes_selecionado = st.selectbox("Mês da Projeção:", meses_nomes, index=mes_atual_index)
                         mes_alvo = meses_nomes.index(mes_selecionado) + 1
                     with col_in2:
-                        preco_simulado = st.number_input("Defina o seu Preço de Venda (R$):", value=float(df_alvo['Preco'].mean()), step=50.0)
+                        preco_simulado = st.number_input("Preço de Venda (R$):", value=float(df_alvo['Preco'].mean()), step=50.0)
                     with col_in3:
-                        preco_conc_simulado = st.number_input("Preço Estimado da Concorrência (R$):", value=float(df_alvo['Preco_Concorrencia'].mean()), step=50.0)
+                        preco_conc_simulado = st.number_input("Preço Concorrência (R$):", value=float(df_alvo['Preco_Concorrencia'].mean()), step=50.0)
+                    with col_in4:
+                        # 🚀 CAIXA DE SIMULAÇÃO DO DÓLAR
+                        dolar_simulado = st.number_input("Cotação do Dólar (R$):", value=float(dolar_recente), step=0.10)
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
                 if st.button("🚀 INICIAR PROCESSAMENTO DA INTELIGÊNCIA ARTIFICIAL", use_container_width=True, type="primary"):
-                    with st.spinner(f"O Algoritmo está processando milhares de árvores de decisão para {produto_ia}..."):
-                        time.sleep(1) # Efeito visual de processamento
+                    with st.spinner(f"O Algoritmo está processando milhares de árvores de decisão considerando o Dólar a R$ {dolar_simulado:.2f}..."):
+                        time.sleep(1)
                         from sklearn.ensemble import RandomForestRegressor
                         from sklearn.model_selection import train_test_split
                         from sklearn.metrics import r2_score
                         
-                        X = df_alvo[['Mes', 'DiaDaSemana', 'Preco', 'Preco_Concorrencia']]
+                        # 🚀 A IA AGORA ESTUDA O DÓLAR!
+                        X = df_alvo[['Mes', 'DiaDaSemana', 'Preco', 'Preco_Concorrencia', 'Dolar']]
                         y = df_alvo['Quantidade']
                         
                         X_treino, X_teste, y_treino, y_teste = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -587,16 +629,16 @@ elif menu == "Sistema de predição":
                         previsoes_teste = modelo_ia.predict(X_teste)
                         acuracia_r2 = r2_score(y_teste, previsoes_teste)
                         
-                        # Salva a acurácia na sessão para mostrar na aba técnica
                         st.session_state['ultima_acuracia'] = acuracia_r2
                         st.session_state['ultima_importancia'] = modelo_ia.feature_importances_
                         
-                        # Previsão
+                        # 🚀 A IA AGORA PREVÊ BASEADA NO DÓLAR SIMULADO!
                         X_futuro = pd.DataFrame({
                             'Mes': [mes_alvo],
-                            'DiaDaSemana': [4], # Assume sexta-feira como pico da semana
+                            'DiaDaSemana': [4],
                             'Preco': [preco_simulado],
-                            'Preco_Concorrencia': [preco_conc_simulado]
+                            'Preco_Concorrencia': [preco_conc_simulado],
+                            'Dolar': [dolar_simulado]
                         })
                         
                         previsao_ia = modelo_ia.predict(X_futuro)[0]
@@ -604,7 +646,6 @@ elif menu == "Sistema de predição":
                         
                         st.markdown("### 📊 Resultado da Projeção de Demanda")
                         
-                        # Cards de métricas com Deltas (Visual Premium)
                         colA, colB, colC = st.columns(3)
                         
                         with colB:
@@ -624,7 +665,6 @@ elif menu == "Sistema de predição":
                     acuracia = st.session_state['ultima_acuracia']
                     importancias = st.session_state['ultima_importancia']
                     
-                    # Medidor de Acurácia Visual
                     st.metric("Score de Acurácia (R²)", f"{acuracia * 100:.1f}%", help="O R² mede a capacidade do modelo de explicar a variação nas vendas. Valores acima de 70% são excelentes.")
                     
                     if acuracia > 0.80:
@@ -638,10 +678,11 @@ elif menu == "Sistema de predição":
                     st.markdown("### Importância das Variáveis (Feature Importance)")
                     st.write("O gráfico abaixo mostra matematicamente quais fatores o consumidor mais leva em consideração ao comprar esta peça.")
                     
+                    # 🚀 ATUALIZADO PARA INCLUIR O DÓLAR NO GRÁFICO!
                     df_importancia = pd.DataFrame({
-                        "Variável Analisada": ['Mês do Ano (Sazonalidade)', 'Dia da Semana', 'Nosso Preço de Venda', 'Preço da Concorrência (AWS)'],
+                        "Variável Analisada": ['Mês (Sazonalidade)', 'Dia da Semana', 'Nosso Preço', 'Preço Concorrência', 'Cotação do Dólar'],
                         "Peso na Decisão (%)": importancias * 100
-                    }).sort_values('Peso na Decisão (%)', ascending=True) # Ascending para o gráfico de barras horizontais ficar bonito
+                    }).sort_values('Peso na Decisão (%)', ascending=True)
                     
                     fig_imp = px.bar(
                         df_importancia, 
@@ -709,7 +750,6 @@ elif menu == "Gestão de Dados":
         
         if st.button("Executar Tratamento de Dados"):
             with st.spinner("A aplicar algoritmos de normalização..."):
-                import time
                 time.sleep(1) 
                 
                 df_tratado = st.session_state['dados_brutos'].copy()
@@ -725,7 +765,6 @@ elif menu == "Gestão de Dados":
                         df_tratado[col] = df_tratado[col].astype(str).str.upper().str.strip()
                         
                         if col == 'Produto':
-                            import re
                             df_tratado['Produto'] = df_tratado['Produto'].apply(lambda x: re.sub(r'^[\d\s-]+\s*', '', str(x)))
                             df_tratado['Produto'] = df_tratado['Produto'].str.strip() 
                     
