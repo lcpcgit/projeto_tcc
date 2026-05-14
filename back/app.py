@@ -520,7 +520,6 @@ elif menu == "Sistema de predição":
                 df_aws_limpo['DataCaptura'] = pd.to_datetime(df_aws_limpo['DataCaptura']).dt.normalize() 
                 df_aws_limpo['Marca'] = df_aws_limpo['Marca'].astype(str).str.upper().str.strip()
                 
-                # Extraindo o histórico do Dólar da AWS para cruzar com as vendas
                 if 'Dolar' in df_aws_limpo.columns:
                     df_aws_limpo['Dolar'] = pd.to_numeric(df_aws_limpo['Dolar'], errors='coerce')
                     df_cotacao = df_aws_limpo[['DataCaptura', 'Dolar']].dropna().drop_duplicates(subset=['DataCaptura'])
@@ -541,21 +540,21 @@ elif menu == "Sistema de predição":
                 df_concorrencia = df_aws_limpo.groupby(['DataCaptura', 'Link_IA', 'Marca'])['Preco'].mean().reset_index()
                 df_concorrencia = df_concorrencia.rename(columns={'Preco': 'Preco_Concorrencia'})
                 
-                # 1º Merge: Traz o preço da concorrência
                 df_ml = pd.merge(df_interno, df_concorrencia, on=['DataCaptura', 'Link_IA', 'Marca'], how='left')
                 df_ml['Preco_Concorrencia'] = df_ml['Preco_Concorrencia'].fillna(df_ml['Preco'])
                 
-                # 2º Merge: Traz o Dólar do dia exato da venda
                 if not df_cotacao.empty:
                     df_ml = pd.merge(df_ml, df_cotacao, on='DataCaptura', how='left')
-                    df_ml['Dolar'] = df_ml['Dolar'].ffill().bfill() # Preenche buracos de fins de semana
+                    df_ml['Dolar'] = df_ml['Dolar'].ffill().bfill()
                 else:
-                    df_ml['Dolar'] = 5.00 # Fallback caso a AWS não retorne o dólar
+                    df_ml['Dolar'] = 5.00
             else:
                 df_ml = df_interno.copy()
                 df_ml['Preco_Concorrencia'] = df_ml['Preco']
                 df_ml['Dolar'] = 5.00
 
+            # 🚀 ADICIONADO O ANO NA BASE DE TREINAMENTO
+            df_ml['Ano'] = df_ml['DataCaptura'].dt.year
             df_ml['Mes'] = df_ml['DataCaptura'].dt.month
             df_ml['DiaDaSemana'] = df_ml['DataCaptura'].dt.dayofweek
 
@@ -585,40 +584,56 @@ elif menu == "Sistema de predição":
                 st.write("Ajuste as variáveis abaixo para simular o comportamento do mercado.")
                 
                 with st.container():
-                    # 🚀 MUDANÇA: Agora temos 4 colunas para caber o Dólar!
-                    col_in1, col_in2, col_in3, col_in4 = st.columns(4)
+                    # 🚀 DIVIDIDO EM 5 COLUNAS PARA INCLUIR O ANO
+                    col_in0, col_in1, col_in2, col_in3, col_in4 = st.columns(5)
                     
-                    meses_nomes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-                    mes_atual_index = int(df_alvo['Mes'].max()) - 1
+                    import datetime
+                    hoje = datetime.datetime.now()
+                    ano_atual = hoje.year
+                    mes_atual_idx = hoje.month - 1 # Janeiro é 0 no fatiamento de lista
                     
-                    # 🚀 Lógica para pegar o Dólar do dia mais recente no BD
+                    # 1. Filtro de Ano
+                    with col_in0:
+                        ano_selecionado = st.selectbox("Ano da Projeção:", [ano_atual, ano_atual + 1, ano_atual + 2])
+                    
+                    # 2. Lógica de Meses Inteligente
+                    meses_nomes_lista = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+                    
+                    if ano_selecionado == ano_atual:
+                        # Só mostra do mês atual para frente
+                        meses_opcoes = meses_nomes_lista[mes_atual_idx:]
+                    else:
+                        # Ano futuro mostra tudo
+                        meses_opcoes = meses_nomes_lista
+                    
+                    with col_in1:
+                        mes_selecionado_nome = st.selectbox("Mês da Projeção:", meses_opcoes)
+                        mes_alvo_num = meses_nomes_lista.index(mes_selecionado_nome) + 1
+                    
+                    # Lógica do Dólar
                     if 'Dolar' in df_alvo.columns and not df_alvo['Dolar'].isna().all():
                         dolar_recente = df_alvo.sort_values('DataCaptura', ascending=False)['Dolar'].iloc[0]
                     else:
                         dolar_recente = 5.00
                     
-                    with col_in1:
-                        mes_selecionado = st.selectbox("Mês da Projeção:", meses_nomes, index=mes_atual_index)
-                        mes_alvo = meses_nomes.index(mes_selecionado) + 1
                     with col_in2:
                         preco_simulado = st.number_input("Preço de Venda (R$):", value=float(df_alvo['Preco'].mean()), step=50.0)
                     with col_in3:
                         preco_conc_simulado = st.number_input("Preço Concorrência (R$):", value=float(df_alvo['Preco_Concorrencia'].mean()), step=50.0)
                     with col_in4:
-                        # 🚀 CAIXA DE SIMULAÇÃO DO DÓLAR
                         dolar_simulado = st.number_input("Cotação do Dólar (R$):", value=float(dolar_recente), step=0.10)
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
                 if st.button("🚀 INICIAR PROCESSAMENTO DA INTELIGÊNCIA ARTIFICIAL", use_container_width=True, type="primary"):
-                    with st.spinner(f"O Algoritmo está processando milhares de árvores de decisão considerando o Dólar a R$ {dolar_simulado:.2f}..."):
+                    with st.spinner(f"O Algoritmo está processando o cenário para {mes_selecionado_nome}/{ano_selecionado}..."):
                         time.sleep(1)
                         from sklearn.ensemble import RandomForestRegressor
                         from sklearn.model_selection import train_test_split
                         from sklearn.metrics import r2_score
                         
-                        # 🚀 A IA AGORA ESTUDA O DÓLAR!
-                        X = df_alvo[['Mes', 'DiaDaSemana', 'Preco', 'Preco_Concorrencia', 'Dolar']]
+                        # 🚀 IA AGORA TREINA COM O ANO TAMBÉM
+                        X = df_alvo[['Ano', 'Mes', 'DiaDaSemana', 'Preco', 'Preco_Concorrencia', 'Dolar']]
                         y = df_alvo['Quantidade']
                         
                         X_treino, X_teste, y_treino, y_teste = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -632,10 +647,11 @@ elif menu == "Sistema de predição":
                         st.session_state['ultima_acuracia'] = acuracia_r2
                         st.session_state['ultima_importancia'] = modelo_ia.feature_importances_
                         
-                        # 🚀 A IA AGORA PREVÊ BASEADA NO DÓLAR SIMULADO!
+                        # 🚀 IA PREVÊ CONSIDERANDO O ANO SELECIONADO
                         X_futuro = pd.DataFrame({
-                            'Mes': [mes_alvo],
-                            'DiaDaSemana': [4],
+                            'Ano': [ano_selecionado],
+                            'Mes': [mes_alvo_num],
+                            'DiaDaSemana': [4], # Sexta-feira
                             'Preco': [preco_simulado],
                             'Preco_Concorrencia': [preco_conc_simulado],
                             'Dolar': [dolar_simulado]
@@ -647,40 +663,36 @@ elif menu == "Sistema de predição":
                         st.markdown("### 📊 Resultado da Projeção de Demanda")
                         
                         colA, colB, colC = st.columns(3)
-                        
                         with colB:
                             st.metric("🎯 Previsão Principal", f"{previsao_arredondada} unid.", delta="Volume Esperado", delta_color="off")
                         with colA:
-                            st.metric("📉 Cenário Pessimista", f"{int(previsao_arredondada * 0.85)} unid.", delta="-15% Risco de Mercado", delta_color="inverse")
+                            st.metric("📉 Cenário Pessimista", f"{int(previsao_arredondada * 0.85)} unid.", delta="-15% Risco", delta_color="inverse")
                         with colC:
-                            st.metric("🚀 Cenário Otimista", f"{int(previsao_arredondada * 1.15)} unid.", delta="+15% Alta Conversão", delta_color="normal")
+                            st.metric("🚀 Cenário Otimista", f"{int(previsao_arredondada * 1.15)} unid.", delta="+15% Conversão", delta_color="normal")
                             
-                        st.info("💡 **Análise Concluída:** Para ver os dados técnicos sobre como a IA tomou essa decisão, acesse a aba lateral 'Engenharia do Modelo (TCC)'.")
+                        st.info("💡 **Análise Concluída:** Acesse a aba 'Engenharia do Modelo (TCC)' para detalhes técnicos.")
 
             with tab_tecnica:
                 st.markdown("### Métricas de Validação Científica")
-                st.write("Esta seção é dedicada à validação estatística do algoritmo, ideal para defesa acadêmica.")
-                
                 if 'ultima_acuracia' in st.session_state:
                     acuracia = st.session_state['ultima_acuracia']
                     importancias = st.session_state['ultima_importancia']
                     
-                    st.metric("Score de Acurácia (R²)", f"{acuracia * 100:.1f}%", help="O R² mede a capacidade do modelo de explicar a variação nas vendas. Valores acima de 70% são excelentes.")
+                    st.metric("Score de Acurácia (R²)", f"{acuracia * 100:.1f}%")
                     
                     if acuracia > 0.80:
-                        st.success("O modelo obteve um grau de confiança **Excepcional**. As previsões geradas são altamente confiáveis.")
+                        st.success("Grau de confiança **Excepcional**.")
                     elif acuracia > 0.60:
-                        st.info("O modelo obteve um grau de confiança **Bom**. Há uma correlação clara nos dados.")
+                        st.info("Grau de confiança **Bom**.")
                     else:
-                        st.warning("O grau de confiança está **Baixo**. O mercado pode estar se comportando de forma aleatória ou faltam dados contínuos.")
+                        st.warning("Grau de confiança **Baixo**.")
                         
                     st.markdown("---")
-                    st.markdown("### Importância das Variáveis (Feature Importance)")
-                    st.write("O gráfico abaixo mostra matematicamente quais fatores o consumidor mais leva em consideração ao comprar esta peça.")
+                    st.markdown("### Importância das Variáveis")
                     
-                    # 🚀 ATUALIZADO PARA INCLUIR O DÓLAR NO GRÁFICO!
+                    # 🚀 ATUALIZADO PARA EXIBIR O ANO NO GRÁFICO TÉCNICO
                     df_importancia = pd.DataFrame({
-                        "Variável Analisada": ['Mês (Sazonalidade)', 'Dia da Semana', 'Nosso Preço', 'Preço Concorrência', 'Cotação do Dólar'],
+                        "Variável Analisada": ['Ano', 'Mês (Sazonalidade)', 'Dia da Semana', 'Nosso Preço', 'Preço Concorrência', 'Cotação do Dólar'],
                         "Peso na Decisão (%)": importancias * 100
                     }).sort_values('Peso na Decisão (%)', ascending=True)
                     
@@ -696,7 +708,7 @@ elif menu == "Sistema de predição":
                     fig_imp.update_layout(showlegend=False)
                     st.plotly_chart(fig_imp, use_container_width=True)
                 else:
-                    st.info("👆 Execute uma simulação na aba 'Painel de Simulação' primeiro para gerar os gráficos técnicos desta seção.")
+                    st.info("👆 Execute uma simulação para gerar os dados técnicos.")
 # ================= GESTÃO DE DADOS =================
 elif menu == "Gestão de Dados":
     st.title("Ingestão, Limpeza e Tratamento")
