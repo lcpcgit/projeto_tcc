@@ -520,18 +520,26 @@ elif menu == "Sistema de predição":
                 df_aws_limpo['DataCaptura'] = pd.to_datetime(df_aws_limpo['DataCaptura']).dt.normalize() 
                 df_aws_limpo['Marca'] = df_aws_limpo['Marca'].astype(str).str.upper().str.strip()
                 
+                # Extraindo o histórico do Dólar da AWS para cruzar com as vendas
                 if 'Dolar' in df_aws_limpo.columns:
                     df_aws_limpo['Dolar'] = pd.to_numeric(df_aws_limpo['Dolar'], errors='coerce')
                     df_cotacao = df_aws_limpo[['DataCaptura', 'Dolar']].dropna().drop_duplicates(subset=['DataCaptura'])
                 else:
                     df_cotacao = pd.DataFrame(columns=['DataCaptura', 'Dolar'])
                 
+                # 🚀 LÓGICA DE EXTRAÇÃO EXATA (Evita misturar RTX 4060 com RTX 4060 Ti)
+                todos_modelos_ordenados = []
+                for cat in mapa_subcategorias:
+                    for modelo in mapa_subcategorias[cat]:
+                        todos_modelos_ordenados.append(modelo.upper())
+                
+                todos_modelos_ordenados.sort(key=len, reverse=True)
+                
                 def extrair_modelo_curto(nome_longo):
                     nome_longo = str(nome_longo).upper()
-                    for cat in mapa_subcategorias:
-                        for modelo in mapa_subcategorias[cat]:
-                            if modelo.upper() in nome_longo:
-                                return modelo.upper()
+                    for modelo in todos_modelos_ordenados:
+                        if modelo in nome_longo:
+                            return modelo
                     return nome_longo.strip()
 
                 df_aws_limpo['Link_IA'] = df_aws_limpo['Produto'].apply(extrair_modelo_curto)
@@ -540,14 +548,16 @@ elif menu == "Sistema de predição":
                 df_concorrencia = df_aws_limpo.groupby(['DataCaptura', 'Link_IA', 'Marca'])['Preco'].mean().reset_index()
                 df_concorrencia = df_concorrencia.rename(columns={'Preco': 'Preco_Concorrencia'})
                 
+                # 1º Merge: Traz o preço da concorrência
                 df_ml = pd.merge(df_interno, df_concorrencia, on=['DataCaptura', 'Link_IA', 'Marca'], how='left')
                 df_ml['Preco_Concorrencia'] = df_ml['Preco_Concorrencia'].fillna(df_ml['Preco'])
                 
+                # 2º Merge: Traz o Dólar do dia exato da venda
                 if not df_cotacao.empty:
                     df_ml = pd.merge(df_ml, df_cotacao, on='DataCaptura', how='left')
-                    df_ml['Dolar'] = df_ml['Dolar'].ffill().bfill()
+                    df_ml['Dolar'] = df_ml['Dolar'].ffill().bfill() # Preenche buracos de fins de semana
                 else:
-                    df_ml['Dolar'] = 5.00
+                    df_ml['Dolar'] = 5.00 # Fallback caso a AWS não retorne o dólar
             else:
                 df_ml = df_interno.copy()
                 df_ml['Preco_Concorrencia'] = df_ml['Preco']
@@ -647,7 +657,7 @@ elif menu == "Sistema de predição":
                         st.session_state['ultima_acuracia'] = acuracia_r2
                         st.session_state['ultima_importancia'] = modelo_ia.feature_importances_
                         
-                        # 🚀 IA PREVÊ CONSIDERANDO O ANO SELECIONADO
+                        # 🚀 IA PREVÊ CONSIDERANDO O ANO SELECIONADO E DÓLAR
                         X_futuro = pd.DataFrame({
                             'Ano': [ano_selecionado],
                             'Mes': [mes_alvo_num],
@@ -660,6 +670,15 @@ elif menu == "Sistema de predição":
                         previsao_ia = modelo_ia.predict(X_futuro)[0]
                         previsao_arredondada = max(1, int(previsao_ia))
                         
+                        # 🚀 CÁLCULO DE EXPECTATIVAS DE MERCADO
+                        faturamento_estimado = previsao_arredondada * preco_simulado
+                        
+                        df_historico_mes = df_alvo[df_alvo['Mes'] == mes_alvo_num]
+                        if not df_historico_mes.empty:
+                            media_historica_mes = int(df_historico_mes['Quantidade'].mean())
+                        else:
+                            media_historica_mes = "N/A (Sem dados deste mês)"
+
                         st.markdown("### 📊 Resultado da Projeção de Demanda")
                         
                         colA, colB, colC = st.columns(3)
@@ -669,8 +688,18 @@ elif menu == "Sistema de predição":
                             st.metric("📉 Cenário Pessimista", f"{int(previsao_arredondada * 0.85)} unid.", delta="-15% Risco", delta_color="inverse")
                         with colC:
                             st.metric("🚀 Cenário Otimista", f"{int(previsao_arredondada * 1.15)} unid.", delta="+15% Conversão", delta_color="normal")
+                        
+                        # 🚀 EXIBIÇÃO DOS VALORES ESPERADOS E HISTÓRICOS
+                        st.markdown(f"""
+                        <div style="background-color: #1E1E1E; padding: 20px; border-radius: 10px; margin-top: 15px; border-left: 5px solid #ff4b4b;">
+                            <h4 style="margin-top: 0px; color: #ff4b4b;">💼 Projeção Financeira e Baseline Histórico</h4>
+                            <p style="margin-bottom: 5px; font-size: 16px;"><b>Faturamento Bruto Esperado:</b> R$ {faturamento_estimado:,.2f} <i>(Baseado no preço sugerido)</i></p>
+                            <p style="margin-bottom: 0px; font-size: 16px;"><b>Média de Vendas Histórica ({mes_selecionado_nome}):</b> {media_historica_mes} unid. <i>(O que costumava vender nesta época)</i></p>
+                        </div>
+                        """, unsafe_allow_html=True)
                             
-                        st.info("💡 **Análise Concluída:** Acesse a aba 'Engenharia do Modelo (TCC)' para detalhes técnicos.")
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        st.info("💡 **Análise Concluída:** Acesse a aba 'Engenharia do Modelo (TCC)' para detalhes técnicos matemáticos da IA.")
 
             with tab_tecnica:
                 st.markdown("### Métricas de Validação Científica")
