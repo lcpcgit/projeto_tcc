@@ -510,6 +510,11 @@ elif menu == "Sistema de predição":
         df_aws = carregar_dados_aws()
 
         with st.spinner("Sincronizando banco de dados interno com nuvem AWS e cruzando Câmbio (Dólar)..."):
+            
+            # 🚀 1. PADRONIZAÇÃO DE VÍRGULAS (Corrige o CSV do cliente para o padrão da IA)
+            if df_interno['Preco'].dtype == 'object':
+                df_interno['Preco'] = df_interno['Preco'].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False)
+            
             df_interno['DataCaptura'] = pd.to_datetime(df_interno['DataCaptura'])
             df_interno['Preco'] = pd.to_numeric(df_interno['Preco'], errors='coerce')
             df_interno['Quantidade'] = pd.to_numeric(df_interno['Quantidade'], errors='coerce')
@@ -520,14 +525,12 @@ elif menu == "Sistema de predição":
                 df_aws_limpo['DataCaptura'] = pd.to_datetime(df_aws_limpo['DataCaptura']).dt.normalize() 
                 df_aws_limpo['Marca'] = df_aws_limpo['Marca'].astype(str).str.upper().str.strip()
                 
-                # Extraindo o histórico do Dólar da AWS para cruzar com as vendas
                 if 'Dolar' in df_aws_limpo.columns:
                     df_aws_limpo['Dolar'] = pd.to_numeric(df_aws_limpo['Dolar'], errors='coerce')
                     df_cotacao = df_aws_limpo[['DataCaptura', 'Dolar']].dropna().drop_duplicates(subset=['DataCaptura'])
                 else:
                     df_cotacao = pd.DataFrame(columns=['DataCaptura', 'Dolar'])
                 
-                # 🚀 LÓGICA DE EXTRAÇÃO EXATA (Evita misturar RTX 4060 com RTX 4060 Ti)
                 todos_modelos_ordenados = []
                 for cat in mapa_subcategorias:
                     for modelo in mapa_subcategorias[cat]:
@@ -548,22 +551,19 @@ elif menu == "Sistema de predição":
                 df_concorrencia = df_aws_limpo.groupby(['DataCaptura', 'Link_IA', 'Marca'])['Preco'].mean().reset_index()
                 df_concorrencia = df_concorrencia.rename(columns={'Preco': 'Preco_Concorrencia'})
                 
-                # 1º Merge: Traz o preço da concorrência
                 df_ml = pd.merge(df_interno, df_concorrencia, on=['DataCaptura', 'Link_IA', 'Marca'], how='left')
                 df_ml['Preco_Concorrencia'] = df_ml['Preco_Concorrencia'].fillna(df_ml['Preco'])
                 
-                # 2º Merge: Traz o Dólar do dia exato da venda
                 if not df_cotacao.empty:
                     df_ml = pd.merge(df_ml, df_cotacao, on='DataCaptura', how='left')
-                    df_ml['Dolar'] = df_ml['Dolar'].ffill().bfill() # Preenche buracos de fins de semana
+                    df_ml['Dolar'] = df_ml['Dolar'].ffill().bfill()
                 else:
-                    df_ml['Dolar'] = 5.00 # Fallback caso a AWS não retorne o dólar
+                    df_ml['Dolar'] = 5.00
             else:
                 df_ml = df_interno.copy()
                 df_ml['Preco_Concorrencia'] = df_ml['Preco']
                 df_ml['Dolar'] = 5.00
 
-            # 🚀 ADICIONADO O ANO NA BASE DE TREINAMENTO
             df_ml['Ano'] = df_ml['DataCaptura'].dt.year
             df_ml['Mes'] = df_ml['DataCaptura'].dt.month
             df_ml['DiaDaSemana'] = df_ml['DataCaptura'].dt.dayofweek
@@ -594,33 +594,27 @@ elif menu == "Sistema de predição":
                 st.write("Ajuste as variáveis abaixo para simular o comportamento do mercado.")
                 
                 with st.container():
-                    # 🚀 DIVIDIDO EM 5 COLUNAS PARA INCLUIR O ANO
                     col_in0, col_in1, col_in2, col_in3, col_in4 = st.columns(5)
                     
                     import datetime
                     hoje = datetime.datetime.now()
                     ano_atual = hoje.year
-                    mes_atual_idx = hoje.month - 1 # Janeiro é 0 no fatiamento de lista
+                    mes_atual_idx = hoje.month - 1
                     
-                    # 1. Filtro de Ano
                     with col_in0:
                         ano_selecionado = st.selectbox("Ano da Projeção:", [ano_atual, ano_atual + 1, ano_atual + 2])
                     
-                    # 2. Lógica de Meses Inteligente
                     meses_nomes_lista = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
                     
                     if ano_selecionado == ano_atual:
-                        # Só mostra do mês atual para frente
                         meses_opcoes = meses_nomes_lista[mes_atual_idx:]
                     else:
-                        # Ano futuro mostra tudo
                         meses_opcoes = meses_nomes_lista
                     
                     with col_in1:
                         mes_selecionado_nome = st.selectbox("Mês da Projeção:", meses_opcoes)
                         mes_alvo_num = meses_nomes_lista.index(mes_selecionado_nome) + 1
                     
-                    # Lógica do Dólar
                     if 'Dolar' in df_alvo.columns and not df_alvo['Dolar'].isna().all():
                         dolar_recente = df_alvo.sort_values('DataCaptura', ascending=False)['Dolar'].iloc[0]
                     else:
@@ -642,7 +636,6 @@ elif menu == "Sistema de predição":
                         from sklearn.model_selection import train_test_split
                         from sklearn.metrics import r2_score
                         
-                        # 🚀 IA AGORA TREINA COM O ANO TAMBÉM
                         X = df_alvo[['Ano', 'Mes', 'DiaDaSemana', 'Preco', 'Preco_Concorrencia', 'Dolar']]
                         y = df_alvo['Quantidade']
                         
@@ -657,11 +650,10 @@ elif menu == "Sistema de predição":
                         st.session_state['ultima_acuracia'] = acuracia_r2
                         st.session_state['ultima_importancia'] = modelo_ia.feature_importances_
                         
-                        # 🚀 IA PREVÊ CONSIDERANDO O ANO SELECIONADO E DÓLAR
                         X_futuro = pd.DataFrame({
                             'Ano': [ano_selecionado],
                             'Mes': [mes_alvo_num],
-                            'DiaDaSemana': [4], # Sexta-feira
+                            'DiaDaSemana': [4],
                             'Preco': [preco_simulado],
                             'Preco_Concorrencia': [preco_conc_simulado],
                             'Dolar': [dolar_simulado]
@@ -670,14 +662,17 @@ elif menu == "Sistema de predição":
                         previsao_ia = modelo_ia.predict(X_futuro)[0]
                         previsao_arredondada = max(1, int(previsao_ia))
                         
-                        # 🚀 CÁLCULO DE EXPECTATIVAS DE MERCADO
                         faturamento_estimado = previsao_arredondada * preco_simulado
                         
                         df_historico_mes = df_alvo[df_alvo['Mes'] == mes_alvo_num]
                         if not df_historico_mes.empty:
                             media_historica_mes = int(df_historico_mes['Quantidade'].mean())
                         else:
-                            media_historica_mes = "N/A (Sem dados deste mês)"
+                            media_historica_mes = "N/A (Sem dados)"
+
+                        # 🚀 2. FUNÇÃO MÁGICA PARA DEIXAR O DINHEIRO BONITO NA TELA
+                        def formatar_br(valor):
+                            return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
                         st.markdown("### 📊 Resultado da Projeção de Demanda")
                         
@@ -689,11 +684,11 @@ elif menu == "Sistema de predição":
                         with colC:
                             st.metric("🚀 Cenário Otimista", f"{int(previsao_arredondada * 1.15)} unid.", delta="+15% Conversão", delta_color="normal")
                         
-                        # 🚀 EXIBIÇÃO DOS VALORES ESPERADOS E HISTÓRICOS
+                        # APLICANDO A FORMATAÇÃO BRASILEIRA NA CAIXA DE FATURAMENTO
                         st.markdown(f"""
                         <div style="background-color: #1E1E1E; padding: 20px; border-radius: 10px; margin-top: 15px; border-left: 5px solid #ff4b4b;">
                             <h4 style="margin-top: 0px; color: #ff4b4b;">💼 Projeção Financeira e Baseline Histórico</h4>
-                            <p style="margin-bottom: 5px; font-size: 16px;"><b>Faturamento Bruto Esperado:</b> R$ {faturamento_estimado:,.2f} <i>(Baseado no preço sugerido)</i></p>
+                            <p style="margin-bottom: 5px; font-size: 16px;"><b>Faturamento Bruto Esperado:</b> R$ {formatar_br(faturamento_estimado)} <i>(Baseado no preço sugerido)</i></p>
                             <p style="margin-bottom: 0px; font-size: 16px;"><b>Média de Vendas Histórica ({mes_selecionado_nome}):</b> {media_historica_mes} unid. <i>(O que costumava vender nesta época)</i></p>
                         </div>
                         """, unsafe_allow_html=True)
@@ -719,7 +714,7 @@ elif menu == "Sistema de predição":
                     st.markdown("---")
                     st.markdown("### Importância das Variáveis")
                     
-                    # 🚀 ATUALIZADO PARA EXIBIR O ANO NO GRÁFICO TÉCNICO
+                    import plotly.express as px
                     df_importancia = pd.DataFrame({
                         "Variável Analisada": ['Ano', 'Mês (Sazonalidade)', 'Dia da Semana', 'Nosso Preço', 'Preço Concorrência', 'Cotação do Dólar'],
                         "Peso na Decisão (%)": importancias * 100
