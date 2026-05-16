@@ -193,7 +193,6 @@ if menu == "Pesquisa de Mercado":
             st.info("Selecione o modelo exato para analisar o preço dele.")
             
             pesquisa_produto = st.text_input("Filtre pela família/marca do produto:", key="input_pesquisa_especifica")
-            
             if pesquisa_produto:
                 termos_busca = pesquisa_produto.lower().split()
                 mask = pd.Series(True, index=df_historico.index)
@@ -201,9 +200,16 @@ if menu == "Pesquisa de Mercado":
                 for termo in termos_busca:
                     mask = mask & df_historico['Produto'].str.lower().str.contains(termo, na=False, regex=False)
                 
-                # 🚀 Filtro de contenção do "Ti": Impede que buscas por 5070 tragam modelos Ti de intrusos
+                # 🚀 BINDAGEM SUPREMA CONTRA VAZAMENTOS (Ti, Super, XT)
+                # O (?![a-z]) garante que barra coisas como "TI8GB" (sem espaço) sem excluir marcas!
                 if "ti" not in termos_busca:
-                    mask = mask & ~df_historico['Produto'].str.lower().str.contains(r'\bti\b|\b\d+ti\b', regex=True, na=False)
+                    mask = mask & ~df_historico['Produto'].str.lower().str.contains(r'(?<![a-z])ti(?![a-z])', regex=True, na=False)
+                
+                if "super" not in termos_busca:
+                    mask = mask & ~df_historico['Produto'].str.lower().str.contains(r'(?<![a-z])super(?![a-z])', regex=True, na=False)
+                    
+                if "xt" not in termos_busca:
+                    mask = mask & ~df_historico['Produto'].str.lower().str.contains(r'(?<![a-z])xt(?![a-z])', regex=True, na=False)
                 
                 # Unifica produtos idênticos ignorando espaços extras
                 lista_filtrada = df_historico[mask]['Produto'].astype(str).str.strip().dropna().unique()
