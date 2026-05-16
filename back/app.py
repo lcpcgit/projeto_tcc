@@ -195,24 +195,25 @@ if menu == "Pesquisa de Mercado":
             pesquisa_produto = st.text_input("Filtre pela família/marca do produto:", key="input_pesquisa_especifica")
             
             if pesquisa_produto:
-                # 🚀 NOVA LÓGICA DE BUSCA: Separa as palavras e busca independente da ordem!
                 termos_busca = pesquisa_produto.lower().split()
                 mask = pd.Series(True, index=df_historico.index)
                 
                 for termo in termos_busca:
-                    # O regex=False deixa a busca mais rápida e segura contra caracteres especiais
                     mask = mask & df_historico['Produto'].str.lower().str.contains(termo, na=False, regex=False)
                 
-                lista_filtrada = df_historico[mask]['Produto'].dropna().unique()
+                # 🚀 Filtro de contenção do "Ti": Impede que buscas por 5070 tragam modelos Ti de intrusos
+                if "ti" not in termos_busca:
+                    mask = mask & ~df_historico['Produto'].str.lower().str.contains(r'\bti\b|\b\d+ti\b', regex=True, na=False)
+                
+                # Unifica produtos idênticos ignorando espaços extras
+                lista_filtrada = df_historico[mask]['Produto'].astype(str).str.strip().dropna().unique()
                 lista_filtrada = sorted(lista_filtrada)
                 
-                # Mensagem caso o usuário digite algo que não existe de jeito nenhum
                 if len(lista_filtrada) == 0:
                     lista_filtrada = ["Nenhum produto encontrado com esses termos."]
             else:
                 lista_filtrada = ["Digite algo na pesquisa acima para encontrar o produto"]
                 
-            # Trava o selectbox se for uma mensagem de aviso
             esta_bloqueado = len(lista_filtrada) == 1 and (lista_filtrada[0].startswith("Digite algo") or lista_filtrada[0].startswith("Nenhum produto"))
             
             produto_escolhido = st.selectbox(
@@ -223,11 +224,12 @@ if menu == "Pesquisa de Mercado":
             )
             
             if produto_escolhido and not esta_bloqueado:
-                df_filtrado = df_historico[df_historico['Produto'] == produto_escolhido].copy()
+                df_filtrado = df_historico[df_historico['Produto'].astype(str).str.strip() == produto_escolhido].copy()
                 
                 if not df_filtrado.empty:
                     df_filtrado['Preco_Label'] = df_filtrado['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                     
+                    # 🚀 Gráfico Único com linhas separadas por Loja através do parâmetro 'color'
                     fig = px.line(
                         df_filtrado, 
                         x="DataCaptura", 
@@ -241,7 +243,7 @@ if menu == "Pesquisa de Mercado":
                     
                     fig.update_traces(
                         textposition="top center",
-                        hovertemplate=f"<b>Produto:</b> {produto_escolhido}<br><b>Data da Extração:</b> %{{x|%d/%m/%Y}}<br><b>Preço:</b> R$ %{{y:,.2f}}<extra></extra>"
+                        hovertemplate="<b>Loja:</b> %{data.name}<br><b>Data da Extração:</b> %{x|%d/%m/%Y}<br><b>Preço:</b> R$ %{y:,.2f}<extra></extra>"
                     )
                     
                     fig.update_layout(yaxis=dict(range=[df_filtrado['Preco'].min() * 0.9, df_filtrado['Preco'].max() * 1.1]))
