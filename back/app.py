@@ -504,7 +504,6 @@ if menu == "Pesquisa de Mercado":
                     st.warning(f"Nenhum produto encontrado na faixa '{filtro_preco}'.")
             else:
                 st.warning("Nenhum hardware encontrado no banco de dados com essa combinação exata de filtros.")
-
 # ================= PÁGINA 2: PREVISÃO DE IA =================
 elif menu == "Sistema de predição":
     st.title("🔮 Motor Preditivo de Demanda")
