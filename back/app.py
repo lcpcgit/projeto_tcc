@@ -192,20 +192,34 @@ if menu == "Pesquisa de Mercado":
         elif modo_visao == "Visão Específica":
             st.info("Selecione o modelo exato para analisar o preço dele.")
             
-            pesquisa_produto = st.text_input("Filtre pela família/marca do produto:")
+            pesquisa_produto = st.text_input("Filtre pela família/marca do produto:", key="input_pesquisa_especifica")
             
             if pesquisa_produto:
-                lista_filtrada = df_historico[df_historico['Produto'].str.contains(pesquisa_produto, case=False, na=False)]['Produto'].dropna().unique()
+                # 🚀 NOVA LÓGICA DE BUSCA: Separa as palavras e busca independente da ordem!
+                termos_busca = pesquisa_produto.lower().split()
+                mask = pd.Series(True, index=df_historico.index)
+                
+                for termo in termos_busca:
+                    # O regex=False deixa a busca mais rápida e segura contra caracteres especiais
+                    mask = mask & df_historico['Produto'].str.lower().str.contains(termo, na=False, regex=False)
+                
+                lista_filtrada = df_historico[mask]['Produto'].dropna().unique()
                 lista_filtrada = sorted(lista_filtrada)
+                
+                # Mensagem caso o usuário digite algo que não existe de jeito nenhum
+                if len(lista_filtrada) == 0:
+                    lista_filtrada = ["Nenhum produto encontrado com esses termos."]
             else:
                 lista_filtrada = ["Digite algo na pesquisa acima para encontrar o produto"]
                 
-            esta_bloqueado = len(lista_filtrada) == 1 and lista_filtrada[0].startswith("Digite algo")
+            # Trava o selectbox se for uma mensagem de aviso
+            esta_bloqueado = len(lista_filtrada) == 1 and (lista_filtrada[0].startswith("Digite algo") or lista_filtrada[0].startswith("Nenhum produto"))
             
             produto_escolhido = st.selectbox(
                 "Escolha o Hardware específico:", 
                 lista_filtrada,
-                disabled=esta_bloqueado
+                disabled=esta_bloqueado,
+                key="select_produto_especifico"
             )
             
             if produto_escolhido and not esta_bloqueado:
@@ -225,10 +239,9 @@ if menu == "Pesquisa de Mercado":
                         labels={"DataCaptura": "Data da Extração", "Preco": "Preço à Vista (R$)", "Loja": "Loja Monitorada"}
                     )
                     
-                    # ✨ Mágica do visual limpo no Hover (Visão Específica)
                     fig.update_traces(
                         textposition="top center",
-                        hovertemplate="<b>Loja:</b> %{data.name}<br><b>Data da Extração:</b> %{x|%d/%m/%Y}<br><b>Preço:</b> R$ %{y:,.2f}<extra></extra>"
+                        hovertemplate=f"<b>Produto:</b> {produto_escolhido}<br><b>Data da Extração:</b> %{{x|%d/%m/%Y}}<br><b>Preço:</b> R$ %{{y:,.2f}}<extra></extra>"
                     )
                     
                     fig.update_layout(yaxis=dict(range=[df_filtrado['Preco'].min() * 0.9, df_filtrado['Preco'].max() * 1.1]))
