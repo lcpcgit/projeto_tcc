@@ -580,6 +580,9 @@ elif menu == "Sistema de predição":
                 df_concorrencia = df_concorrencia.rename(columns={'Preco': 'Preco_Concorrencia'})
                 
                 df_ml = pd.merge(df_interno, df_concorrencia, on=['DataCaptura', 'Link_IA', 'Marca'], how='left')
+                
+                # 🚀 CORREÇÃO DO "CLONE" (Forward Fill) -> A IA puxa a verdadeira média do concorrente
+                df_ml['Preco_Concorrencia'] = df_ml.groupby(['Link_IA', 'Marca'])['Preco_Concorrencia'].ffill()
                 df_ml['Preco_Concorrencia'] = df_ml['Preco_Concorrencia'].fillna(df_ml['Preco'])
                 
                 if not df_cotacao.empty:
@@ -649,10 +652,24 @@ elif menu == "Sistema de predição":
                     else:
                         dolar_recente = 5.00
                         
-                    # 🚀 NOVA LÓGICA: Pegando o Preço Mais Recente (Última cotação) em vez da Média
-                    df_alvo_ordenado = df_alvo.sort_values('DataCaptura', ascending=False)
-                    preco_recente_nosso = df_alvo_ordenado['Preco'].iloc[0]
-                    preco_recente_conc = df_alvo_ordenado['Preco_Concorrencia'].iloc[0]
+                    # 🚀 NOVA LÓGICA DE PREÇOS: Buscando o valor exato mais recente sem médias
+                    try:
+                        df_nosso_recente = df_interno[(df_interno['Produto'].str.contains(produto_ia, case=False)) & (df_interno['Marca'] == marca_ia)]
+                        if not df_nosso_recente.empty:
+                            preco_recente_nosso = df_nosso_recente.sort_values('DataCaptura', ascending=False)['Preco'].iloc[0]
+                        else:
+                            preco_recente_nosso = df_alvo.sort_values('DataCaptura', ascending=False)['Preco'].iloc[0]
+                    except:
+                        preco_recente_nosso = 0.0
+
+                    try:
+                        df_conc_recente = df_aws[(df_aws['Produto'].str.contains(produto_ia, case=False)) & (df_aws['Marca'] == marca_ia)]
+                        if not df_conc_recente.empty:
+                            preco_recente_conc = df_conc_recente.sort_values('DataCaptura', ascending=False)['Preco'].iloc[0]
+                        else:
+                            preco_recente_conc = df_alvo.sort_values('DataCaptura', ascending=False)['Preco_Concorrencia'].iloc[0]
+                    except:
+                        preco_recente_conc = 0.0
                     
                     with col_in2:
                         preco_simulado = st.number_input("Preço de Venda (R$):", value=float(preco_recente_nosso), step=50.0)
@@ -732,9 +749,10 @@ elif menu == "Sistema de predição":
                     with colC:
                         st.metric("🚀 Cenário Otimista", f"{int(res['previsao'] * 1.15)} unid.", delta="+15% Conversão", delta_color="normal")
                     
+                    # 🚀 CAIXA ATUALIZADA: Fundo e detalhes em AZUL TECNOLÓGICO!
                     st.markdown(f"""
-                    <div style="background-color: #1E1E1E; padding: 20px; border-radius: 10px; margin-top: 15px; border-left: 5px solid #ff4b4b;">
-                        <h4 style="margin-top: 0px; color: #ff4b4b;">💼 Projeção Financeira e Baseline Histórico</h4>
+                    <div style="background-color: #0D2137; padding: 20px; border-radius: 10px; margin-top: 15px; border-left: 5px solid #0066CC; color: #FFFFFF;">
+                        <h4 style="margin-top: 0px; color: #94B3FD;">💼 Projeção Financeira e Baseline Histórico</h4>
                         <p style="margin-bottom: 5px; font-size: 16px;"><b>Faturamento Bruto Esperado:</b> R$ {formatar_br(res['faturamento'])} <i>(Baseado no preço sugerido)</i></p>
                         <p style="margin-bottom: 0px; font-size: 16px;"><b>Média de Vendas Histórica ({res['mes_nome']}):</b> {res['media_historica']} unid. <i>(O que costumava vender nesta época)</i></p>
                     </div>
