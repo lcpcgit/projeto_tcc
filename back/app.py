@@ -820,7 +820,7 @@ elif menu == "Gestão de Dados":
             colunas_ausentes = [col for col in colunas_obrigatorias if col not in df_teste.columns]
             
             if len(colunas_ausentes) > 0:
-                st.error(f"Erro de Formatação Faltam as seguintes colunas no seu CSV: {', '.join(colunas_ausentes)}")
+                st.error(f"Erro de Formatação: Faltam as seguintes colunas no seu CSV: {', '.join(colunas_ausentes)}")
                 st.warning("Ajuste o cabeçalho do seu ficheiro Excel/CSV para coincidir exatamente com as colunas exigidas acima e tente de novo.")
             else:
                 st.session_state['dados_brutos'] = df_teste
@@ -842,35 +842,57 @@ elif menu == "Gestão de Dados":
                 time.sleep(1) 
                 
                 df_tratado = st.session_state['dados_brutos'].copy()
+                tamanho_original = len(df_tratado)
                 
+                # 1. Limpeza de colunas e nulos absolutos
                 df_tratado.columns = df_tratado.columns.str.strip()
                 df_tratado = df_tratado.dropna(how='all')
-                
                 df_tratado = df_tratado.loc[:, ~df_tratado.columns.str.contains('^Unnamed')]
                 
+                # 2. Padronização de Textos (Uppercase e Limpeza de Lixo)
                 colunas_texto = ['Marca', 'Produto', 'Descricao']
                 for col in colunas_texto:
                     if col in df_tratado.columns:
                         df_tratado[col] = df_tratado[col].astype(str).str.upper().str.strip()
                         
                         if col == 'Produto':
+                            # Remove "123 - RTX 4060" e vira só "RTX 4060"
                             df_tratado['Produto'] = df_tratado['Produto'].apply(lambda x: re.sub(r'^[\d\s-]+\s*', '', str(x)))
                             df_tratado['Produto'] = df_tratado['Produto'].str.strip() 
-                    
-                if 'DataCaptura' in df_tratado.columns:
-                     try:
-                         df_tratado['DataCaptura'] = pd.to_datetime(df_tratado['DataCaptura']).dt.date
-                     except:
-                         pass 
                 
+                # 3. 🚀 TRATAMENTO ROBUSTO DE PREÇOS (O "Escudo" contra o R$)
+                if 'Preco' in df_tratado.columns:
+                    df_tratado['Preco'] = (
+                        df_tratado['Preco']
+                        .astype(str)
+                        .str.replace(r'[R\$\s]', '', regex=True) # Tira "R", "$", "R$ " e espaços
+                        .str.replace('.', '', regex=False)      # Remove pontos de milhar
+                        .str.replace(',', '.', regex=False)     # Troca vírgula por ponto para o padrão US do Python
+                    )
+                    df_tratado['Preco'] = pd.to_numeric(df_tratado['Preco'], errors='coerce')
+                    df_tratado = df_tratado.dropna(subset=['Preco']) # Apaga linhas se o preço era texto puro irrecuperável
+                
+                # 4. 🚀 TRATAMENTO DE QUANTIDADES E DATAS
+                if 'Quantidade' in df_tratado.columns:
+                    df_tratado['Quantidade'] = pd.to_numeric(df_tratado['Quantidade'], errors='coerce').fillna(0).astype(int)
+                    # Só mantém linhas onde vendeu mais de 0 peças (Limpa devoluções negativas ou dias sem venda)
+                    df_tratado = df_tratado[df_tratado['Quantidade'] > 0]
+                
+                if 'DataCaptura' in df_tratado.columns:
+                    # Converte forçadamente para data, independentemente de como o utilizador digitou no Excel
+                    df_tratado['DataCaptura'] = pd.to_datetime(df_tratado['DataCaptura'], errors='coerce', dayfirst=True)
+                    df_tratado = df_tratado.dropna(subset=['DataCaptura']) # Apaga datas inválidas como "Ontem" ou "32/14/2026"
+                    df_tratado['DataCaptura'] = df_tratado['DataCaptura'].dt.strftime('%Y-%m-%d')
+                
+                # Salva o resultado final no cofre
                 st.session_state['dados_tratados'] = df_tratado
-                st.session_state['linhas_removidas'] = len(st.session_state['dados_brutos']) - len(df_tratado)
+                st.session_state['linhas_removidas'] = tamanho_original - len(df_tratado)
                 
     if st.session_state['dados_tratados'] is not None:
         st.write("Dados Normalizados e Prontos")
         st.dataframe(st.session_state['dados_tratados'], width='stretch')
         
-        st.success(f"Operação concluída! {st.session_state['linhas_removidas']} linhas inválidas removidas. Nomenclatura em CAIXA ALTA e datas alinhadas com o banco AWS.")
+        st.success(f"Operação concluída! {st.session_state['linhas_removidas']} linhas de 'lixo' (ou nulas) removidas. Valores formatados para a IA e datas alinhadas com o banco AWS.")
         
         if st.button("Limpar Memória e Subir Novo Arquivo"):
             st.session_state['dados_brutos'] = None
