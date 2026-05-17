@@ -704,29 +704,44 @@ elif menu == "Sistema de predição":
                         else:
                             media_historica_mes = "N/A (Sem dados)"
 
-                        def formatar_br(valor):
-                            return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                        # 🚀 A MÁGICA DA MEMÓRIA AQUI! Salva tudo no cofre do Streamlit
+                        st.session_state['resultado_simulacao'] = {
+                            'produto_alvo': produto_ia,
+                            'previsao': previsao_arredondada,
+                            'faturamento': faturamento_estimado,
+                            'media_historica': media_historica_mes,
+                            'mes_nome': mes_selecionado_nome
+                        }
 
-                        st.markdown("### 📊 Resultado da Projeção de Demanda")
+                # ==========================================
+                # 🚀 RENDERIZAÇÃO FORA DO BOTÃO (Para sobreviver à troca de abas)
+                # ==========================================
+                if 'resultado_simulacao' in st.session_state and st.session_state['resultado_simulacao']['produto_alvo'] == produto_ia:
+                    res = st.session_state['resultado_simulacao']
+                    
+                    def formatar_br(valor):
+                        return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+                    st.markdown("### 📊 Resultado da Projeção de Demanda")
+                    
+                    colA, colB, colC = st.columns(3)
+                    with colB:
+                        st.metric("🎯 Previsão Principal", f"{res['previsao']} unid.", delta="Volume Esperado", delta_color="off")
+                    with colA:
+                        st.metric("📉 Cenário Pessimista", f"{int(res['previsao'] * 0.85)} unid.", delta="-15% Risco", delta_color="inverse")
+                    with colC:
+                        st.metric("🚀 Cenário Otimista", f"{int(res['previsao'] * 1.15)} unid.", delta="+15% Conversão", delta_color="normal")
+                    
+                    st.markdown(f"""
+                    <div style="background-color: #1E1E1E; padding: 20px; border-radius: 10px; margin-top: 15px; border-left: 5px solid #ff4b4b;">
+                        <h4 style="margin-top: 0px; color: #ff4b4b;">💼 Projeção Financeira e Baseline Histórico</h4>
+                        <p style="margin-bottom: 5px; font-size: 16px;"><b>Faturamento Bruto Esperado:</b> R$ {formatar_br(res['faturamento'])} <i>(Baseado no preço sugerido)</i></p>
+                        <p style="margin-bottom: 0px; font-size: 16px;"><b>Média de Vendas Histórica ({res['mes_nome']}):</b> {res['media_historica']} unid. <i>(O que costumava vender nesta época)</i></p>
+                    </div>
+                    """, unsafe_allow_html=True)
                         
-                        colA, colB, colC = st.columns(3)
-                        with colB:
-                            st.metric("🎯 Previsão Principal", f"{previsao_arredondada} unid.", delta="Volume Esperado", delta_color="off")
-                        with colA:
-                            st.metric("📉 Cenário Pessimista", f"{int(previsao_arredondada * 0.85)} unid.", delta="-15% Risco", delta_color="inverse")
-                        with colC:
-                            st.metric("🚀 Cenário Otimista", f"{int(previsao_arredondada * 1.15)} unid.", delta="+15% Conversão", delta_color="normal")
-                        
-                        st.markdown(f"""
-                        <div style="background-color: #1E1E1E; padding: 20px; border-radius: 10px; margin-top: 15px; border-left: 5px solid #ff4b4b;">
-                            <h4 style="margin-top: 0px; color: #ff4b4b;">💼 Projeção Financeira e Baseline Histórico</h4>
-                            <p style="margin-bottom: 5px; font-size: 16px;"><b>Faturamento Bruto Esperado:</b> R$ {formatar_br(faturamento_estimado)} <i>(Baseado no preço sugerido)</i></p>
-                            <p style="margin-bottom: 0px; font-size: 16px;"><b>Média de Vendas Histórica ({mes_selecionado_nome}):</b> {media_historica_mes} unid. <i>(O que costumava vender nesta época)</i></p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                            
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        st.info("💡 **Análise Concluída:** Acesse a aba 'Engenharia do Modelo (TCC)' para detalhes técnicos matemáticos da IA.")
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.info("💡 **Análise Concluída:** Acesse a aba 'Engenharia do Modelo (TCC)' para detalhes técnicos matemáticos da IA.")
 
             with tab_tecnica:
                 st.markdown("### Métricas de Validação Científica")
