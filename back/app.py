@@ -10,12 +10,12 @@ import time
 
 st.set_page_config(page_title="Hardware Preditivo", layout="wide")
 
-# ================= CONFIGURAÇÃO VISUAL DE DESIGN (PRETO + VERMELHO + AZUL) =================
+# ================= CONFIGURAÇÃO VISUAL DE DESIGN (QUASE PRETO + VERMELHO + AZUL) =================
 st.markdown("""
 <style>
-    /* 1. Força o fundo do aplicativo inteiro para Preto Puro */
+    /* 1. Força o fundo do aplicativo inteiro para um "Quase Preto" elegante */
     .stApp {
-        background-color: #000000 !important;
+        background-color: #121212 !important;
         color: #FFFFFF !important;
     }
 
@@ -33,11 +33,11 @@ st.markdown("""
         box-shadow: 0px 0px 10px #FF0000 !important;
     }
 
-    /* 3. Transforma todas as caixas de informação (st.info) no Azul que você pediu */
+    /* 3. Transforma todas as caixas de informação (st.info) no Azul Tecnológico */
     .stAlert {
-        background-color: #0D2137 !important; /* Azul escuro de fundo */
-        color: #94B3FD !important;            /* Texto azul claro legível */
-        border-left: 5px solid #0066CC !important; /* Borda esquerda azul brilhante */
+        background-color: #0D2137 !important;
+        color: #94B3FD !important;
+        border-left: 5px solid #0066CC !important;
         border-radius: 8px !important;
     }
 
@@ -50,7 +50,7 @@ st.markdown("""
         border-bottom-color: #FF4B4B !important;
     }
 
-    /* Ajusta inputs e selectboxes para não sumirem no fundo preto */
+    /* Ajusta inputs e selectboxes para não sumirem no fundo escuro */
     div[data-baseweb="select"] > div {
         background-color: #1A1A1A !important;
         color: #FFFFFF !important;
@@ -130,37 +130,33 @@ def carregar_dados_aws():
     try:
         engine = create_engine(url_conexao)
         
-        # 1. Extrai os dados da tabela de Hardware
         df_precos = pd.read_sql("SELECT DataCaptura, Loja, Marca, Produto, Preco FROM HistoricoPrecos", engine) 
-     # 2. Extrai os dados da tabela de Dólar (Usando o nome correto: ValorDolar)
         df_dolar = pd.read_sql("SELECT DataCaptura, ValorDolar AS Dolar FROM HistoricoDolar", engine)
         
-        # 🔒 Trava de Segurança: Como o SQL mostrou "4,98", vamos garantir que o Python entenda como número (4.98)
         if df_dolar['Dolar'].dtype == 'object':
             df_dolar['Dolar'] = df_dolar['Dolar'].str.replace(',', '.').astype(float)
         
-        # 3. Normaliza as datas (Remove horas/minutos para o cruzamento bater 100%)
         df_precos['DataCaptura'] = pd.to_datetime(df_precos['DataCaptura']).dt.normalize()
         df_dolar['DataCaptura'] = pd.to_datetime(df_dolar['DataCaptura']).dt.normalize()
         
-        # 4. O Cruzamento (LEFT JOIN no Pandas)
         df = pd.merge(df_precos, df_dolar, on='DataCaptura', how='left')
         
-        # 5. Preenche os buracos (Sábado e Domingo não tem bolsa de valores, então copiamos o dólar de sexta-feira)
         df = df.sort_values('DataCaptura')
         df['Dolar'] = df['Dolar'].ffill().bfill()
         
-        # 🚀 FILTRO ANTI-LIXO GLOBAL (Protege o Dash e a IA)
         palavras_proibidas = 'MÁQUINA|MAQUINA|MONTAGEM|COMPUTADOR|PC GAMER|COMPLETO|COMPLETA|CPU GAMER|DESKTOP'
         df = df[~df['Produto'].str.contains(palavras_proibidas, case=False, na=False)]
         
-        # Limpeza: Remove números e hífens isolados no início do nome
         import re
         df['Produto'] = df['Produto'].apply(lambda x: re.sub(r'^[\d\s-]+\s*', '', str(x)))
         
         return df
     except Exception as e:
-        st.error(f"Erro ao conectar na AWS: {e}")
+        st.markdown(f"""
+        <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
+            🚨 <b>Erro:</b> Erro ao conectar na AWS: {e}
+        </div>
+        """, unsafe_allow_html=True)
         return pd.DataFrame()
 
 # ================= MENU LATERAL =================
@@ -229,17 +225,28 @@ if menu == "Pesquisa de Mercado":
                     
                     fig = px.line(df_agrupado, x="DataCaptura", y="Preco", color="Loja", markers=True, text="Preco_Label", title=f"Média de Mercado da Família: {familia_input.upper()}", labels={"DataCaptura": "Data", "Preco": "Preço (R$)", "Loja": "Loja"})
                     
-                    # ✨ Mágica do visual limpo no Hover (Visão Geral)
                     fig.update_traces(
                         textposition="top center",
                         hovertemplate="<b>Loja:</b> %{data.name}<br><b>Data da Extração:</b> %{x|%d/%m/%Y}<br><b>Média:</b> R$ %{y:,.2f}<extra></extra>"
                     )
                     
-                    fig.update_layout(yaxis=dict(range=[df_agrupado['Preco'].min() * 0.9, df_agrupado['Preco'].max() * 1.1])) 
-                    fig.update_xaxes(tickformat="%d/%m/%Y")
+                    # 🚀 Gráfico Transparente (Visão Geral)
+                    fig.update_layout(
+                        yaxis=dict(range=[df_agrupado['Preco'].min() * 0.9, df_agrupado['Preco'].max() * 1.1]),
+                        paper_bgcolor='rgba(0,0,0,0)', 
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='#FFFFFF'),
+                        xaxis=dict(showgrid=True, gridcolor='#333333'),
+                        yaxis_title="Preço (R$)"
+                    ) 
+                    fig.update_xaxes(tickformat="%d/%m/%Y", showgrid=True, gridcolor='#333333')
                     st.plotly_chart(fig, use_container_width=True)
                 else:
-                    st.warning(f"Sem dados históricos para a família '{familia_input}'.")
+                    st.markdown(f"""
+                    <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
+                        ⚠️ <b>Atenção:</b> Sem dados históricos para a família '{familia_input}'.
+                    </div><br>
+                    """, unsafe_allow_html=True)
                     
         elif modo_visao == "Visão Específica":
             st.info("Selecione o modelo exato para analisar o preço dele.")
@@ -252,8 +259,6 @@ if menu == "Pesquisa de Mercado":
                 for termo in termos_busca:
                     mask = mask & df_historico['Produto'].str.lower().str.contains(termo, na=False, regex=False)
                 
-                # 🚀 BINDAGEM SUPREMA CONTRA VAZAMENTOS (Ti, Super, XT)
-                # O (?![a-z]) garante que barra coisas como "TI8GB" (sem espaço) sem excluir marcas!
                 if "ti" not in termos_busca:
                     mask = mask & ~df_historico['Produto'].str.lower().str.contains(r'(?<![a-z])ti(?![a-z])', regex=True, na=False)
                 
@@ -263,7 +268,6 @@ if menu == "Pesquisa de Mercado":
                 if "xt" not in termos_busca:
                     mask = mask & ~df_historico['Produto'].str.lower().str.contains(r'(?<![a-z])xt(?![a-z])', regex=True, na=False)
                 
-                # Unifica produtos idênticos ignorando espaços extras
                 lista_filtrada = df_historico[mask]['Produto'].astype(str).str.strip().dropna().unique()
                 lista_filtrada = sorted(lista_filtrada)
                 
@@ -287,7 +291,6 @@ if menu == "Pesquisa de Mercado":
                 if not df_filtrado.empty:
                     df_filtrado['Preco_Label'] = df_filtrado['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                     
-                    # 🚀 Gráfico Único com linhas separadas por Loja através do parâmetro 'color'
                     fig = px.line(
                         df_filtrado, 
                         x="DataCaptura", 
@@ -304,12 +307,24 @@ if menu == "Pesquisa de Mercado":
                         hovertemplate="<b>Loja:</b> %{data.name}<br><b>Data da Extração:</b> %{x|%d/%m/%Y}<br><b>Preço:</b> R$ %{y:,.2f}<extra></extra>"
                     )
                     
-                    fig.update_layout(yaxis=dict(range=[df_filtrado['Preco'].min() * 0.9, df_filtrado['Preco'].max() * 1.1]))
-                    fig.update_xaxes(tickformat="%d/%m/%Y")
+                    # 🚀 Gráfico Transparente (Visão Específica)
+                    fig.update_layout(
+                        yaxis=dict(range=[df_filtrado['Preco'].min() * 0.9, df_filtrado['Preco'].max() * 1.1]),
+                        paper_bgcolor='rgba(0,0,0,0)', 
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='#FFFFFF'),
+                        xaxis=dict(showgrid=True, gridcolor='#333333'),
+                        yaxis_title="Preço (R$)"
+                    )
+                    fig.update_xaxes(tickformat="%d/%m/%Y", showgrid=True, gridcolor='#333333')
                     
                     st.plotly_chart(fig, use_container_width=True)
                 else:
-                    st.warning("Sem dados suficientes para gerar o gráfico deste produto específico.")
+                    st.markdown("""
+                    <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
+                        ⚠️ <b>Atenção:</b> Sem dados suficientes para gerar o gráfico deste produto específico.
+                    </div><br>
+                    """, unsafe_allow_html=True)
             else:
                  st.info("Por favor, pesquise e selecione um produto na lista acima.")
         
@@ -339,7 +354,6 @@ if menu == "Pesquisa de Mercado":
         with col2:
             subcat_escolhida = st.selectbox("2. Modelo (Opcional):", opcoes_modelo, disabled=disabled_mod)
 
-        # APLICANDO OS PRIMEIROS FILTROS NA MEMÓRIA PARA DESCOBRIR AS MARCAS
         df_drill = df_historico.copy()
         
         if cat_escolhida:
@@ -547,14 +561,21 @@ if menu == "Pesquisa de Mercado":
                                 labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Legenda": "Item"}
                             )
                             
-                            # ✨ Mágica do visual limpo no Hover (Filtros Avançados)
                             fig_drill.update_traces(
                                 textposition="top center",
                                 hovertemplate="<b>Item:</b> %{data.name}<br><b>Data da Extração:</b> %{x|%d/%m/%Y}<br><b>Média:</b> R$ %{y:,.2f}<extra></extra>"
                             )
                             
-                            fig_drill.update_layout(yaxis=dict(range=[df_loja['Preco'].min() * 0.9, df_loja['Preco'].max() * 1.1]))
-                            fig_drill.update_xaxes(tickformat="%d/%m/%Y")
+                            # 🚀 Gráfico Transparente (Filtros Avançados)
+                            fig_drill.update_layout(
+                                yaxis=dict(range=[df_loja['Preco'].min() * 0.9, df_loja['Preco'].max() * 1.1]),
+                                paper_bgcolor='rgba(0,0,0,0)', 
+                                plot_bgcolor='rgba(0,0,0,0)',
+                                font=dict(color='#FFFFFF'),
+                                xaxis=dict(showgrid=True, gridcolor='#333333'),
+                                yaxis_title="Preço (R$)"
+                            )
+                            fig_drill.update_xaxes(tickformat="%d/%m/%Y", showgrid=True, gridcolor='#333333')
                             
                             st.plotly_chart(fig_drill, use_container_width=True)
                     
@@ -574,9 +595,18 @@ if menu == "Pesquisa de Mercado":
                             hide_index=True
                         )
                 else:
-                    st.warning(f"Nenhum produto encontrado na faixa '{filtro_preco}'.")
+                    st.markdown(f"""
+                    <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
+                        ⚠️ <b>Atenção:</b> Nenhum produto encontrado na faixa '{filtro_preco}'.
+                    </div><br>
+                    """, unsafe_allow_html=True)
             else:
-                st.warning("Nenhum hardware encontrado no banco de dados com essa combinação exata de filtros.")
+                st.markdown("""
+                <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
+                    ⚠️ <b>Atenção:</b> Nenhum hardware encontrado no banco de dados com essa combinação exata de filtros.
+                </div><br>
+                """, unsafe_allow_html=True)
+
 # ================= PÁGINA 2: PREVISÃO DE IA =================
 elif menu == "Sistema de predição":
     st.title("🔮 Motor Preditivo de Demanda")
@@ -818,7 +848,6 @@ elif menu == "Sistema de predição":
                     """, unsafe_allow_html=True)
                         
                     st.markdown("<br>", unsafe_allow_html=True)
-                    # Ocultado o info nativo aqui também para usar nossa estilização
                     st.markdown("""
                     <div style="background-color: #1A1A1A; padding: 10px; border-radius: 5px; border-left: 5px solid #FF4B4B; color: #FFF;">
                         💡 <b>Análise Concluída:</b> Acesse a aba 'Engenharia do Modelo (TCC)' para detalhes técnicos matemáticos da IA.
@@ -833,7 +862,6 @@ elif menu == "Sistema de predição":
                     
                     st.metric("Score de Acurácia (R²)", f"{acuracia * 100:.1f}%")
                     
-                    # 🚀 SUBSTITUINDO O VERDE/AMARELO AQUI TAMBÉM
                     if acuracia > 0.80:
                         st.markdown("<div style='background-color: #1A1A1A; padding: 10px; border-left: 5px solid #FF4B4B; border-radius: 5px; margin-bottom: 15px; color: #FFF;'>🚀 Grau de confiança <b>Excepcional</b>.</div>", unsafe_allow_html=True)
                     elif acuracia > 0.60:
@@ -881,7 +909,8 @@ elif menu == "Sistema de predição":
                         yaxis_title=None,
                         paper_bgcolor='rgba(0,0,0,0)', 
                         plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color='#FFFFFF') # Garante que as letras do gráfico fiquem brancas
+                        font=dict(color='#FFFFFF'), # Garante que as letras do gráfico fiquem brancas
+                        xaxis=dict(showgrid=True, gridcolor='#333333')
                     )
                     
                     st.plotly_chart(fig_imp, use_container_width=True)
@@ -891,6 +920,7 @@ elif menu == "Sistema de predição":
                         👆 Execute uma simulação para gerar os dados técnicos.
                     </div>
                     """, unsafe_allow_html=True)
+
 # ================= GESTÃO DE DADOS =================
 elif menu == "Gestão de Dados":
     st.title("Ingestão, Limpeza e Tratamento")
@@ -905,15 +935,17 @@ elif menu == "Gestão de Dados":
 
     st.markdown("---")
     st.write("Padrão Exigido para o CSV")
-    st.info("""
-    Para o modelo de Inteligência Artificial cruzar o seu histórico de vendas com os preços da concorrência, o seu ficheiro CSV deve ter **exatamente** estas colunas (a ordem não importa, mas os nomes devem ser estes, sem acentos):
-    * **DataCaptura** (Data da venda)
-    * **Marca** (Marca da peça, ex: Asus, Gigabyte)
-    * **Produto** (O nome curto limpo, ex: RTX 4060)
-    * **Descricao** (As características extras da peça)
-    * **Preco** (O valor unitário de venda)
-    * **Quantidade** (Quantas unidades foram vendidas neste dia)
-    """)
+    st.markdown("""
+    <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-bottom: 20px;">
+        Para o modelo de Inteligência Artificial cruzar o seu histórico de vendas com os preços da concorrência, o seu ficheiro CSV deve ter <b>exatamente</b> estas colunas (a ordem não importa, mas os nomes devem ser estes, sem acentos):<br>
+        * <b>DataCaptura</b> (Data da venda)<br>
+        * <b>Marca</b> (Marca da peça, ex: Asus, Gigabyte)<br>
+        * <b>Produto</b> (O nome curto limpo, ex: RTX 4060)<br>
+        * <b>Descricao</b> (As características extras da peça)<br>
+        * <b>Preco</b> (O valor unitário de venda)<br>
+        * <b>Quantidade</b> (Quantas unidades foram vendidas neste dia)
+    </div>
+    """, unsafe_allow_html=True)
     
     arquivo_upload = st.file_uploader("Suba o arquivo CSV de vendas internas:", type=["csv"])
     
@@ -925,17 +957,32 @@ elif menu == "Gestão de Dados":
             colunas_ausentes = [col for col in colunas_obrigatorias if col not in df_teste.columns]
             
             if len(colunas_ausentes) > 0:
-                st.error(f"Erro de Formatação: Faltam as seguintes colunas no seu CSV: {', '.join(colunas_ausentes)}")
-                st.warning("Ajuste o cabeçalho do seu ficheiro Excel/CSV para coincidir exatamente com as colunas exigidas acima e tente de novo.")
+                st.markdown(f"""
+                <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF; margin-bottom: 10px;">
+                    🚨 <b>Erro de Formatação:</b> Faltam as seguintes colunas no seu CSV: {', '.join(colunas_ausentes)}
+                </div>
+                <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
+                    ⚠️ Ajuste o cabeçalho do seu ficheiro Excel/CSV para coincidir exatamente com as colunas exigidas acima e tente de novo.
+                </div>
+                """, unsafe_allow_html=True)
             else:
                 st.session_state['dados_brutos'] = df_teste
                 st.session_state['dados_tratados'] = None
                 
         except Exception as e:
-            st.error(f"Erro ao ler o ficheiro: {e}")
+            st.markdown(f"""
+            <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
+                🚨 <b>Erro ao ler o ficheiro:</b> {e}
+            </div>
+            """, unsafe_allow_html=True)
     
     if st.session_state['dados_brutos'] is not None:
-        st.success("Ficheiro validado e carregado com sucesso")
+        # 🚀 SUBSTITUINDO O VERDE AQUI TAMBÉM
+        st.markdown(f"""
+        <div style="background-color: #1A1A1A; padding: 15px; border-radius: 8px; border-left: 5px solid #FF4B4B; color: #FFF; margin-bottom: 15px;">
+            ✅ <b>Ficheiro validado e carregado com sucesso</b>
+        </div>
+        """, unsafe_allow_html=True)
         st.dataframe(st.session_state['dados_brutos'], width='stretch')
         
         st.markdown("---")
@@ -949,53 +996,44 @@ elif menu == "Gestão de Dados":
                 df_tratado = st.session_state['dados_brutos'].copy()
                 tamanho_original = len(df_tratado)
                 
-                # 1. Limpeza de colunas e nulos absolutos
                 df_tratado.columns = df_tratado.columns.str.strip()
                 df_tratado = df_tratado.dropna(how='all')
                 df_tratado = df_tratado.loc[:, ~df_tratado.columns.str.contains('^Unnamed')]
                 
-                # 2. Padronização de Textos (Uppercase e Limpeza de Lixo)
                 colunas_texto = ['Marca', 'Produto', 'Descricao']
                 for col in colunas_texto:
                     if col in df_tratado.columns:
                         df_tratado[col] = df_tratado[col].astype(str).str.upper().str.strip()
                         
                         if col == 'Produto':
-                            # Remove "123 - RTX 4060" e vira só "RTX 4060"
                             df_tratado['Produto'] = df_tratado['Produto'].apply(lambda x: re.sub(r'^[\d\s-]+\s*', '', str(x)))
                             df_tratado['Produto'] = df_tratado['Produto'].str.strip() 
                 
-# 3. 🚀 TRATAMENTO ROBUSTO DE PREÇOS (Escudo Inteligente US/BR)
                 if 'Preco' in df_tratado.columns:
                     def limpar_moeda_inteligente(valor):
                         if pd.isna(valor): return valor
                         v = str(valor).replace('R$', '').replace(' ', '').strip()
                         
                         if ',' in v:
-                            # Se tiver vírgula, é Padrão BR (Ex: 4.500,50 ou 4500,50)
                             v = v.replace('.', '').replace(',', '.')
                         else:
-                            # Se não tiver vírgula, é Padrão US/Python (Ex: 4500.50)
-                            pass # Mantém o ponto quieto porque ele já é o separador de centavos
+                            pass 
                             
                         return v
 
                     df_tratado['Preco'] = df_tratado['Preco'].apply(limpar_moeda_inteligente)
                     df_tratado['Preco'] = pd.to_numeric(df_tratado['Preco'], errors='coerce')
-                    df_tratado = df_tratado.dropna(subset=['Preco']) # Apaga linhas com preço inválido
-                # 4. 🚀 TRATAMENTO DE QUANTIDADES E DATAS
+                    df_tratado = df_tratado.dropna(subset=['Preco']) 
+                
                 if 'Quantidade' in df_tratado.columns:
                     df_tratado['Quantidade'] = pd.to_numeric(df_tratado['Quantidade'], errors='coerce').fillna(0).astype(int)
-                    # Só mantém linhas onde vendeu mais de 0 peças (Limpa devoluções negativas ou dias sem venda)
                     df_tratado = df_tratado[df_tratado['Quantidade'] > 0]
                 
                 if 'DataCaptura' in df_tratado.columns:
-                    # Converte forçadamente para data, independentemente de como o utilizador digitou no Excel
                     df_tratado['DataCaptura'] = pd.to_datetime(df_tratado['DataCaptura'], errors='coerce', dayfirst=True)
-                    df_tratado = df_tratado.dropna(subset=['DataCaptura']) # Apaga datas inválidas como "Ontem" ou "32/14/2026"
+                    df_tratado = df_tratado.dropna(subset=['DataCaptura']) 
                     df_tratado['DataCaptura'] = df_tratado['DataCaptura'].dt.strftime('%Y-%m-%d')
                 
-                # Salva o resultado final no cofre
                 st.session_state['dados_tratados'] = df_tratado
                 st.session_state['linhas_removidas'] = tamanho_original - len(df_tratado)
                 
@@ -1003,7 +1041,12 @@ elif menu == "Gestão de Dados":
         st.write("Dados Normalizados e Prontos")
         st.dataframe(st.session_state['dados_tratados'], width='stretch')
         
-        st.success(f"Operação concluída! {st.session_state['linhas_removidas']} linhas de 'lixo' (ou nulas) removidas. Valores formatados para a IA e datas alinhadas com o banco AWS.")
+        # 🚀 E SUBSTITUINDO O ÚLTIMO VERDE
+        st.markdown(f"""
+        <div style="background-color: #1A1A1A; padding: 15px; border-radius: 8px; border-left: 5px solid #FF4B4B; color: #FFF; margin-bottom: 15px;">
+            ✅ <b>Operação concluída!</b> {st.session_state['linhas_removidas']} linhas de "lixo" (ou nulas) removidas. Valores formatados para a IA e datas alinhadas com o banco AWS.
+        </div>
+        """, unsafe_allow_html=True)
         
         if st.button("Limpar Memória e Subir Novo Arquivo"):
             st.session_state['dados_brutos'] = None
