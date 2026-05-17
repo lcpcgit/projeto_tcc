@@ -10,6 +10,58 @@ import time
 
 st.set_page_config(page_title="Hardware Preditivo", layout="wide")
 
+# ================= CONFIGURAÇÃO VISUAL DE DESIGN (PRETO + VERMELHO + AZUL) =================
+st.markdown("""
+<style>
+    /* 1. Força o fundo do aplicativo inteiro para Preto Puro */
+    .stApp {
+        background-color: #000000 !important;
+        color: #FFFFFF !important;
+    }
+
+    /* 2. Customiza os botões principais para Vermelho Escuro / Gamer */
+    div.stButton > button {
+        background-color: #8B0000 !important;
+        color: #FFFFFF !important;
+        border: 1px solid #FF0000 !important;
+        border-radius: 8px !important;
+        transition: all 0.3s ease !important;
+    }
+    div.stButton > button:hover {
+        background-color: #FF0000 !important;
+        border: 1px solid #FF4B4B !important;
+        box-shadow: 0px 0px 10px #FF0000 !important;
+    }
+
+    /* 3. Transforma todas as caixas de informação (st.info) no Azul que você pediu */
+    .stAlert {
+        background-color: #0D2137 !important; /* Azul escuro de fundo */
+        color: #94B3FD !important;            /* Texto azul claro legível */
+        border-left: 5px solid #0066CC !important; /* Borda esquerda azul brilhante */
+        border-radius: 8px !important;
+    }
+
+    /* 4. Alinha as Abas (Tabs) para combinarem com o tema vermelho */
+    button[data-baseweb="tab"] {
+        color: #CCCCCC !important;
+    }
+    button[aria-selected="true"] {
+        color: #FF4B4B !important;
+        border-bottom-color: #FF4B4B !important;
+    }
+
+    /* Ajusta inputs e selectboxes para não sumirem no fundo preto */
+    div[data-baseweb="select"] > div {
+        background-color: #1A1A1A !important;
+        color: #FFFFFF !important;
+    }
+    input {
+        background-color: #1A1A1A !important;
+        color: #FFFFFF !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # ================= VARIÁVEIS GLOBAIS (Dicionários e Categorias) =================
 categorias_base = [
     "Placa de Vídeo", "Processador", "Placa Mãe", "Memória RAM", "SSD", "HD", 
@@ -531,15 +583,21 @@ elif menu == "Sistema de predição":
     st.markdown("Utilize Inteligência Artificial (Random Forest) para simular cenários de mercado e prever o volume de vendas futuro.")
 
     if st.session_state.get('dados_tratados') is None or st.session_state['dados_tratados'].empty:
-        st.warning("⚠️ Atenção: O Motor de IA está aguardando os dados.")
-        st.info("Vá até a aba **'Gestão de Dados'**, faça o upload do seu ficheiro CSV e clique em **'Executar Tratamento'** para liberar o sistema preditivo.")
+        # 🚀 CAIXAS TEMÁTICAS SUBSTITUINDO O AMARELO E AZUL PADRÃO
+        st.markdown("""
+        <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF; margin-bottom: 10px;">
+            ⚠️ <b>Atenção:</b> O Motor de IA está aguardando os dados.
+        </div>
+        <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD;">
+            Vá até a aba <b>'Gestão de Dados'</b>, faça o upload do seu ficheiro CSV e clique em <b>'Executar Tratamento'</b> para liberar o sistema preditivo.
+        </div>
+        """, unsafe_allow_html=True)
     else:
         df_interno = st.session_state['dados_tratados'].copy()
         df_aws = carregar_dados_aws()
 
         with st.spinner("Sincronizando banco de dados interno com nuvem AWS e cruzando Câmbio (Dólar)..."):
             
-            # 🚀 1. PADRONIZAÇÃO DE VÍRGULAS (Corrige o CSV do cliente para o padrão da IA)
             if df_interno['Preco'].dtype == 'object':
                 df_interno['Preco'] = df_interno['Preco'].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False)
             
@@ -580,8 +638,6 @@ elif menu == "Sistema de predição":
                 df_concorrencia = df_concorrencia.rename(columns={'Preco': 'Preco_Concorrencia'})
                 
                 df_ml = pd.merge(df_interno, df_concorrencia, on=['DataCaptura', 'Link_IA', 'Marca'], how='left')
-                
-                # 🚀 CORREÇÃO DO "CLONE" (Forward Fill) -> A IA puxa a verdadeira média do concorrente
                 df_ml['Preco_Concorrencia'] = df_ml.groupby(['Link_IA', 'Marca'])['Preco_Concorrencia'].ffill()
                 df_ml['Preco_Concorrencia'] = df_ml['Preco_Concorrencia'].fillna(df_ml['Preco'])
                 
@@ -613,9 +669,19 @@ elif menu == "Sistema de predição":
         df_alvo = df_ml[(df_ml['Produto'] == produto_ia) & (df_ml['Marca'] == marca_ia)].copy()
         
         if len(df_alvo) < 10:
-            st.error(f"🚨 Dados insuficientes para '{produto_ia}' ({marca_ia}). Necessário mínimo de 10 dias de histórico para garantir precisão estatística.")
+            # 🚀 SUBSTITUINDO O ERRO VERMELHO PADRÃO
+            st.markdown(f"""
+            <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
+                🚨 <b>Atenção:</b> Dados insuficientes para '{produto_ia}' ({marca_ia}). Necessário mínimo de 10 dias de histórico para garantir precisão estatística.
+            </div><br>
+            """, unsafe_allow_html=True)
         else:
-            st.success(f"Base de conhecimento pronta: **{len(df_alvo)} registros** encontrados para este ativo.")
+            # 🚀 SUBSTITUINDO O VERDE (SUCCESS) POR UMA CAIXA DARK/RED
+            st.markdown(f"""
+            <div style="background-color: #1A1A1A; padding: 15px; border-radius: 8px; border-left: 5px solid #FF4B4B; color: #FFF;">
+                ✅ <b>Base de conhecimento pronta:</b> {len(df_alvo)} registros encontrados para este ativo.
+            </div>
+            """, unsafe_allow_html=True)
             st.markdown("---")
             
             tab_simulacao, tab_tecnica = st.tabs(["🎯 Painel de Simulação", "🧠 Engenharia do Modelo (TCC)"])
@@ -646,13 +712,11 @@ elif menu == "Sistema de predição":
                         mes_selecionado_nome = st.selectbox("Mês da Projeção:", meses_opcoes)
                         mes_alvo_num = meses_nomes_lista.index(mes_selecionado_nome) + 1
                     
-                    # 🚀 LÓGICA DO DÓLAR RECENTE
                     if 'Dolar' in df_alvo.columns and not df_alvo['Dolar'].isna().all():
                         dolar_recente = df_alvo.sort_values('DataCaptura', ascending=False)['Dolar'].iloc[0]
                     else:
                         dolar_recente = 5.00
                         
-                    # 🚀 NOVA LÓGICA DE PREÇOS: Buscando o valor exato mais recente sem médias
                     try:
                         df_nosso_recente = df_interno[(df_interno['Produto'].str.contains(produto_ia, case=False)) & (df_interno['Marca'] == marca_ia)]
                         if not df_nosso_recente.empty:
@@ -721,7 +785,6 @@ elif menu == "Sistema de predição":
                         else:
                             media_historica_mes = "N/A (Sem dados)"
 
-                        # 🚀 A MÁGICA DA MEMÓRIA AQUI! Salva tudo no cofre do Streamlit
                         st.session_state['resultado_simulacao'] = {
                             'produto_alvo': produto_ia,
                             'previsao': previsao_arredondada,
@@ -730,9 +793,6 @@ elif menu == "Sistema de predição":
                             'mes_nome': mes_selecionado_nome
                         }
 
-                # ==========================================
-                # 🚀 RENDERIZAÇÃO FORA DO BOTÃO (Para sobreviver à troca de abas)
-                # ==========================================
                 if 'resultado_simulacao' in st.session_state and st.session_state['resultado_simulacao']['produto_alvo'] == produto_ia:
                     res = st.session_state['resultado_simulacao']
                     
@@ -749,7 +809,6 @@ elif menu == "Sistema de predição":
                     with colC:
                         st.metric("🚀 Cenário Otimista", f"{int(res['previsao'] * 1.15)} unid.", delta="+15% Conversão", delta_color="normal")
                     
-                    # 🚀 CAIXA ATUALIZADA: Fundo e detalhes em AZUL TECNOLÓGICO!
                     st.markdown(f"""
                     <div style="background-color: #0D2137; padding: 20px; border-radius: 10px; margin-top: 15px; border-left: 5px solid #0066CC; color: #FFFFFF;">
                         <h4 style="margin-top: 0px; color: #94B3FD;">💼 Projeção Financeira e Baseline Histórico</h4>
@@ -759,7 +818,12 @@ elif menu == "Sistema de predição":
                     """, unsafe_allow_html=True)
                         
                     st.markdown("<br>", unsafe_allow_html=True)
-                    st.info("💡 **Análise Concluída:** Acesse a aba 'Engenharia do Modelo (TCC)' para detalhes técnicos matemáticos da IA.")
+                    # Ocultado o info nativo aqui também para usar nossa estilização
+                    st.markdown("""
+                    <div style="background-color: #1A1A1A; padding: 10px; border-radius: 5px; border-left: 5px solid #FF4B4B; color: #FFF;">
+                        💡 <b>Análise Concluída:</b> Acesse a aba 'Engenharia do Modelo (TCC)' para detalhes técnicos matemáticos da IA.
+                    </div>
+                    """, unsafe_allow_html=True)
 
             with tab_tecnica:
                 st.markdown("### Métricas de Validação Científica")
@@ -769,23 +833,25 @@ elif menu == "Sistema de predição":
                     
                     st.metric("Score de Acurácia (R²)", f"{acuracia * 100:.1f}%")
                     
+                    # 🚀 SUBSTITUINDO O VERDE/AMARELO AQUI TAMBÉM
                     if acuracia > 0.80:
-                        st.success("Grau de confiança **Excepcional**.")
+                        st.markdown("<div style='background-color: #1A1A1A; padding: 10px; border-left: 5px solid #FF4B4B; border-radius: 5px; margin-bottom: 15px; color: #FFF;'>🚀 Grau de confiança <b>Excepcional</b>.</div>", unsafe_allow_html=True)
                     elif acuracia > 0.60:
-                        st.info("Grau de confiança **Bom**.")
+                        st.markdown("<div style='background-color: #0D2137; padding: 10px; border-left: 5px solid #0066CC; border-radius: 5px; margin-bottom: 15px; color: #FFF;'>👍 Grau de confiança <b>Bom</b>.</div>", unsafe_allow_html=True)
                     else:
-                        st.warning("Grau de confiança **Baixo**.")
+                        st.markdown("<div style='background-color: #330000; padding: 10px; border-left: 5px solid #FF0000; border-radius: 5px; margin-bottom: 15px; color: #FFF;'>⚠️ Grau de confiança <b>Baixo</b>.</div>", unsafe_allow_html=True)
                         
                     st.markdown("---")
                     st.markdown("### Importância das Variáveis (O que a IA aprendeu?)")
                     
-                    # 🚀 CAIXA DE EXPLICAÇÃO DIDÁTICA PARA A BANCA DO TCC
-                    st.info("""
-                    💡 **Como interpretar esta Matriz de Decisão?**
-                    Este gráfico revela a 'fórmula secreta' do comportamento do seu cliente. Ele mostra quais os fatores que mais influenciam a venda deste hardware:
-                    * **Barras Maiores:** São os fatores cruciais. Se o "Nosso Preço" for o maior, significa que o seu cliente é altamente sensível a descontos.
-                    * **Barras Menores:** São fatores que pouco importam na decisão de compra (ex: o "Dia da Semana" raramente impede um gamer de comprar a placa que ele deseja).
-                    """)
+                    st.markdown("""
+                    <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-bottom: 20px;">
+                        💡 <b>Como interpretar esta Matriz de Decisão?</b><br>
+                        Este gráfico revela a 'fórmula secreta' do comportamento do seu cliente. Ele mostra quais os fatores que mais influenciam a venda deste hardware:<br>
+                        * <b>Barras Maiores:</b> São os fatores cruciais. Se o "Nosso Preço" for o maior, significa que o seu cliente é altamente sensível a descontos.<br>
+                        * <b>Barras Menores:</b> São fatores que pouco importam na decisão de compra.
+                    </div>
+                    """, unsafe_allow_html=True)
                     
                     import plotly.express as px
                     df_importancia = pd.DataFrame({
@@ -801,24 +867,30 @@ elif menu == "Sistema de predição":
                         title=f"Matriz de Decisão da IA para: {marca_ia} {produto_ia}"
                     )
                     
-                    # ✨ MÁGICA VISUAL: Cor Vermelho Escuro e Limpeza do Hover
                     fig_imp.update_traces(
-                        marker_color='#8B0000',  # Cor Vermelho Escuro fixa para todas as barras
+                        marker_color='#8B0000',  
                         hovertemplate="<b>%{y}</b><br>Peso: %{x:.1f}%<extra></extra>"
                     )
                     
-                    # ✨ MÁGICA VISUAL: Afastando as barras e melhorando o layout
+                    # ✨ FUNDO TRANSPARENTE AQUI (paper_bgcolor e plot_bgcolor)
                     fig_imp.update_layout(
                         showlegend=False,
-                        bargap=0.4,       # Aumenta o espaço em branco entre as barras (0 a 1)
-                        height=400,       # Define uma altura fixa agradável
+                        bargap=0.4,       
+                        height=400,       
                         xaxis_title="Peso (%) na Decisão de Compra",
-                        yaxis_title=None  # Remove o título do eixo Y para ficar mais limpo
+                        yaxis_title=None,
+                        paper_bgcolor='rgba(0,0,0,0)', 
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='#FFFFFF') # Garante que as letras do gráfico fiquem brancas
                     )
                     
                     st.plotly_chart(fig_imp, use_container_width=True)
                 else:
-                    st.info("👆 Execute uma simulação para gerar os dados técnicos.")
+                    st.markdown("""
+                    <div style="background-color: #1A1A1A; padding: 10px; border-radius: 5px; border-left: 5px solid #FF4B4B; color: #FFF;">
+                        👆 Execute uma simulação para gerar os dados técnicos.
+                    </div>
+                    """, unsafe_allow_html=True)
 # ================= GESTÃO DE DADOS =================
 elif menu == "Gestão de Dados":
     st.title("Ingestão, Limpeza e Tratamento")
