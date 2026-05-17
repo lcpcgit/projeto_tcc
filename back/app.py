@@ -759,7 +759,15 @@ elif menu == "Sistema de predição":
                         st.warning("Grau de confiança **Baixo**.")
                         
                     st.markdown("---")
-                    st.markdown("### Importância das Variáveis")
+                    st.markdown("### Importância das Variáveis (O que a IA aprendeu?)")
+                    
+                    # 🚀 CAIXA DE EXPLICAÇÃO DIDÁTICA PARA A BANCA DO TCC
+                    st.info("""
+                    💡 **Como interpretar esta Matriz de Decisão?**
+                    Este gráfico revela a 'fórmula secreta' do comportamento do seu cliente. Ele mostra quais os fatores que mais influenciam a venda deste hardware:
+                    * **Barras Maiores:** São os fatores cruciais. Se o "Nosso Preço" for o maior, significa que o seu cliente é altamente sensível a descontos.
+                    * **Barras Menores:** São fatores que pouco importam na decisão de compra (ex: o "Dia da Semana" raramente impede um gamer de comprar a placa que ele deseja).
+                    """)
                     
                     import plotly.express as px
                     df_importancia = pd.DataFrame({
@@ -772,17 +780,24 @@ elif menu == "Sistema de predição":
                         x="Peso na Decisão (%)", 
                         y="Variável Analisada", 
                         orientation='h',
-                        title=f"Matriz de Decisão da IA para: {marca_ia} {produto_ia}", 
-                        color="Variável Analisada",
-                        color_discrete_sequence=px.colors.qualitative.Pastel
+                        title=f"Matriz de Decisão da IA para: {marca_ia} {produto_ia}"
                     )
                     
-                    # ✨ Aplicando a mágica visual para limpar o hover do Gráfico de Barras também
+                    # ✨ MÁGICA VISUAL: Cor Vermelho Escuro e Limpeza do Hover
                     fig_imp.update_traces(
+                        marker_color='#8B0000',  # Cor Vermelho Escuro fixa para todas as barras
                         hovertemplate="<b>%{y}</b><br>Peso: %{x:.1f}%<extra></extra>"
                     )
                     
-                    fig_imp.update_layout(showlegend=False)
+                    # ✨ MÁGICA VISUAL: Afastando as barras e melhorando o layout
+                    fig_imp.update_layout(
+                        showlegend=False,
+                        bargap=0.4,       # Aumenta o espaço em branco entre as barras (0 a 1)
+                        height=400,       # Define uma altura fixa agradável
+                        xaxis_title="Peso (%) na Decisão de Compra",
+                        yaxis_title=None  # Remove o título do eixo Y para ficar mais limpo
+                    )
+                    
                     st.plotly_chart(fig_imp, use_container_width=True)
                 else:
                     st.info("👆 Execute uma simulação para gerar os dados técnicos.")
@@ -860,18 +875,24 @@ elif menu == "Gestão de Dados":
                             df_tratado['Produto'] = df_tratado['Produto'].apply(lambda x: re.sub(r'^[\d\s-]+\s*', '', str(x)))
                             df_tratado['Produto'] = df_tratado['Produto'].str.strip() 
                 
-                # 3. 🚀 TRATAMENTO ROBUSTO DE PREÇOS (O "Escudo" contra o R$)
+# 3. 🚀 TRATAMENTO ROBUSTO DE PREÇOS (Escudo Inteligente US/BR)
                 if 'Preco' in df_tratado.columns:
-                    df_tratado['Preco'] = (
-                        df_tratado['Preco']
-                        .astype(str)
-                        .str.replace(r'[R\$\s]', '', regex=True) # Tira "R", "$", "R$ " e espaços
-                        .str.replace('.', '', regex=False)      # Remove pontos de milhar
-                        .str.replace(',', '.', regex=False)     # Troca vírgula por ponto para o padrão US do Python
-                    )
+                    def limpar_moeda_inteligente(valor):
+                        if pd.isna(valor): return valor
+                        v = str(valor).replace('R$', '').replace(' ', '').strip()
+                        
+                        if ',' in v:
+                            # Se tiver vírgula, é Padrão BR (Ex: 4.500,50 ou 4500,50)
+                            v = v.replace('.', '').replace(',', '.')
+                        else:
+                            # Se não tiver vírgula, é Padrão US/Python (Ex: 4500.50)
+                            pass # Mantém o ponto quieto porque ele já é o separador de centavos
+                            
+                        return v
+
+                    df_tratado['Preco'] = df_tratado['Preco'].apply(limpar_moeda_inteligente)
                     df_tratado['Preco'] = pd.to_numeric(df_tratado['Preco'], errors='coerce')
-                    df_tratado = df_tratado.dropna(subset=['Preco']) # Apaga linhas se o preço era texto puro irrecuperável
-                
+                    df_tratado = df_tratado.dropna(subset=['Preco']) # Apaga linhas com preço inválido
                 # 4. 🚀 TRATAMENTO DE QUANTIDADES E DATAS
                 if 'Quantidade' in df_tratado.columns:
                     df_tratado['Quantidade'] = pd.to_numeric(df_tratado['Quantidade'], errors='coerce').fillna(0).astype(int)
