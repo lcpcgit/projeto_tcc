@@ -24,7 +24,7 @@ st.markdown("""
         background-color: #121212 !important;
     }
     
-    /*  ATUALIZADO: Pinta o menu lateral (Sidebar) com o mesmo Azul Tecnológico das caixas */
+    /* ATUALIZADO: Pinta o menu lateral (Sidebar) com o mesmo Azul Tecnológico das caixas */
     section[data-testid="stSidebar"] {
         background-color: #0D2137 !important;
     }
@@ -338,7 +338,7 @@ if menu == "Pesquisa de Mercado":
                 else:
                     st.markdown("""
                     <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                         <b>Atenção:</b> Sem dados suficientes para gerar o gráfico deste produto específico.
+                        ⚠️ <b>Atenção:</b> Sem dados suficientes para gerar o gráfico deste produto específico.
                     </div><br>
                     """, unsafe_allow_html=True)
             else:
@@ -620,13 +620,13 @@ if menu == "Pesquisa de Mercado":
                 else:
                     st.markdown(f"""
                     <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                         <b>Atenção:</b> Nenhum produto encontrado na faixa '{filtro_preco}'.
+                        ⚠️ <b>Atenção:</b> Nenhum produto encontrado na faixa '{filtro_preco}'.
                     </div><br>
                     """, unsafe_allow_html=True)
             else:
                 st.markdown("""
                 <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                     <b>Atenção:</b> Nenhum hardware encontrado no banco de dados com essa combinação exata de filtros.
+                    ⚠️ <b>Atenção:</b> Nenhum hardware encontrado no banco de dados com essa combinação exata de filtros.
                 </div><br>
                 """, unsafe_allow_html=True)
 
@@ -799,7 +799,7 @@ elif menu == "Sistema de predição":
                         time.sleep(1)
                         from sklearn.ensemble import RandomForestRegressor
                         from sklearn.model_selection import train_test_split
-                        from sklearn.metrics import r2_score
+                        from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
                         
                         X = df_alvo[['Ano', 'Mes', 'DiaDaSemana', 'Preco', 'Preco_Concorrencia', 'Dolar']]
                         y = df_alvo['Quantidade']
@@ -811,8 +811,12 @@ elif menu == "Sistema de predição":
                         
                         previsoes_teste = modelo_ia.predict(X_teste)
                         acuracia_r2 = r2_score(y_teste, previsoes_teste)
+                        erro_mae = mean_absolute_error(y_teste, previsoes_teste)
+                        erro_rmse = np.sqrt(mean_squared_error(y_teste, previsoes_teste))
                         
                         st.session_state['ultima_acuracia'] = acuracia_r2
+                        st.session_state['ultima_mae'] = erro_mae
+                        st.session_state['ultima_rmse'] = erro_rmse
                         st.session_state['ultima_importancia'] = modelo_ia.feature_importances_
                         
                         X_futuro = pd.DataFrame({
@@ -878,16 +882,24 @@ elif menu == "Sistema de predição":
                 st.markdown("### Métricas de Validação Científica")
                 if 'ultima_acuracia' in st.session_state:
                     acuracia = st.session_state['ultima_acuracia']
+                    mae = st.session_state['ultima_mae']
+                    rmse = st.session_state['ultima_rmse']
                     importancias = st.session_state['ultima_importancia']
                     
-                    st.metric("Score de Acurácia (R²)", f"{acuracia * 100:.1f}%")
+                    col_m1, col_m2, col_m3 = st.columns(3)
+                    with col_m1:
+                        st.metric("Score de Tendência (R²)", f"{acuracia * 100:.1f}%")
+                    with col_m2:
+                        st.metric("Erro Médio Absoluto (MAE)", f"{mae:.1f} unid.")
+                    with col_m3:
+                        st.metric("Erro Quadrático (RMSE)", f"{rmse:.1f} unid.")
                     
                     if acuracia > 0.80:
-                        st.markdown("<div style='background-color: #1A1A1A; padding: 10px; border-left: 5px solid #FF4B4B; border-radius: 5px; margin-bottom: 15px; color: #FFF;'> Grau de confiança <b>Excepcional</b>.</div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #1A1A1A; padding: 10px; border-left: 5px solid #FF4B4B; border-radius: 5px; margin-bottom: 15px; color: #FFF;'> Grau de confiança <b>Excepcional</b>. O modelo prevê a tendência com alta precisão.</div>", unsafe_allow_html=True)
                     elif acuracia > 0.60:
-                        st.markdown("<div style='background-color: #0D2137; padding: 10px; border-left: 5px solid #0066CC; border-radius: 5px; margin-bottom: 15px; color: #FFF;'> Grau de confiança <b>Bom</b>.</div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #0D2137; padding: 10px; border-left: 5px solid #0066CC; border-radius: 5px; margin-bottom: 15px; color: #FFF;'> Grau de confiança <b>Bom</b>. O modelo compreende a dinâmica do mercado.</div>", unsafe_allow_html=True)
                     else:
-                        st.markdown("<div style='background-color: #330000; padding: 10px; border-left: 5px solid #FF0000; border-radius: 5px; margin-bottom: 15px; color: #FFF;'> Grau de confiança <b>Baixo</b>.</div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #330000; padding: 10px; border-left: 5px solid #FF0000; border-radius: 5px; margin-bottom: 15px; color: #FFF;'> Grau de confiança <b>Baixo</b>. O mercado atual está muito instável ou faltam dados.</div>", unsafe_allow_html=True)
                         
                     st.markdown("---")
                     st.markdown("### Importância das Variáveis (O que a IA aprendeu?)")
