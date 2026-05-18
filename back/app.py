@@ -24,7 +24,7 @@ st.markdown("""
         background-color: #121212 !important;
     }
     
-    /* 🚀 ATUALIZADO: Pinta o menu lateral (Sidebar) com o mesmo Azul Tecnológico das caixas */
+    /*  ATUALIZADO: Pinta o menu lateral (Sidebar) com o mesmo Azul Tecnológico das caixas */
     section[data-testid="stSidebar"] {
         background-color: #0D2137 !important;
     }
@@ -181,7 +181,7 @@ menu = st.sidebar.radio(
 
 # ================= DASHBOARD =================
 if menu == "Pesquisa de Mercado":
-    st.title("Scanner / Dashbords do mercado")
+    st.title("Scanner")
     st.write("Acompanhe o histórico de preços praticados pelas maiores lojas de hardware do Brasil (Kabum e Terabyte).")
     
     df_historico = carregar_dados_aws()
@@ -200,7 +200,7 @@ if menu == "Pesquisa de Mercado":
         if modo_visao == "Visão Geral":
             st.markdown("""
             <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-bottom: 15px;">
-                💡 Digite a família da peça (Ex: RTX 5070, B650, RX 7600) e o sistema devolverá a média de preços de todos os modelos daquela linha no dia.
+                 Digite a família da peça (Ex: RTX 5070 RX 7600) e o sistema devolverá a média de preços de todos os modelos daquela linha.
             </div>
             """, unsafe_allow_html=True)
             
@@ -257,14 +257,14 @@ if menu == "Pesquisa de Mercado":
                 else:
                     st.markdown(f"""
                     <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                        ⚠️ <b>Atenção:</b> Sem dados históricos para a família '{familia_input}'.
+                         <b>Atenção:</b> Sem dados históricos para a família '{familia_input}'.
                     </div><br>
                     """, unsafe_allow_html=True)
                     
         elif modo_visao == "Visão Específica":
             st.markdown("""
             <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-bottom: 15px;">
-                💡 Selecione o modelo exato para analisar o preço dele.
+                 Selecione o modelo exato para analisar o preço dele.
             </div>
             """, unsafe_allow_html=True)
             
@@ -338,26 +338,26 @@ if menu == "Pesquisa de Mercado":
                 else:
                     st.markdown("""
                     <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                        ⚠️ <b>Atenção:</b> Sem dados suficientes para gerar o gráfico deste produto específico.
+                         <b>Atenção:</b> Sem dados suficientes para gerar o gráfico deste produto específico.
                     </div><br>
                     """, unsafe_allow_html=True)
             else:
                  st.markdown("""
                  <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-top: 15px;">
-                     💡 Por favor, pesquise e selecione um produto na lista acima.
+                      Por favor, pesquise e selecione um produto na lista acima.
                  </div>
                  """, unsafe_allow_html=True)
         
         st.markdown("---")
         st.write("Análise De Filtros Avançados")
-        st.write("Filtre o mercado através de categorias, modelos, marcas e especificações para encontrar nichos exatos.")
+        st.write("Filtre o mercado através de categorias, modelos, marcas e especificações.")
 
         todos_os_modelos = sorted(list(set(sum(mapa_subcategorias.values(), []))))
         
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            cat_escolhida = st.selectbox("1. Categoria (Opcional):", [""] + sorted(categorias_base))
+            cat_escolhida = st.selectbox("1. Categoria:", [""] + sorted(categorias_base))
             
         if cat_escolhida:
             modelos_da_cat = mapa_subcategorias.get(cat_escolhida, [])
@@ -372,7 +372,7 @@ if menu == "Pesquisa de Mercado":
             disabled_mod = False
             
         with col2:
-            subcat_escolhida = st.selectbox("2. Modelo (Opcional):", opcoes_modelo, disabled=disabled_mod)
+            subcat_escolhida = st.selectbox("2. Modelo:", opcoes_modelo, disabled=disabled_mod)
 
         df_drill = df_historico.copy()
         
@@ -490,7 +490,7 @@ if menu == "Pesquisa de Mercado":
         marcas_validas = sorted([m for m in df_drill['Marca'].dropna().unique()])
         
         with col3:
-            marcas_escolhidas = st.multiselect("3. Marcas (Opcional):", marcas_validas)
+            marcas_escolhidas = st.multiselect("3. Marcas:", marcas_validas)
             
         if len(marcas_escolhidas) > 0:
             df_drill = df_drill[df_drill['Marca'].isin(marcas_escolhidas)]
@@ -511,7 +511,7 @@ if menu == "Pesquisa de Mercado":
         if filtros_ativos < 2:
             st.markdown("""
             <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-top: 15px;">
-                💡 Preencha pelo menos DUAS opções (Ex: Categoria + Marca, ou Modelo + Marca) para visualizar o histórico de preços.
+                 Preencha pelo menos DUAS opções (Ex: Categoria + Marca, ou Modelo + Marca) para visualizar o histórico de preços.
             </div>
             """, unsafe_allow_html=True)
         else:
@@ -581,7 +581,7 @@ if menu == "Pesquisa de Mercado":
                                 color="Legenda", 
                                 markers=True, 
                                 text="Preco_Label", 
-                                title=f"🏢 {loja.upper()} | {titulo_graf} {subtitulo}", 
+                                title=f" {loja.upper()} | {titulo_graf} {subtitulo}", 
                                 labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Legenda": "Item"}
                             )
                             
@@ -620,25 +620,25 @@ if menu == "Pesquisa de Mercado":
                 else:
                     st.markdown(f"""
                     <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                        ⚠️ <b>Atenção:</b> Nenhum produto encontrado na faixa '{filtro_preco}'.
+                         <b>Atenção:</b> Nenhum produto encontrado na faixa '{filtro_preco}'.
                     </div><br>
                     """, unsafe_allow_html=True)
             else:
                 st.markdown("""
                 <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                    ⚠️ <b>Atenção:</b> Nenhum hardware encontrado no banco de dados com essa combinação exata de filtros.
+                     <b>Atenção:</b> Nenhum hardware encontrado no banco de dados com essa combinação exata de filtros.
                 </div><br>
                 """, unsafe_allow_html=True)
 
 # ================= PÁGINA 2: PREVISÃO DE IA =================
 elif menu == "Sistema de predição":
-    st.title("🔮 Motor Preditivo de Demanda")
-    st.markdown("Utilize Inteligência Artificial (Random Forest) para simular cenários de mercado e prever o volume de vendas futuro.")
+    st.title(" Motor Preditivo")
+    st.markdown("Utilize Inteligência Artificial para simular cenários de mercado e prever o volume de vendas futuras.")
 
     if st.session_state.get('dados_tratados') is None or st.session_state['dados_tratados'].empty:
         st.markdown("""
         <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF; margin-bottom: 10px;">
-            ⚠️ <b>Atenção:</b> O Motor de IA está aguardando os dados.
+             <b>Atenção:</b> O Motor de IA está aguardando os dados.
         </div>
         <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD;">
             Vá até a aba <b>'Gestão de Dados'</b>, faça o upload do seu ficheiro CSV e clique em <b>'Executar Tratamento'</b> para liberar o sistema preditivo.
@@ -723,18 +723,18 @@ elif menu == "Sistema de predição":
         if len(df_alvo) < 10:
             st.markdown(f"""
             <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                🚨 <b>Atenção:</b> Dados insuficientes para '{produto_ia}' ({marca_ia}). Necessário mínimo de 10 dias de histórico para garantir precisão estatística.
+                 <b>Atenção:</b> Dados insuficientes para '{produto_ia}' ({marca_ia}). Necessário mínimo de 10 dias de histórico para garantir precisão estatística.
             </div><br>
             """, unsafe_allow_html=True)
         else:
             st.markdown(f"""
             <div style="background-color: #1A1A1A; padding: 15px; border-radius: 8px; border-left: 5px solid #FF4B4B; color: #FFF;">
-                ✅ <b>Base de conhecimento pronta:</b> {len(df_alvo)} registros encontrados para este ativo.
+                 <b>Base de conhecimento pronta:</b> {len(df_alvo)} registros encontrados para este produto.
             </div>
             """, unsafe_allow_html=True)
             st.markdown("---")
             
-            tab_simulacao, tab_tecnica = st.tabs(["🎯 Painel de Simulação", "🧠 Engenharia do Modelo (TCC)"])
+            tab_simulacao, tab_tecnica = st.tabs([" Painel de Simulação", " Painel estatístico"])
             
             with tab_simulacao:
                 st.markdown("### 2. Configurar Cenário Futuro")
@@ -786,7 +786,7 @@ elif menu == "Sistema de predição":
                         preco_recente_conc = 0.0
                     
                     with col_in2:
-                        preco_simulado = st.number_input("Preço de Venda (R$):", value=float(preco_recente_nosso), step=50.0)
+                        preco_simulado = st.number_input("Seu Preço (R$):", value=float(preco_recente_nosso), step=50.0)
                     with col_in3:
                         preco_conc_simulado = st.number_input("Preço Concorrência (R$):", value=float(preco_recente_conc), step=50.0)
                     with col_in4:
@@ -794,7 +794,7 @@ elif menu == "Sistema de predição":
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                if st.button("🚀 INICIAR PROCESSAMENTO DA INTELIGÊNCIA ARTIFICIAL", use_container_width=True, type="primary"):
+                if st.button("INICIAR PROCESSAMENTO DA INTELIGÊNCIA ARTIFICIAL", use_container_width=True, type="primary"):
                     with st.spinner(f"O Algoritmo está processando o cenário para {mes_selecionado_nome}/{ano_selecionado}..."):
                         time.sleep(1)
                         from sklearn.ensemble import RandomForestRegressor
@@ -849,19 +849,19 @@ elif menu == "Sistema de predição":
                     def formatar_br(valor):
                         return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-                    st.markdown("### 📊 Resultado da Projeção de Demanda")
+                    st.markdown("###  Resultado da Projeção de Demanda")
                     
                     colA, colB, colC = st.columns(3)
                     with colB:
-                        st.metric("🎯 Previsão Principal", f"{res['previsao']} unid.", delta="Volume Esperado", delta_color="off")
+                        st.metric(" Previsão Principal", f"{res['previsao']} unid.", delta="Volume Esperado", delta_color="off")
                     with colA:
-                        st.metric("📉 Cenário Pessimista", f"{int(res['previsao'] * 0.85)} unid.", delta="-15% Risco", delta_color="inverse")
+                        st.metric(" Cenário Pessimista", f"{int(res['previsao'] * 0.85)} unid.", delta="-15% Risco", delta_color="inverse")
                     with colC:
-                        st.metric("🚀 Cenário Otimista", f"{int(res['previsao'] * 1.15)} unid.", delta="+15% Conversão", delta_color="normal")
+                        st.metric(" Cenário Otimista", f"{int(res['previsao'] * 1.15)} unid.", delta="+15% Conversão", delta_color="normal")
                     
                     st.markdown(f"""
                     <div style="background-color: #0D2137; padding: 20px; border-radius: 10px; margin-top: 15px; border-left: 5px solid #0066CC; color: #FFFFFF;">
-                        <h4 style="margin-top: 0px; color: #94B3FD;">💼 Projeção Financeira e Baseline Histórico</h4>
+                        <h4 style="margin-top: 0px; color: #94B3FD;"> Projeção Financeira</h4>
                         <p style="margin-bottom: 5px; font-size: 16px;"><b>Faturamento Bruto Esperado:</b> R$ {formatar_br(res['faturamento'])} <i>(Baseado no preço sugerido)</i></p>
                         <p style="margin-bottom: 0px; font-size: 16px;"><b>Média de Vendas Histórica ({res['mes_nome']}):</b> {res['media_historica']} unid. <i>(O que costumava vender nesta época)</i></p>
                     </div>
@@ -870,7 +870,7 @@ elif menu == "Sistema de predição":
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.markdown("""
                     <div style="background-color: #1A1A1A; padding: 10px; border-radius: 5px; border-left: 5px solid #FF4B4B; color: #FFF;">
-                        💡 <b>Análise Concluída:</b> Acesse a aba 'Engenharia do Modelo (TCC)' para detalhes técnicos matemáticos da IA.
+                         <b>Análise Concluída:</b>.
                     </div>
                     """, unsafe_allow_html=True)
 
@@ -883,21 +883,19 @@ elif menu == "Sistema de predição":
                     st.metric("Score de Acurácia (R²)", f"{acuracia * 100:.1f}%")
                     
                     if acuracia > 0.80:
-                        st.markdown("<div style='background-color: #1A1A1A; padding: 10px; border-left: 5px solid #FF4B4B; border-radius: 5px; margin-bottom: 15px; color: #FFF;'>🚀 Grau de confiança <b>Excepcional</b>.</div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #1A1A1A; padding: 10px; border-left: 5px solid #FF4B4B; border-radius: 5px; margin-bottom: 15px; color: #FFF;'> Grau de confiança <b>Excepcional</b>.</div>", unsafe_allow_html=True)
                     elif acuracia > 0.60:
-                        st.markdown("<div style='background-color: #0D2137; padding: 10px; border-left: 5px solid #0066CC; border-radius: 5px; margin-bottom: 15px; color: #FFF;'>👍 Grau de confiança <b>Bom</b>.</div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #0D2137; padding: 10px; border-left: 5px solid #0066CC; border-radius: 5px; margin-bottom: 15px; color: #FFF;'> Grau de confiança <b>Bom</b>.</div>", unsafe_allow_html=True)
                     else:
-                        st.markdown("<div style='background-color: #330000; padding: 10px; border-left: 5px solid #FF0000; border-radius: 5px; margin-bottom: 15px; color: #FFF;'>⚠️ Grau de confiança <b>Baixo</b>.</div>", unsafe_allow_html=True)
+                        st.markdown("<div style='background-color: #330000; padding: 10px; border-left: 5px solid #FF0000; border-radius: 5px; margin-bottom: 15px; color: #FFF;'> Grau de confiança <b>Baixo</b>.</div>", unsafe_allow_html=True)
                         
                     st.markdown("---")
                     st.markdown("### Importância das Variáveis (O que a IA aprendeu?)")
                     
                     st.markdown("""
                     <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-bottom: 20px;">
-                        💡 <b>Como interpretar esta Matriz de Decisão?</b><br>
-                        Este gráfico revela a 'fórmula secreta' do comportamento do seu cliente. Ele mostra quais os fatores que mais influenciam a venda deste hardware:<br>
-                        * <b>Barras Maiores:</b> São os fatores cruciais. Se o "Nosso Preço" for o maior, significa que o seu cliente é altamente sensível a descontos.<br>
-                        * <b>Barras Menores:</b> São fatores que pouco importam na decisão de compra.
+                         <b>Como interpretar esta Matriz de Decisão?</b><br>
+                        Este gráfico mostra quais os fatores que mais influenciam a venda deste hardware:<br>
                     </div>
                     """, unsafe_allow_html=True)
                     
@@ -915,7 +913,7 @@ elif menu == "Sistema de predição":
                         title=f"Matriz de Decisão da IA para: {marca_ia} {produto_ia}"
                     )
                     
-                    # 🚀 Gráfico em Azul Tecnológico
+                    #  Gráfico em Azul Tecnológico
                     fig_imp.update_traces(
                         marker_color='#0066CC',  
                         hovertemplate="<b>%{y}</b><br>Peso: %{x:.1f}%<extra></extra>"
@@ -937,7 +935,7 @@ elif menu == "Sistema de predição":
                 else:
                     st.markdown("""
                     <div style="background-color: #1A1A1A; padding: 10px; border-radius: 5px; border-left: 5px solid #FF4B4B; color: #FFF;">
-                        👆 Execute uma simulação para gerar os dados técnicos.
+                         Execute uma simulação para gerar os dados técnicos.
                     </div>
                     """, unsafe_allow_html=True)
 
@@ -979,10 +977,10 @@ elif menu == "Gestão de Dados":
             if len(colunas_ausentes) > 0:
                 st.markdown(f"""
                 <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF; margin-bottom: 10px;">
-                    🚨 <b>Erro de Formatação:</b> Faltam as seguintes colunas no seu CSV: {', '.join(colunas_ausentes)}
+                     <b>Erro de Formatação:</b> Faltam as seguintes colunas no seu CSV: {', '.join(colunas_ausentes)}
                 </div>
                 <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                    ⚠️ Ajuste o cabeçalho do seu ficheiro Excel/CSV para coincidir exatamente com as colunas exigidas acima e tente de novo.
+                     Ajuste o cabeçalho do seu ficheiro Excel/CSV para coincidir exatamente com as colunas exigidas acima e tente de novo.
                 </div>
                 """, unsafe_allow_html=True)
             else:
@@ -992,14 +990,14 @@ elif menu == "Gestão de Dados":
         except Exception as e:
             st.markdown(f"""
             <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                🚨 <b>Erro ao ler o ficheiro:</b> {e}
+                 <b>Erro ao ler o ficheiro:</b> {e}
             </div>
             """, unsafe_allow_html=True)
     
     if st.session_state['dados_brutos'] is not None:
         st.markdown(f"""
         <div style="background-color: #1A1A1A; padding: 15px; border-radius: 8px; border-left: 5px solid #FF4B4B; color: #FFF; margin-bottom: 15px;">
-            ✅ <b>Ficheiro validado e carregado com sucesso</b>
+             <b>Ficheiro validado e carregado com sucesso</b>
         </div>
         """, unsafe_allow_html=True)
         st.dataframe(st.session_state['dados_brutos'], width='stretch')
@@ -1062,7 +1060,7 @@ elif menu == "Gestão de Dados":
         
         st.markdown(f"""
         <div style="background-color: #1A1A1A; padding: 15px; border-radius: 8px; border-left: 5px solid #FF4B4B; color: #FFF; margin-bottom: 15px;">
-            ✅ <b>Operação concluída!</b> {st.session_state['linhas_removidas']} linhas de "lixo" (ou nulas) removidas. Valores formatados para a IA e datas alinhadas com o banco AWS.
+             <b>Operação concluída!</b> {st.session_state['linhas_removidas']} linhas de "lixo" (ou nulas) removidas. Valores formatados para a IA e datas alinhadas com o banco AWS.
         </div>
         """, unsafe_allow_html=True)
         
