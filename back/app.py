@@ -13,10 +13,20 @@ st.set_page_config(page_title="Hardware Preditivo", layout="wide")
 # ================= CONFIGURAÇÃO VISUAL DE DESIGN (QUASE PRETO + VERMELHO + AZUL) =================
 st.markdown("""
 <style>
-    /* 1. Força o fundo do aplicativo inteiro para um "Quase Preto" elegante */
+    /* 1. Força o fundo do aplicativo inteiro para Quase Preto (#121212) */
     .stApp {
         background-color: #121212 !important;
         color: #FFFFFF !important;
+    }
+
+    /* Pinta a barra superior (Header) da mesma cor do fundo para ficar perfeitamente integrada */
+    header[data-testid="stHeader"] {
+        background-color: #121212 !important;
+    }
+    
+    /* 🚀 ATUALIZADO: Pinta o menu lateral (Sidebar) com o mesmo Azul Tecnológico das caixas */
+    section[data-testid="stSidebar"] {
+        background-color: #0D2137 !important;
     }
 
     /* 2. Customiza os botões principais para Vermelho Escuro / Gamer */
@@ -33,7 +43,7 @@ st.markdown("""
         box-shadow: 0px 0px 10px #FF0000 !important;
     }
 
-    /* 3. Transforma todas as caixas de informação (st.info) no Azul Tecnológico */
+    /* 3. Transforma todas as caixas de informação (st.info nativas, se houver) no Azul Tecnológico */
     .stAlert {
         background-color: #0D2137 !important;
         color: #94B3FD !important;
@@ -188,7 +198,11 @@ if menu == "Pesquisa de Mercado":
         st.markdown("<br>", unsafe_allow_html=True) 
         
         if modo_visao == "Visão Geral":
-            st.info("Digite a família da peça (Ex: RTX 5070, B650, RX 7600) e o devolvera a média de preços de todos os modelos daquela linha no dia.")
+            st.markdown("""
+            <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-bottom: 15px;">
+                💡 Digite a família da peça (Ex: RTX 5070, B650, RX 7600) e o sistema devolverá a média de preços de todos os modelos daquela linha no dia.
+            </div>
+            """, unsafe_allow_html=True)
             
             if 'ultima_busca' not in st.session_state:
                 st.session_state['ultima_busca'] = "rtx 5070" 
@@ -230,7 +244,6 @@ if menu == "Pesquisa de Mercado":
                         hovertemplate="<b>Loja:</b> %{data.name}<br><b>Data da Extração:</b> %{x|%d/%m/%Y}<br><b>Média:</b> R$ %{y:,.2f}<extra></extra>"
                     )
                     
-                    # 🚀 Gráfico Transparente (Visão Geral)
                     fig.update_layout(
                         yaxis=dict(range=[df_agrupado['Preco'].min() * 0.9, df_agrupado['Preco'].max() * 1.1]),
                         paper_bgcolor='rgba(0,0,0,0)', 
@@ -249,7 +262,11 @@ if menu == "Pesquisa de Mercado":
                     """, unsafe_allow_html=True)
                     
         elif modo_visao == "Visão Específica":
-            st.info("Selecione o modelo exato para analisar o preço dele.")
+            st.markdown("""
+            <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-bottom: 15px;">
+                💡 Selecione o modelo exato para analisar o preço dele.
+            </div>
+            """, unsafe_allow_html=True)
             
             pesquisa_produto = st.text_input("Filtre pela família/marca do produto:", key="input_pesquisa_especifica")
             if pesquisa_produto:
@@ -307,7 +324,6 @@ if menu == "Pesquisa de Mercado":
                         hovertemplate="<b>Loja:</b> %{data.name}<br><b>Data da Extração:</b> %{x|%d/%m/%Y}<br><b>Preço:</b> R$ %{y:,.2f}<extra></extra>"
                     )
                     
-                    # 🚀 Gráfico Transparente (Visão Específica)
                     fig.update_layout(
                         yaxis=dict(range=[df_filtrado['Preco'].min() * 0.9, df_filtrado['Preco'].max() * 1.1]),
                         paper_bgcolor='rgba(0,0,0,0)', 
@@ -326,7 +342,11 @@ if menu == "Pesquisa de Mercado":
                     </div><br>
                     """, unsafe_allow_html=True)
             else:
-                 st.info("Por favor, pesquise e selecione um produto na lista acima.")
+                 st.markdown("""
+                 <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-top: 15px;">
+                     💡 Por favor, pesquise e selecione um produto na lista acima.
+                 </div>
+                 """, unsafe_allow_html=True)
         
         st.markdown("---")
         st.write("Análise De Filtros Avançados")
@@ -489,7 +509,11 @@ if menu == "Pesquisa de Mercado":
         if especificacao_extra: filtros_ativos += 1
 
         if filtros_ativos < 2:
-            st.info(" Preencha pelo menos DUAS opções (Ex: Categoria + Marca, ou Modelo + Marca) para visualizar o histórico de preços.")
+            st.markdown("""
+            <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-top: 15px;">
+                💡 Preencha pelo menos DUAS opções (Ex: Categoria + Marca, ou Modelo + Marca) para visualizar o histórico de preços.
+            </div>
+            """, unsafe_allow_html=True)
         else:
             if not df_drill.empty:
                 st.markdown("<br>", unsafe_allow_html=True) 
@@ -566,7 +590,6 @@ if menu == "Pesquisa de Mercado":
                                 hovertemplate="<b>Item:</b> %{data.name}<br><b>Data da Extração:</b> %{x|%d/%m/%Y}<br><b>Média:</b> R$ %{y:,.2f}<extra></extra>"
                             )
                             
-                            # 🚀 Gráfico Transparente (Filtros Avançados)
                             fig_drill.update_layout(
                                 yaxis=dict(range=[df_loja['Preco'].min() * 0.9, df_loja['Preco'].max() * 1.1]),
                                 paper_bgcolor='rgba(0,0,0,0)', 
@@ -613,7 +636,6 @@ elif menu == "Sistema de predição":
     st.markdown("Utilize Inteligência Artificial (Random Forest) para simular cenários de mercado e prever o volume de vendas futuro.")
 
     if st.session_state.get('dados_tratados') is None or st.session_state['dados_tratados'].empty:
-        # 🚀 CAIXAS TEMÁTICAS SUBSTITUINDO O AMARELO E AZUL PADRÃO
         st.markdown("""
         <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF; margin-bottom: 10px;">
             ⚠️ <b>Atenção:</b> O Motor de IA está aguardando os dados.
@@ -699,14 +721,12 @@ elif menu == "Sistema de predição":
         df_alvo = df_ml[(df_ml['Produto'] == produto_ia) & (df_ml['Marca'] == marca_ia)].copy()
         
         if len(df_alvo) < 10:
-            # 🚀 SUBSTITUINDO O ERRO VERMELHO PADRÃO
             st.markdown(f"""
             <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
                 🚨 <b>Atenção:</b> Dados insuficientes para '{produto_ia}' ({marca_ia}). Necessário mínimo de 10 dias de histórico para garantir precisão estatística.
             </div><br>
             """, unsafe_allow_html=True)
         else:
-            # 🚀 SUBSTITUINDO O VERDE (SUCCESS) POR UMA CAIXA DARK/RED
             st.markdown(f"""
             <div style="background-color: #1A1A1A; padding: 15px; border-radius: 8px; border-left: 5px solid #FF4B4B; color: #FFF;">
                 ✅ <b>Base de conhecimento pronta:</b> {len(df_alvo)} registros encontrados para este ativo.
@@ -895,12 +915,12 @@ elif menu == "Sistema de predição":
                         title=f"Matriz de Decisão da IA para: {marca_ia} {produto_ia}"
                     )
                     
+                    # 🚀 Gráfico em Azul Tecnológico
                     fig_imp.update_traces(
-                        marker_color='#8B0000',  
+                        marker_color='#0066CC',  
                         hovertemplate="<b>%{y}</b><br>Peso: %{x:.1f}%<extra></extra>"
                     )
                     
-                    # ✨ FUNDO TRANSPARENTE AQUI (paper_bgcolor e plot_bgcolor)
                     fig_imp.update_layout(
                         showlegend=False,
                         bargap=0.4,       
@@ -909,7 +929,7 @@ elif menu == "Sistema de predição":
                         yaxis_title=None,
                         paper_bgcolor='rgba(0,0,0,0)', 
                         plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color='#FFFFFF'), # Garante que as letras do gráfico fiquem brancas
+                        font=dict(color='#FFFFFF'),
                         xaxis=dict(showgrid=True, gridcolor='#333333')
                     )
                     
@@ -977,7 +997,6 @@ elif menu == "Gestão de Dados":
             """, unsafe_allow_html=True)
     
     if st.session_state['dados_brutos'] is not None:
-        # 🚀 SUBSTITUINDO O VERDE AQUI TAMBÉM
         st.markdown(f"""
         <div style="background-color: #1A1A1A; padding: 15px; border-radius: 8px; border-left: 5px solid #FF4B4B; color: #FFF; margin-bottom: 15px;">
             ✅ <b>Ficheiro validado e carregado com sucesso</b>
@@ -1041,7 +1060,6 @@ elif menu == "Gestão de Dados":
         st.write("Dados Normalizados e Prontos")
         st.dataframe(st.session_state['dados_tratados'], width='stretch')
         
-        # 🚀 E SUBSTITUINDO O ÚLTIMO VERDE
         st.markdown(f"""
         <div style="background-color: #1A1A1A; padding: 15px; border-radius: 8px; border-left: 5px solid #FF4B4B; color: #FFF; margin-bottom: 15px;">
             ✅ <b>Operação concluída!</b> {st.session_state['linhas_removidas']} linhas de "lixo" (ou nulas) removidas. Valores formatados para a IA e datas alinhadas com o banco AWS.
