@@ -497,96 +497,76 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
         except Exception as e:
             print(f"❌ [DEBUG KBM] Erro fatal ao raspar Kabum: {e}")
 
-        # ================= 2. RASPANDO A TERABYTE =================
-        try:
-            url_terabyte = f"https://www.terabyteshop.com.br/busca?str={termo_busca.replace(' ', '+')}"
-            print(f"\n🔍 [DEBUG TERA] Acessando: {url_terabyte}")
-            navegador.get(url_terabyte)
-            time.sleep(5) 
-            
-            for _ in range(10):
-                navegador.execute_script("window.scrollBy(0, 1000);")
-                time.sleep(1)
-            
-            # 🚀 AS NOVAS CLASSES ATUALIZADAS AQUI:
-            nomes_tera = navegador.find_elements(By.CSS_SELECTOR, '.tss-card-name')
-            precos_tera = navegador.find_elements(By.CSS_SELECTOR, '.tss-card-price')
-            
-            print(f"📦 [DEBUG TERA] Encontrados {len(nomes_tera)} nomes e {len(precos_tera)} preços.")
-            
-            for nome_el, preco_el in zip(nomes_tera, precos_tera):
-                nome_completo = nome_el.get_attribute('textContent').strip()
-                if not produto_eh_valido(nome_completo, termo_busca): continue
-                    
-                preco_texto = preco_el.get_attribute('textContent')
-                numeros_e_virgula = re.sub(r'[^\d,]', '', preco_texto)
-                
-                if numeros_e_virgula:
-                    preco_limpo = numeros_e_virgula.replace(',', '.')
-                    marca = extrair_marca(nome_completo)
-                    
-                    partes_nome = re.split(r',\s*|;\s*|\s+-\s+', nome_completo, maxsplit=1)
-                    nome_curto = partes_nome[0].strip()
-                    descricao = partes_nome[1].strip() if len(partes_nome) > 1 else ""
-                    
-                    # 🚀 NOVA BLINDAGEM DE PADRONIZAÇÃO NO BANCO
-                    nome_curto = nome_curto.upper()
-                    nome_curto = re.sub(r'\s+\|\s+TERABYTE.*|\s+\|\s+KABUM.*', '', nome_curto)
-                    nome_curto = re.sub(r'\s+', ' ', nome_curto).strip()
-                    
-                    try: 
-                        lista_produtos.append({
-                            "Data": data_atual, 
-                            "Loja": "Terabyte",
-                            "Marca": marca,
-                            "Produto": nome_curto,          
-                            "Descrição": descricao,         
-                            "Preço": float(preco_limpo)
-                        })
-                    except: pass
-        except Exception as e:
-            print(f"❌ [DEBUG TERA] Erro ao raspar Terabyte: {e}")
-
-        navegador.quit()
-        
-        if len(lista_produtos) > 0:
-            df_resultados = pd.DataFrame(lista_produtos)
-            
-            df_resultados = df_resultados.drop_duplicates(subset=['Loja', 'Produto', 'Descrição'], keep='first')
-            df_resultados = df_resultados.sort_values(by="Preço", ascending=True).reset_index(drop=True)
 # ================= 2. RASPANDO A TERABYTE =================
         try:
             url_terabyte = f"https://www.terabyteshop.com.br/busca?str={termo_busca.replace(' ', '+')}"
             print(f"\n🔍 [DEBUG TERA] Acessando: {url_terabyte}")
             navegador.get(url_terabyte)
-            time.sleep(5) 
+            time.sleep(6) 
             
-            for _ in range(10):
-                navegador.execute_script("window.scrollBy(0, 1000);")
-                time.sleep(1)
-            
-            # 🚀 AS NOVAS CLASSES ATUALIZADAS AQUI:
-            nomes_tera = navegador.find_elements(By.CSS_SELECTOR, '.tss-card-name')
-            precos_tera = navegador.find_elements(By.CSS_SELECTOR, '.tss-card-price')
-            
-            print(f"📦 [DEBUG TERA] Encontrados {len(nomes_tera)} nomes e {len(precos_tera)} preços.")
-            
-            for nome_el, preco_el in zip(nomes_tera, precos_tera):
-                nome_completo = nome_el.get_attribute('textContent').strip()
-                if not produto_eh_valido(nome_completo, termo_busca): continue
-                    
-                preco_texto = preco_el.get_attribute('textContent')
-                numeros_e_virgula = re.sub(r'[^\d,]', '', preco_texto)
+            print("⏳ Fazendo scroll para forçar o carregamento dos produtos (Lazy Loading)...")
+            for i in range(12):
+                navegador.execute_script("window.scrollBy(0, 500);")
+                time.sleep(1.5)
                 
-                if numeros_e_virgula:
-                    preco_limpo = numeros_e_virgula.replace(',', '.')
-                    marca = extrair_marca(nome_completo)
+            # 🚀 Lógica robusta baseada no teste bem-sucedido:
+            nomes_elementos = navegador.find_elements(By.CSS_SELECTOR, '.tss-card-name, a.prod-name, .pbox-name')
+            
+            caixas_tera = []
+            for nome_el in nomes_elementos:
+                try:
+                    caixa = nome_el.find_element(By.XPATH, "..")
+                    if not caixa.find_elements(By.CSS_SELECTOR, '.tss-card-price, .tss-card-price-cash'):
+                        caixa = nome_el.find_element(By.XPATH, "../..")
+                    if caixa not in caixas_tera:
+                        caixas_tera.append(caixa)
+                except:
+                    pass
                     
-                    partes_nome = re.split(r',\s*|;\s*|\s+-\s+', nome_completo, maxsplit=1)
-                    nome_curto = partes_nome[0].strip()
-                    descricao = partes_nome[1].strip() if len(partes_nome) > 1 else ""
+            print(f"📦 [DEBUG TERA] Encontrados {len(caixas_tera)} caixas de produtos.")
+            
+            for caixa in caixas_tera:
+                try:
+                    nome_completo = ""
+                    for sel in ['.tss-card-name', 'a.prod-name', 'h2']:
+                        try:
+                            nome_completo = caixa.find_element(By.CSS_SELECTOR, sel).get_attribute('textContent').strip()
+                            if nome_completo: break
+                        except:
+                            continue
+                            
+                    if not nome_completo or not produto_eh_valido(nome_completo, termo_busca): 
+                        continue
+                        
+                    preco_texto = ""
+                    seletores_preco = [
+                        '.tss-card-price',
+                        '.tss-card-price-cash',
+                        'div.product-item__new-price span',
+                        'div.t-price'
+                    ]
                     
-                    try: 
+                    for seletor in seletores_preco:
+                        try:
+                            preco_texto = caixa.find_element(By.CSS_SELECTOR, seletor).get_attribute('textContent').strip()
+                            if preco_texto: break
+                        except:
+                            continue
+
+                    numeros_e_virgula = re.sub(r'[^\d,]', '', preco_texto)
+                    
+                    if numeros_e_virgula:
+                        preco_limpo = numeros_e_virgula.replace(',', '.')
+                        marca = extrair_marca(nome_completo)
+                        
+                        partes_nome = re.split(r',\s*|;\s*|\s+-\s+', nome_completo, maxsplit=1)
+                        nome_curto = partes_nome[0].strip()
+                        descricao = partes_nome[1].strip() if len(partes_nome) > 1 else ""
+                        
+                        nome_curto = nome_curto.upper()
+                        nome_curto = re.sub(r'\s+\|\s+TERABYTE.*|\s+\|\s+KABUM.*', '', nome_curto)
+                        nome_curto = re.sub(r'\s+', ' ', nome_curto).strip()
+                        
                         lista_produtos.append({
                             "Data": data_atual, 
                             "Loja": "Terabyte",
@@ -595,10 +575,13 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
                             "Descrição": descricao,         
                             "Preço": float(preco_limpo)
                         })
-                    except: pass
+                except Exception as erro_card:
+                    pass 
+                    
         except Exception as e:
             print(f"❌ [DEBUG TERA] Erro ao raspar Terabyte: {e}")
 
+        # ================= 3. FECHANDO NAVEGADOR E SALVANDO DADOS =================
         navegador.quit()
         
         if len(lista_produtos) > 0:
@@ -606,7 +589,6 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
             
             df_resultados = df_resultados.drop_duplicates(subset=['Loja', 'Produto', 'Descrição'], keep='first')
             df_resultados = df_resultados.sort_values(by="Preço", ascending=True).reset_index(drop=True)
-            
             # ========================================================
             # 🚨 INTEGRAÇÃO AWS: MOTOR DE INJEÇÃO SQL SERVER
             # ========================================================
