@@ -589,20 +589,19 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
             
             df_resultados = df_resultados.drop_duplicates(subset=['Loja', 'Produto', 'Descrição'], keep='first')
             df_resultados = df_resultados.sort_values(by="Preço", ascending=True).reset_index(drop=True)
-            # ========================================================
-            # 🚨 INTEGRAÇÃO AWS: MOTOR DE INJEÇÃO SQL SERVER
-            # ========================================================
+ 
             if salvar_no_banco:
                 try:
+                    import streamlit as st # Certifique-se de que o streamlit está importado
                     from sqlalchemy import create_engine
                     import urllib.parse
                     
                     print("☁️ Conectando ao banco de dados na AWS para salvar...")
                     
-                    # Credenciais validadas
-                    endpoint_aws = "hardwares-tcc.cveowcsuansb.sa-east-1.rds.amazonaws.com"
-                    senha_aws = "milanhaverso2" 
-                    usuario_aws = "lcpctcc"
+                    # 🔒 PUXANDO AS CREDENCIAIS DO COFRE SECRETO
+                    endpoint_aws = st.secrets["DB_HOST"]
+                    usuario_aws = st.secrets["DB_USER"]
+                    senha_aws = st.secrets["DB_PASSWORD"]
                     
                     # Formato seguro
                     senha_codificada = urllib.parse.quote_plus(senha_aws)
