@@ -614,19 +614,19 @@ if menu == "Pesquisa de Mercado":
                         
                         st.dataframe(
                             df_7_dias.sort_values(['Produto', 'DataCaptura'], ascending=[True, False])[['Data', 'Loja', 'Marca', 'Produto', 'Preço Real']],
-                            width='stretch',
+                            use_container_width=True,
                             hide_index=True
                         )
                 else:
                     st.markdown(f"""
                     <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                        ⚠️ <b>Atenção:</b> Nenhum produto encontrado na faixa '{filtro_preco}'.
+                         <b>Atenção:</b> Nenhum produto encontrado na faixa '{filtro_preco}'.
                     </div><br>
                     """, unsafe_allow_html=True)
             else:
                 st.markdown("""
                 <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                    ⚠️ <b>Atenção:</b> Nenhum hardware encontrado no banco de dados com essa combinação exata de filtros.
+                     <b>Atenção:</b> Nenhum hardware encontrado no banco de dados com essa combinação exata de filtros.
                 </div><br>
                 """, unsafe_allow_html=True)
 
@@ -1068,7 +1068,7 @@ elif menu == "Gestão de Dados":
                 
     if st.session_state['dados_tratados'] is not None:
         st.write("Dados Normalizados e Prontos")
-        st.dataframe(st.session_state['dados_tratados'], width='stretch')
+        st.dataframe(st.session_state['dados_tratados'], use_container_width=True)
         
         st.markdown(f"""
         <div style="background-color: #1A1A1A; padding: 15px; border-radius: 8px; border-left: 5px solid #FF4B4B; color: #FFF; margin-bottom: 15px;">
