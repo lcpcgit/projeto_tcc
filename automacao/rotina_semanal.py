@@ -198,6 +198,8 @@ def registrar_dolar_do_dia():
     print("💵 INICIANDO CAPTURA DO DÓLAR (API BANCÁRIA)")
     print("==================================================")
     try:
+        import streamlit as st # Adicionamos o import do Streamlit para ler o cofre
+        
         # 1. Bate na porta da API pública de moedas
         resposta = requests.get("https://economia.awesomeapi.com.br/last/USD-BRL")
         dados = resposta.json()
@@ -214,11 +216,13 @@ def registrar_dolar_do_dia():
             "ValorDolar": [valor_dolar]
         })
         
-        # 4. Injeta na nova tabela da AWS
-        endpoint_aws = "hardwares-tcc.cveowcsuansb.sa-east-1.rds.amazonaws.com"
-        senha_aws = urllib.parse.quote_plus("milanhaverso2")
-        usuario_aws = "lcpctcc"
-        url_conexao = f"mssql+pyodbc://{usuario_aws}:{senha_aws}@{endpoint_aws}/tcc_hardware?driver=ODBC+Driver+17+for+SQL+Server"
+        # 4. PUXANDO AS CREDENCIAIS DO COFRE SECRETO (st.secrets)
+        endpoint_aws = st.secrets["DB_HOST"]
+        usuario_aws = st.secrets["DB_USER"]
+        senha_aws = st.secrets["DB_PASSWORD"]
+        
+        senha_codificada = urllib.parse.quote_plus(senha_aws)
+        url_conexao = f"mssql+pyodbc://{usuario_aws}:{senha_codificada}@{endpoint_aws}/tcc_hardware?driver=ODBC+Driver+17+for+SQL+Server"
         
         engine = create_engine(url_conexao)
         
