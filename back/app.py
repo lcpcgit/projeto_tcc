@@ -1012,7 +1012,7 @@ elif menu == "Gestão de Dados":
              <b>Ficheiro validado e carregado com sucesso</b>
         </div>
         """, unsafe_allow_html=True)
-        st.dataframe(st.session_state['dados_brutos'], width='stretch')
+        st.dataframe(st.session_state['dados_brutos'], use_container_width=True)    
         
         st.markdown("---")
         st.write("Limpeza e Padronização de Dados")
