@@ -10,7 +10,7 @@ SQLAlchemy==2.0.28
 pyodbc==5.1.0
 
 # Interface Gráfica 
-streamlit==1.32.2
+streamlit==1.56.0
 
 # Ajustes
 scikit-learn==1.4.1.post1
