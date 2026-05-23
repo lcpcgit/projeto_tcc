@@ -89,7 +89,6 @@ st.markdown("""
     }
 
     .top-nav-line {
-        border-bottom: 1px solid rgba(0, 102, 204, 0.35);
         margin: 0.5rem 0 1.4rem 0;
     }
 
@@ -166,6 +165,22 @@ st.markdown("""
         color: #FFFFFF;
         padding: 1rem;
         margin: 1rem 0;
+    }
+
+    .neutral-panel {
+        background-color: #1A1A1A;
+        border-left: 5px solid var(--red-line);
+        border-radius: 8px;
+        color: #FFFFFF;
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+
+    .neutral-panel h4,
+    .neutral-panel p,
+    .neutral-panel b,
+    .neutral-panel i {
+        color: #FFFFFF !important;
     }
 
     .stAlert {
@@ -336,8 +351,29 @@ def painel_sucesso(texto):
     st.markdown(f'<div class="success-panel">{texto}</div>', unsafe_allow_html=True)
 
 
+def painel_neutro(texto):
+    st.markdown(f'<div class="neutral-panel">{texto}</div>', unsafe_allow_html=True)
+
+
 def placeholder_grafico(texto):
     st.markdown(f'<div class="chart-placeholder"><div>{texto}</div></div>', unsafe_allow_html=True)
+
+
+def chave_persistente(chave):
+    return f"persist_{chave}"
+
+
+def lembrar_widget(chave):
+    if chave in st.session_state:
+        st.session_state[chave_persistente(chave)] = st.session_state[chave]
+
+
+def restaurar_widget(chave, padrao=None):
+    chave_memoria = chave_persistente(chave)
+    if chave not in st.session_state and chave_memoria in st.session_state:
+        st.session_state[chave] = st.session_state[chave_memoria]
+    elif chave not in st.session_state and padrao is not None:
+        st.session_state[chave] = padrao
 
 
 def configurar_grafico_preco(fig, dados, coluna="Preco", altura=440):
@@ -572,6 +608,19 @@ def pagina_pesquisa_mercado():
             painel_erro("<b>Atenção:</b> nenhum dado histórico foi encontrado para montar os gráficos.")
         return
 
+    for chave, padrao in [
+        ("mercado_modo_visao", "Visão Geral"),
+        ("mercado_familia_geral", st.session_state.get("ultima_busca", "rtx 5070")),
+        ("mercado_pesquisa_especifica", ""),
+        ("mercado_produto_especifico", ""),
+        ("mercado_categoria", ""),
+        ("mercado_modelo", ""),
+        ("mercado_marcas", []),
+        ("mercado_especificacao", ""),
+        ("mercado_faixa_preco", "Todos os Preços"),
+    ]:
+        restaurar_widget(chave, padrao)
+
     with filtros_col:
         iniciar_painel_filtros()
         st.write("Nível de análise para Tendência de Preços")
@@ -581,6 +630,8 @@ def pagina_pesquisa_mercado():
             horizontal=True,
             label_visibility="collapsed",
             key="mercado_modo_visao",
+            on_change=lembrar_widget,
+            args=("mercado_modo_visao",),
         )
 
         texto_apoio("Use os filtros para gerar os gráficos ao lado.")
@@ -594,8 +645,9 @@ def pagina_pesquisa_mercado():
                 st.session_state["ultima_busca"] = "rtx 5070"
             familia_input = st.text_input(
                 "Família/marca do produto",
-                value=st.session_state["ultima_busca"],
                 key="mercado_familia_geral",
+                on_change=lembrar_widget,
+                args=("mercado_familia_geral",),
             )
             st.session_state["ultima_busca"] = familia_input
         else:
@@ -603,6 +655,8 @@ def pagina_pesquisa_mercado():
                 "Família/marca do produto",
                 key="mercado_pesquisa_especifica",
                 placeholder="Ex: RTX 4060 ASUS",
+                on_change=lembrar_widget,
+                args=("mercado_pesquisa_especifica",),
             )
             if pesquisa_produto:
                 termos_busca = pesquisa_produto.lower().split()
@@ -628,43 +682,64 @@ def pagina_pesquisa_mercado():
             esta_bloqueado = len(lista_filtrada) == 1 and (
                 lista_filtrada[0].startswith("Digite algo") or lista_filtrada[0].startswith("Nenhum produto")
             )
+            if st.session_state.get("mercado_produto_especifico") not in lista_filtrada:
+                st.session_state["mercado_produto_especifico"] = lista_filtrada[0]
             produto_escolhido = st.selectbox(
                 "Hardware específico",
                 lista_filtrada,
                 disabled=esta_bloqueado,
                 key="mercado_produto_especifico",
+                on_change=lembrar_widget,
+                args=("mercado_produto_especifico",),
             )
 
         st.markdown('<div class="filter-separator"></div>', unsafe_allow_html=True)
         titulo_secao_filtro("Filtros avançados")
         texto_apoio("Preencha pelo menos duas opções para visualizar o histórico de preços.")
 
+        categorias_opcoes = [""] + sorted(categorias_base)
+        if st.session_state.get("mercado_categoria") not in categorias_opcoes:
+            st.session_state["mercado_categoria"] = ""
         cat_escolhida = st.selectbox(
             "Categoria",
-            [""] + sorted(categorias_base),
+            categorias_opcoes,
             key="mercado_categoria",
+            on_change=lembrar_widget,
+            args=("mercado_categoria",),
         )
         opcoes_modelo, disabled_mod = opcoes_modelo_por_categoria(cat_escolhida)
+        if st.session_state.get("mercado_modelo") not in opcoes_modelo:
+            st.session_state["mercado_modelo"] = opcoes_modelo[0]
         subcat_escolhida = st.selectbox(
             "Modelo",
             opcoes_modelo,
             disabled=disabled_mod,
             key="mercado_modelo",
+            on_change=lembrar_widget,
+            args=("mercado_modelo",),
         )
 
         df_base_marcas = aplicar_filtro_categoria(df_historico.copy(), cat_escolhida)
         df_base_marcas = aplicar_filtro_modelo(df_base_marcas, cat_escolhida, subcat_escolhida)
         marcas_validas = sorted([m for m in df_base_marcas["Marca"].dropna().unique()])
+        if "mercado_marcas" in st.session_state:
+            st.session_state["mercado_marcas"] = [
+                marca for marca in st.session_state["mercado_marcas"] if marca in marcas_validas
+            ]
 
         marcas_escolhidas = st.multiselect(
             "Marcas",
             marcas_validas,
             key="mercado_marcas",
+            on_change=lembrar_widget,
+            args=("mercado_marcas",),
         )
         especificacao_extra = st.text_input(
             "Especificação",
             key="mercado_especificacao",
             placeholder="Ex: Branco, OC",
+            on_change=lembrar_widget,
+            args=("mercado_especificacao",),
         )
         filtro_preco = st.selectbox(
             "Faixa de Preço",
@@ -679,7 +754,22 @@ def pagina_pesquisa_mercado():
                 "Acima de R$ 8.000",
             ],
             key="mercado_faixa_preco",
+            on_change=lembrar_widget,
+            args=("mercado_faixa_preco",),
         )
+
+    for chave in [
+        "mercado_modo_visao",
+        "mercado_familia_geral",
+        "mercado_pesquisa_especifica",
+        "mercado_produto_especifico",
+        "mercado_categoria",
+        "mercado_modelo",
+        "mercado_marcas",
+        "mercado_especificacao",
+        "mercado_faixa_preco",
+    ]:
+        lembrar_widget(chave)
 
     df_drill = df_base_marcas.copy()
     if len(marcas_escolhidas) > 0:
@@ -1087,8 +1177,8 @@ def pagina_sistema_predicao():
                 with col_c:
                     st.metric("Cenário Otimista", f"{int(resultado['previsao'] * 1.15)} unid.", delta="+15% conversão", delta_color="normal")
 
-                painel_info(
-                    f"<h4 style='margin-top:0;color:#94B3FD;'>Projeção Financeira</h4>"
+                painel_neutro(
+                    f"<h4 style='margin-top:0;color:#FFFFFF;'>Projeção Financeira</h4>"
                     f"<p><b>Faturamento Bruto Esperado:</b> {formatar_moeda(resultado['faturamento'])} "
                     f"<i>(baseado no preço sugerido)</i></p>"
                     f"<p style='margin-bottom:0;'><b>Média de Vendas Histórica ({resultado['mes_nome']}):</b> "
@@ -1179,6 +1269,24 @@ def pagina_gestao_dados():
     with filtros_col:
         iniciar_painel_filtros("Dados e ações")
         texto_apoio("Use este painel para carregar o CSV, tratar os dados e liberar o motor preditivo.")
+
+        titulo_secao_filtro("Padrão exigido para o CSV")
+        st.markdown(
+            """
+            <div class="helper-copy">
+                O arquivo deve conter exatamente estas colunas:<br><br>
+                <b>DataCaptura</b><br>
+                <b>Marca</b><br>
+                <b>Produto</b><br>
+                <b>Descricao</b><br>
+                <b>Preco</b><br>
+                <b>Quantidade</b>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown('<div class="filter-separator"></div>', unsafe_allow_html=True)
+
         arquivo_upload = st.file_uploader("CSV de vendas internas", type=["csv"], key="dados_upload")
 
         executar_tratamento = st.button(
@@ -1269,13 +1377,6 @@ def pagina_gestao_dados():
     with conteudo_col:
         st.title("Ingestão, Limpeza e Tratamento")
         st.write("Carregamento e padronização do histórico de vendas.")
-
-        st.markdown("### Padrão Exigido para o CSV")
-        painel_info(
-            "Para o modelo de Inteligência Artificial cruzar seu histórico de vendas com os preços da concorrência, "
-            "o CSV deve ter exatamente estas colunas: <br>"
-            "<b>DataCaptura</b>, <b>Marca</b>, <b>Produto</b>, <b>Descricao</b>, <b>Preco</b> e <b>Quantidade</b>."
-        )
 
         if erro_upload:
             painel_erro(erro_upload)
