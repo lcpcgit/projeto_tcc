@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import pandas as pd
 import plotly.express as px
 from sqlalchemy import create_engine
@@ -10,64 +10,200 @@ import time
 
 st.set_page_config(page_title="Hardware Preditivo", layout="wide")
 
-# ================= CONFIGURAÇÃO VISUAL DE DESIGN (QUASE PRETO + VERMELHO + AZUL) =================
+# ================= CONFIGURAÇÃO VISUAL DE DESIGN =================
 st.markdown("""
 <style>
-    /* 1. Força o fundo do aplicativo inteiro para Quase Preto (#121212) */
+    :root {
+        --bg: #121212;
+        --panel: #0D2137;
+        --panel-soft: #111A25;
+        --surface: #1A1A1A;
+        --surface-2: #242424;
+        --blue: #0D4E86;
+        --blue-line: #0066CC;
+        --red: #9D1F1F;
+        --red-line: #FF4B4B;
+        --text: #FFFFFF;
+        --muted: #AAB4C0;
+    }
+
     .stApp {
-        background-color: #121212 !important;
-        color: #FFFFFF !important;
+        background-color: var(--bg) !important;
+        color: var(--text) !important;
     }
 
-    /* Pinta a barra superior (Header) da mesma cor do fundo para ficar perfeitamente integrada */
     header[data-testid="stHeader"] {
-        background-color: #121212 !important;
-    }
-    
-    /* ATUALIZADO: Pinta o menu lateral (Sidebar) com o mesmo Azul Tecnológico das caixas */
-    section[data-testid="stSidebar"] {
-        background-color: #0D2137 !important;
+        background-color: var(--bg) !important;
     }
 
-    /* 2. Customiza os botões principais para Vermelho Escuro / Gamer */
-    div.stButton > button {
-        background-color: #8B0000 !important;
+    section[data-testid="stSidebar"],
+    [data-testid="stSidebarCollapsedControl"],
+    [data-testid="collapsedControl"] {
+        display: none !important;
+    }
+
+    [data-testid="stAppViewContainer"] .main .block-container {
+        max-width: 1480px;
+        padding-top: 1.6rem;
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+
+    hr {
+        border-color: rgba(255, 255, 255, 0.12) !important;
+    }
+
+    div[data-testid="stButton"] > button {
+        background-color: var(--surface-2) !important;
+        color: var(--text) !important;
+        border: 1px solid #303030 !important;
+        border-radius: 6px !important;
+        min-height: 42px;
+        transition: all 0.2s ease !important;
+        white-space: nowrap;
+    }
+
+    div[data-testid="stButton"] > button:hover {
+        border-color: var(--red-line) !important;
         color: #FFFFFF !important;
-        border: 1px solid #FF0000 !important;
-        border-radius: 8px !important;
-        transition: all 0.3s ease !important;
-    }
-    div.stButton > button:hover {
-        background-color: #FF0000 !important;
-        border: 1px solid #FF4B4B !important;
-        box-shadow: 0px 0px 10px #FF0000 !important;
+        box-shadow: 0 0 0 1px rgba(255, 75, 75, 0.25) !important;
     }
 
-    /* 3. Transforma todas as caixas de informação (st.info nativas, se houver) no Azul Tecnológico */
+    div[data-testid="stButton"] > button[kind="primary"] {
+        background-color: var(--red) !important;
+        border-color: var(--red-line) !important;
+    }
+
+    .st-key-nav_pesquisa button,
+    .st-key-nav_predicao button,
+    .st-key-nav_dados button {
+        min-width: 158px;
+        font-weight: 600 !important;
+    }
+
+    .st-key-nav_pesquisa button[kind="primary"],
+    .st-key-nav_predicao button[kind="primary"],
+    .st-key-nav_dados button[kind="primary"] {
+        background-color: var(--blue) !important;
+        border-color: var(--blue) !important;
+    }
+
+    .top-nav-line {
+        border-bottom: 1px solid rgba(0, 102, 204, 0.35);
+        margin: 0.5rem 0 1.4rem 0;
+    }
+
+    div[data-testid="column"]:has(.filter-panel-marker) {
+        background-color: var(--panel);
+        border-left: 1px solid var(--blue-line);
+        padding: 1rem 1.1rem 1.5rem 1.1rem;
+        min-height: calc(100vh - 112px);
+        margin-top: -0.35rem;
+    }
+
+    .filter-panel-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+    }
+
+    .filter-separator {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.10);
+        margin: 0.75rem 0 1rem 0;
+    }
+
+    .helper-copy {
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.35;
+        margin-bottom: 1rem;
+    }
+
+    .section-eyebrow {
+        color: #D7E7FF;
+        font-size: 0.92rem;
+        font-weight: 700;
+        margin: 1rem 0 0.65rem 0;
+    }
+
+    .chart-placeholder {
+        min-height: 360px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        background: rgba(51, 0, 0, 0.22);
+        border: 1px solid rgba(255, 75, 75, 0.16);
+        border-radius: 6px;
+        color: #FF5D5D;
+        padding: 2rem;
+        margin-top: 1rem;
+    }
+
+    .data-panel {
+        background: rgba(13, 33, 55, 0.65);
+        border-left: 5px solid var(--blue-line);
+        border-radius: 8px;
+        color: #94B3FD;
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+
+    .danger-panel {
+        background: #330000;
+        border-left: 5px solid #FF0000;
+        border-radius: 8px;
+        color: #FFFFFF;
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+
+    .success-panel {
+        background-color: #1A1A1A;
+        border-left: 5px solid var(--red-line);
+        border-radius: 8px;
+        color: #FFFFFF;
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+
     .stAlert {
-        background-color: #0D2137 !important;
+        background-color: var(--panel) !important;
         color: #94B3FD !important;
-        border-left: 5px solid #0066CC !important;
+        border-left: 5px solid var(--blue-line) !important;
         border-radius: 8px !important;
     }
 
-    /* 4. Alinha as Abas (Tabs) para combinarem com o tema vermelho */
     button[data-baseweb="tab"] {
         color: #CCCCCC !important;
     }
+
     button[aria-selected="true"] {
-        color: #FF4B4B !important;
-        border-bottom-color: #FF4B4B !important;
+        color: var(--red-line) !important;
+        border-bottom-color: var(--red-line) !important;
     }
 
-    /* Ajusta inputs e selectboxes para não sumirem no fundo escuro */
-    div[data-baseweb="select"] > div {
-        background-color: #1A1A1A !important;
-        color: #FFFFFF !important;
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="base-input"] > input,
+    input,
+    textarea {
+        background-color: var(--surface) !important;
+        color: var(--text) !important;
     }
-    input {
-        background-color: #1A1A1A !important;
-        color: #FFFFFF !important;
+
+    @media (max-width: 900px) {
+        [data-testid="stAppViewContainer"] .main .block-container {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        div[data-testid="column"]:has(.filter-panel-marker) {
+            min-height: auto;
+            border-left: none;
+            border-top: 1px solid var(--blue-line);
+            margin-top: 1rem;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -169,915 +305,1008 @@ def carregar_dados_aws():
         """, unsafe_allow_html=True)
         return pd.DataFrame()
 
-# ================= MENU LATERAL =================
-st.sidebar.title("Menu")
-st.sidebar.markdown("---")
-menu = st.sidebar.radio(
-    "Navegação do Sistema:",
-    ["Pesquisa de Mercado", 
-     "Sistema de predição", 
-     "Gestão de Dados"]
-)
+# ================= FUNÇÕES DE INTERFACE =================
+def formatar_moeda(valor):
+    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# ================= DASHBOARD =================
-if menu == "Pesquisa de Mercado":
-    st.title("Scanner")
-    st.write("Acompanhe o histórico de preços praticados pelas maiores lojas de hardware do Brasil (Kabum e Terabyte).")
-    
+
+def iniciar_painel_filtros(titulo="Filtros"):
+    st.markdown('<span class="filter-panel-marker"></span>', unsafe_allow_html=True)
+    st.markdown(f'<div class="filter-panel-title">{titulo}</div>', unsafe_allow_html=True)
+    st.markdown('<div class="filter-separator"></div>', unsafe_allow_html=True)
+
+
+def texto_apoio(texto):
+    st.markdown(f'<div class="helper-copy">{texto}</div>', unsafe_allow_html=True)
+
+
+def titulo_secao_filtro(texto):
+    st.markdown(f'<div class="section-eyebrow">{texto}</div>', unsafe_allow_html=True)
+
+
+def painel_info(texto):
+    st.markdown(f'<div class="data-panel">{texto}</div>', unsafe_allow_html=True)
+
+
+def painel_erro(texto):
+    st.markdown(f'<div class="danger-panel">{texto}</div>', unsafe_allow_html=True)
+
+
+def painel_sucesso(texto):
+    st.markdown(f'<div class="success-panel">{texto}</div>', unsafe_allow_html=True)
+
+
+def placeholder_grafico(texto):
+    st.markdown(f'<div class="chart-placeholder"><div>{texto}</div></div>', unsafe_allow_html=True)
+
+
+def configurar_grafico_preco(fig, dados, coluna="Preco", altura=440):
+    valores = pd.to_numeric(dados[coluna], errors="coerce").dropna()
+    if not valores.empty:
+        menor = valores.min()
+        maior = valores.max()
+        if menor == maior:
+            folga = max(abs(menor) * 0.1, 1)
+            fig.update_yaxes(range=[menor - folga, maior + folga])
+        else:
+            fig.update_yaxes(range=[menor * 0.9, maior * 1.1])
+
+    fig.update_layout(
+        height=altura,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#FFFFFF"),
+        margin=dict(l=20, r=20, t=70, b=40),
+        xaxis=dict(showgrid=True, gridcolor="#333333"),
+        yaxis=dict(showgrid=True, gridcolor="#333333", title="Preço (R$)")
+    )
+    fig.update_xaxes(tickformat="%d/%m/%Y", showgrid=True, gridcolor="#333333")
+    return fig
+
+
+def renderizar_menu_superior(pagina_atual, paginas):
+    col_nav_1, col_nav_2, col_nav_3, col_spacer = st.columns([1, 1, 1, 3.5], gap="small")
+    itens = [
+        (col_nav_1, paginas[0], "Pesquisa de Mercado", "nav_pesquisa"),
+        (col_nav_2, paginas[1], "Sistema de predição", "nav_predicao"),
+        (col_nav_3, paginas[2], "Gestão de Dados", "nav_dados"),
+    ]
+
+    for coluna, pagina, rotulo, chave in itens:
+        with coluna:
+            ativo = pagina_atual == pagina
+            if st.button(
+                rotulo,
+                key=chave,
+                type="primary" if ativo else "secondary",
+                width="stretch",
+            ) and not ativo:
+                st.switch_page(pagina)
+
+    with col_spacer:
+        st.empty()
+
+    st.markdown('<div class="top-nav-line"></div>', unsafe_allow_html=True)
+
+
+def limpar_texto_busca(texto):
+    if not isinstance(texto, str):
+        return ""
+    texto = "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn")
+    texto = texto.lower().strip()
+    texto = re.sub(r"[^\w\s]", " ", texto)
+    texto = re.sub(r"\s+", " ", texto)
+    return texto
+
+
+def aplicar_filtro_exclusivo(nome_do_produto, palavras_da_pesquisa):
+    if "mouse" in palavras_da_pesquisa and "gamer" not in palavras_da_pesquisa:
+        return "mouse" in nome_do_produto and "gamer" not in nome_do_produto
+    return all(palavra in nome_do_produto for palavra in palavras_da_pesquisa)
+
+
+def opcoes_modelo_por_categoria(cat_escolhida):
+    todos_os_modelos = sorted(list(set(sum(mapa_subcategorias.values(), []))))
+    if cat_escolhida:
+        modelos_da_cat = mapa_subcategorias.get(cat_escolhida, [])
+        if len(modelos_da_cat) > 0:
+            return [""] + sorted(modelos_da_cat), False
+        return ["N/A"], True
+    return [""] + todos_os_modelos, False
+
+
+def aplicar_filtro_categoria(df_drill, cat_escolhida):
+    if not cat_escolhida:
+        return df_drill
+
+    termo_cat_limpo = "".join(
+        c for c in unicodedata.normalize("NFD", cat_escolhida) if unicodedata.category(c) != "Mn"
+    ).lower()
+    produto_lower = df_drill["Produto"].str.lower()
+
+    if termo_cat_limpo == "placa de video":
+        df_drill = df_drill[produto_lower.str.contains("video|vídeo|vga|geforce|radeon|rtx|gtx|rx|arc|gpu", na=False)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains("placa mae|placa-mae|cooler|water|espelho|suporte|cabo|fonte|mouse|teclado|monitor|headset|cadeira|mesa|ssd|hd ", na=False)]
+
+    elif termo_cat_limpo == "processador":
+        df_drill = df_drill[produto_lower.str.contains("processador|ryzen|core i|athlon|celeron|pentium", na=False)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains("placa|cooler|water|fan|gabinete|memoria|notebook|pc|computador|desktop|mouse|teclado|monitor|headset|fonte|ssd|hd |gpu", na=False)]
+
+    elif termo_cat_limpo == "placa mae":
+        df_drill = df_drill[produto_lower.str.contains("placa|motherboard|mainboard", na=False)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains("video|vídeo|cooler|mouse|teclado|monitor|headset|fonte|processador|gpu", na=False)]
+
+    elif termo_cat_limpo == "memoria ram":
+        df_drill = df_drill[produto_lower.str.contains("memoria|ram|ddr", na=False)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains("placa|video|vídeo|cooler|mouse|teclado|monitor|headset|fonte|processador|gpu|gddr", na=False)]
+
+    elif "fonte" in termo_cat_limpo:
+        df_drill = df_drill[produto_lower.str.contains("fonte|atx|power", na=False)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains("cabo|adaptador|placa|video|cooler|mouse|teclado|monitor|headset|processador|memoria", na=False)]
+
+    elif termo_cat_limpo == "monitor":
+        df_drill = df_drill[produto_lower.str.contains("monitor|tela|display", na=False)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains("cabo|hdmi|adaptador|suporte|braco|braço|pistao|pistão|tv|televisao|televisão|placa", na=False)]
+
+    elif termo_cat_limpo == "ssd":
+        df_drill = df_drill[produto_lower.str.contains(r"ssd|nvme|m\.2|sata", na=False, regex=True)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains(r"cabo|adaptador|dissipador|heatsink|case|gaveta|placa|cooler|\bhd\b|disco rigido|hard drive", na=False, regex=True)]
+
+    elif termo_cat_limpo == "hd":
+        df_drill = df_drill[produto_lower.str.contains("hd |disco rigido|hard drive|hd externo", na=False)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains("ssd|cabo|adaptador|gaveta|case|monitor|tv|placa", na=False)]
+
+    elif termo_cat_limpo == "water cooler":
+        df_drill = df_drill[produto_lower.str.contains("water cooler|watercooler|liquid cooler", na=False)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains("gabinete|placa|processador|fan|ventoinha|ar", na=False)]
+
+    elif termo_cat_limpo == "air cooler":
+        df_drill = df_drill[produto_lower.str.contains("air cooler|aircooler|cooler para processador", na=False)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains("water|liquido|gabinete|fan |ventoinha", na=False)]
+
+    elif termo_cat_limpo == "fan":
+        df_drill = df_drill[produto_lower.str.contains("fan|ventoinha|cooler para gabinete", na=False)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains("water|air|processador|gabinete|placa", na=False)]
+
+    elif termo_cat_limpo == "gabinete":
+        df_drill = df_drill[produto_lower.str.contains("gabinete|case", na=False)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains("cooler|fan|ventoinha|placa|fonte|memoria", na=False)]
+
+    elif termo_cat_limpo == "headset gamer":
+        df_drill = df_drill[produto_lower.str.contains("headset|fone", na=False) & produto_lower.str.contains("gamer", na=False)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains("suporte|mouse|teclado|cadeira|mesa", na=False)]
+
+    elif termo_cat_limpo == "mouse":
+        df_drill = df_drill[produto_lower.str.contains("mouse", na=False)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains("gamer|mousepad|pad|teclado|headset|monitor|placa|cooler|fonte|memoria|processador", na=False)]
+
+    elif termo_cat_limpo == "mouse gamer":
+        df_drill = df_drill[produto_lower.str.contains("mouse", na=False) & produto_lower.str.contains("gamer", na=False)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains("mousepad|pad|teclado|headset|monitor|placa|cooler|fonte|memoria|processador", na=False)]
+
+    elif termo_cat_limpo == "teclado mecanico":
+        df_drill = df_drill[produto_lower.str.contains("teclado", na=False) & produto_lower.str.contains("mecanico|mecânico", na=False)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains("mouse|kit|combo", na=False)]
+
+    elif termo_cat_limpo == "teclado magnetico":
+        df_drill = df_drill[produto_lower.str.contains("teclado", na=False) & produto_lower.str.contains("magnetico|magnético", na=False)]
+        df_drill = df_drill[~df_drill["Produto"].str.lower().str.contains("mouse|kit|combo", na=False)]
+
+    else:
+        for palavra in termo_cat_limpo.split():
+            df_drill = df_drill[df_drill["Produto"].str.lower().str.contains(palavra, na=False)]
+
+    return df_drill
+
+
+def aplicar_filtro_modelo(df_drill, cat_escolhida, subcat_escolhida):
+    if not subcat_escolhida or subcat_escolhida == "N/A":
+        return df_drill
+
+    mask = pd.Series(True, index=df_drill.index)
+    partes_busca = subcat_escolhida.lower().split()
+
+    for parte in partes_busca:
+        padrao_parte = r"\b" + re.escape(parte) + r"\b"
+        if parte.isdigit():
+            padrao_parte = re.escape(parte)
+        elif parte.endswith("tb") or parte.endswith("gb"):
+            padrao_parte = r"(?<![a-z0-9])" + re.escape(parte) + r"(?![a-z0-9])"
+        mask = mask & df_drill["Produto"].str.lower().str.contains(padrao_parte, regex=True, na=False)
+
+    modelos_derivados = []
+    todos_os_modelos = sorted(list(set(sum(mapa_subcategorias.values(), []))))
+    lista_para_verificar = mapa_subcategorias.get(cat_escolhida, todos_os_modelos) if cat_escolhida else todos_os_modelos
+
+    for modelo in lista_para_verificar:
+        if modelo != subcat_escolhida and subcat_escolhida.lower() in modelo.lower():
+            modelos_derivados.append(modelo)
+
+    for derivado in modelos_derivados:
+        mask_derivado = pd.Series(True, index=df_drill.index)
+        for parte in derivado.lower().split():
+            padrao_parte_excl = r"\b" + re.escape(parte) + r"\b"
+            if parte.isdigit():
+                padrao_parte_excl = re.escape(parte)
+            elif parte.endswith("tb") or parte.endswith("gb"):
+                padrao_parte_excl = r"(?<![a-z0-9])" + re.escape(parte) + r"(?![a-z0-9])"
+            mask_derivado = mask_derivado & df_drill["Produto"].str.lower().str.contains(padrao_parte_excl, regex=True, na=False)
+
+        mask = mask & ~mask_derivado
+
+    return df_drill[mask]
+
+
+def aplicar_filtro_preco(df_drill, filtro_preco):
+    if filtro_preco == "Abaixo de R$ 100":
+        return df_drill[df_drill["Preco"] < 100]
+    if filtro_preco == "R$ 100 a R$ 500":
+        return df_drill[(df_drill["Preco"] >= 100) & (df_drill["Preco"] <= 500)]
+    if filtro_preco == "R$ 500 a R$ 1.500":
+        return df_drill[(df_drill["Preco"] > 500) & (df_drill["Preco"] <= 1500)]
+    if filtro_preco == "R$ 1.500 a R$ 3.000":
+        return df_drill[(df_drill["Preco"] > 1500) & (df_drill["Preco"] <= 3000)]
+    if filtro_preco == "R$ 3.000 a R$ 5.000":
+        return df_drill[(df_drill["Preco"] > 3000) & (df_drill["Preco"] <= 5000)]
+    if filtro_preco == "R$ 5.000 a R$ 8.000":
+        return df_drill[(df_drill["Preco"] > 5000) & (df_drill["Preco"] <= 8000)]
+    if filtro_preco == "Acima de R$ 8.000":
+        return df_drill[df_drill["Preco"] > 8000]
+    return df_drill
+
+
+# ================= PÁGINAS =================
+def pagina_pesquisa_mercado():
     df_historico = carregar_dados_aws()
-    
-    if not df_historico.empty:
-        st.write("Tendência de Preços")
-        
+    conteudo_col, filtros_col = st.columns([4.4, 1.25], gap="large")
+
+    with conteudo_col:
+        st.title("Scanner")
+        st.write("Acompanhe o histórico de preços praticados pelas maiores lojas de hardware do Brasil (Kabum e Terabyte).")
+
+    if df_historico.empty:
+        with filtros_col:
+            iniciar_painel_filtros()
+            texto_apoio("Não foi possível carregar os dados da AWS para alimentar os filtros.")
+        with conteudo_col:
+            painel_erro("<b>Atenção:</b> nenhum dado histórico foi encontrado para montar os gráficos.")
+        return
+
+    with filtros_col:
+        iniciar_painel_filtros()
+        st.write("Nível de análise para Tendência de Preços")
         modo_visao = st.radio(
-            "Selecione o Nível de Análise:", 
+            "Nível de análise para Tendência de Preços",
             ["Visão Geral", "Visão Específica"],
-            horizontal=True
+            horizontal=True,
+            label_visibility="collapsed",
+            key="mercado_modo_visao",
         )
-        
-        st.markdown("<br>", unsafe_allow_html=True) 
-        
+
+        texto_apoio("Use os filtros para gerar os gráficos ao lado.")
+
+        familia_input = ""
+        produto_escolhido = ""
+        esta_bloqueado = True
+
         if modo_visao == "Visão Geral":
-            st.markdown("""
-            <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-bottom: 15px;">
-                 Digite a família da peça (Ex: RTX 5070 RX 7600) e o sistema devolverá a média de preços de todos os modelos daquela linha.
-            </div>
-            """, unsafe_allow_html=True)
-            
-            if 'ultima_busca' not in st.session_state:
-                st.session_state['ultima_busca'] = "rtx 5070" 
-                
-            familia_input = st.text_input("Digite a Família do Hardware:", value=st.session_state['ultima_busca'])
-            
-            st.session_state['ultima_busca'] = familia_input
-            
-            if familia_input:
-                def limpar_texto_busca(texto):
-                    if not isinstance(texto, str): return ""
-                    texto = ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
-                    texto = texto.lower().strip()
-                    texto = re.sub(r'[^\w\s]', ' ', texto)
-                    texto = re.sub(r'\s+', ' ', texto)
-                    return texto
-
-                busca_limpa = limpar_texto_busca(familia_input)
-                palavras_busca = busca_limpa.split()
-                df_historico['ProdutoLimpo'] = df_historico['Produto'].apply(limpar_texto_busca)
-
-                def aplicar_filtro_exclusivo(nome_do_produto, palavras_da_pesquisa):
-                    if 'mouse' in palavras_da_pesquisa and 'gamer' not in palavras_da_pesquisa:
-                        return 'mouse' in nome_do_produto and 'gamer' not in nome_do_produto
-                    return all(palavra in nome_do_produto for palavra in palavras_da_pesquisa)
-
-                mascara_filtro = df_historico['ProdutoLimpo'].apply(lambda nome: aplicar_filtro_exclusivo(nome, palavras_busca))
-                df_filtrado = df_historico[mascara_filtro].copy()
-                df_historico = df_historico.drop(columns=['ProdutoLimpo'])
-
-                if not df_filtrado.empty:
-                    df_agrupado = df_filtrado.groupby(['DataCaptura', 'Loja'])['Preco'].mean().reset_index()
-                    df_agrupado['Preco_Label'] = df_agrupado['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                    
-                    fig = px.line(df_agrupado, x="DataCaptura", y="Preco", color="Loja", markers=True, text="Preco_Label", title=f"Média de Mercado da Família: {familia_input.upper()}", labels={"DataCaptura": "Data", "Preco": "Preço (R$)", "Loja": "Loja"})
-                    
-                    fig.update_traces(
-                        textposition="top center",
-                        hovertemplate="<b>Loja:</b> %{data.name}<br><b>Data da Extração:</b> %{x|%d/%m/%Y}<br><b>Média:</b> R$ %{y:,.2f}<extra></extra>"
-                    )
-                    
-                    fig.update_layout(
-                        yaxis=dict(range=[df_agrupado['Preco'].min() * 0.9, df_agrupado['Preco'].max() * 1.1]),
-                        paper_bgcolor='rgba(0,0,0,0)', 
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color='#FFFFFF'),
-                        xaxis=dict(showgrid=True, gridcolor='#333333'),
-                        yaxis_title="Preço (R$)"
-                    ) 
-                    fig.update_xaxes(tickformat="%d/%m/%Y", showgrid=True, gridcolor='#333333')
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.markdown(f"""
-                    <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                         <b>Atenção:</b> Sem dados históricos para a família '{familia_input}'.
-                    </div><br>
-                    """, unsafe_allow_html=True)
-                    
-        elif modo_visao == "Visão Específica":
-            st.markdown("""
-            <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-bottom: 15px;">
-                 Selecione o modelo exato para analisar o preço dele.
-            </div>
-            """, unsafe_allow_html=True)
-            
-            pesquisa_produto = st.text_input("Filtre pela família/marca do produto:", key="input_pesquisa_especifica")
+            if "ultima_busca" not in st.session_state:
+                st.session_state["ultima_busca"] = "rtx 5070"
+            familia_input = st.text_input(
+                "Família/marca do produto",
+                value=st.session_state["ultima_busca"],
+                key="mercado_familia_geral",
+            )
+            st.session_state["ultima_busca"] = familia_input
+        else:
+            pesquisa_produto = st.text_input(
+                "Família/marca do produto",
+                key="mercado_pesquisa_especifica",
+                placeholder="Ex: RTX 4060 ASUS",
+            )
             if pesquisa_produto:
                 termos_busca = pesquisa_produto.lower().split()
                 mask = pd.Series(True, index=df_historico.index)
-                
+
                 for termo in termos_busca:
-                    mask = mask & df_historico['Produto'].str.lower().str.contains(termo, na=False, regex=False)
-                
+                    mask = mask & df_historico["Produto"].str.lower().str.contains(termo, na=False, regex=False)
+
                 if "ti" not in termos_busca:
-                    mask = mask & ~df_historico['Produto'].str.lower().str.contains(r'(?<![a-z])ti(?![a-z])', regex=True, na=False)
-                
+                    mask = mask & ~df_historico["Produto"].str.lower().str.contains(r"(?<![a-z])ti(?![a-z])", regex=True, na=False)
                 if "super" not in termos_busca:
-                    mask = mask & ~df_historico['Produto'].str.lower().str.contains(r'(?<![a-z])super(?![a-z])', regex=True, na=False)
-                    
+                    mask = mask & ~df_historico["Produto"].str.lower().str.contains(r"(?<![a-z])super(?![a-z])", regex=True, na=False)
                 if "xt" not in termos_busca:
-                    mask = mask & ~df_historico['Produto'].str.lower().str.contains(r'(?<![a-z])xt(?![a-z])', regex=True, na=False)
-                
-                lista_filtrada = df_historico[mask]['Produto'].astype(str).str.strip().dropna().unique()
+                    mask = mask & ~df_historico["Produto"].str.lower().str.contains(r"(?<![a-z])xt(?![a-z])", regex=True, na=False)
+
+                lista_filtrada = df_historico[mask]["Produto"].astype(str).str.strip().dropna().unique()
                 lista_filtrada = sorted(lista_filtrada)
-                
                 if len(lista_filtrada) == 0:
                     lista_filtrada = ["Nenhum produto encontrado com esses termos."]
             else:
                 lista_filtrada = ["Digite algo na pesquisa acima para encontrar o produto"]
-                
-            esta_bloqueado = len(lista_filtrada) == 1 and (lista_filtrada[0].startswith("Digite algo") or lista_filtrada[0].startswith("Nenhum produto"))
-            
+
+            esta_bloqueado = len(lista_filtrada) == 1 and (
+                lista_filtrada[0].startswith("Digite algo") or lista_filtrada[0].startswith("Nenhum produto")
+            )
             produto_escolhido = st.selectbox(
-                "Escolha o Hardware específico:", 
+                "Hardware específico",
                 lista_filtrada,
                 disabled=esta_bloqueado,
-                key="select_produto_especifico"
+                key="mercado_produto_especifico",
             )
-            
-            if produto_escolhido and not esta_bloqueado:
-                df_filtrado = df_historico[df_historico['Produto'].astype(str).str.strip() == produto_escolhido].copy()
-                
+
+        st.markdown('<div class="filter-separator"></div>', unsafe_allow_html=True)
+        titulo_secao_filtro("Filtros avançados")
+        texto_apoio("Preencha pelo menos duas opções para visualizar o histórico de preços.")
+
+        cat_escolhida = st.selectbox(
+            "Categoria",
+            [""] + sorted(categorias_base),
+            key="mercado_categoria",
+        )
+        opcoes_modelo, disabled_mod = opcoes_modelo_por_categoria(cat_escolhida)
+        subcat_escolhida = st.selectbox(
+            "Modelo",
+            opcoes_modelo,
+            disabled=disabled_mod,
+            key="mercado_modelo",
+        )
+
+        df_base_marcas = aplicar_filtro_categoria(df_historico.copy(), cat_escolhida)
+        df_base_marcas = aplicar_filtro_modelo(df_base_marcas, cat_escolhida, subcat_escolhida)
+        marcas_validas = sorted([m for m in df_base_marcas["Marca"].dropna().unique()])
+
+        marcas_escolhidas = st.multiselect(
+            "Marcas",
+            marcas_validas,
+            key="mercado_marcas",
+        )
+        especificacao_extra = st.text_input(
+            "Especificação",
+            key="mercado_especificacao",
+            placeholder="Ex: Branco, OC",
+        )
+        filtro_preco = st.selectbox(
+            "Faixa de Preço",
+            [
+                "Todos os Preços",
+                "Abaixo de R$ 100",
+                "R$ 100 a R$ 500",
+                "R$ 500 a R$ 1.500",
+                "R$ 1.500 a R$ 3.000",
+                "R$ 3.000 a R$ 5.000",
+                "R$ 5.000 a R$ 8.000",
+                "Acima de R$ 8.000",
+            ],
+            key="mercado_faixa_preco",
+        )
+
+    df_drill = df_base_marcas.copy()
+    if len(marcas_escolhidas) > 0:
+        df_drill = df_drill[df_drill["Marca"].isin(marcas_escolhidas)]
+
+    if especificacao_extra:
+        espec_limpa = "".join(
+            c for c in unicodedata.normalize("NFD", especificacao_extra) if unicodedata.category(c) != "Mn"
+        ).lower()
+        df_drill = df_drill[df_drill["Produto"].str.lower().str.contains(espec_limpa, na=False)]
+
+    df_drill = aplicar_filtro_preco(df_drill, filtro_preco)
+
+    filtros_ativos = 0
+    if cat_escolhida:
+        filtros_ativos += 1
+    if subcat_escolhida and subcat_escolhida != "N/A":
+        filtros_ativos += 1
+    if len(marcas_escolhidas) > 0:
+        filtros_ativos += 1
+    if especificacao_extra:
+        filtros_ativos += 1
+
+    with conteudo_col:
+        st.markdown("### Tendência de Preços")
+
+        if modo_visao == "Visão Geral":
+            if familia_input.strip():
+                busca_limpa = limpar_texto_busca(familia_input)
+                palavras_busca = busca_limpa.split()
+                df_busca = df_historico.copy()
+                df_busca["ProdutoLimpo"] = df_busca["Produto"].apply(limpar_texto_busca)
+                mascara_filtro = df_busca["ProdutoLimpo"].apply(
+                    lambda nome: aplicar_filtro_exclusivo(nome, palavras_busca)
+                )
+                df_filtrado = df_busca[mascara_filtro].copy()
+
                 if not df_filtrado.empty:
-                    df_filtrado['Preco_Label'] = df_filtrado['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                    
+                    df_agrupado = df_filtrado.groupby(["DataCaptura", "Loja"])["Preco"].mean().reset_index()
+                    df_agrupado["Preco_Label"] = df_agrupado["Preco"].apply(formatar_moeda)
+
                     fig = px.line(
-                        df_filtrado, 
-                        x="DataCaptura", 
-                        y="Preco", 
-                        color="Loja", 
-                        markers=True, 
+                        df_agrupado,
+                        x="DataCaptura",
+                        y="Preco",
+                        color="Loja",
+                        markers=True,
                         text="Preco_Label",
-                        title=f"Histórico Específico: {produto_escolhido}",
-                        labels={"DataCaptura": "Data da Extração", "Preco": "Preço à Vista (R$)", "Loja": "Loja Monitorada"}
+                        title=f"Média de Mercado da Família: {familia_input.upper()}",
+                        labels={"DataCaptura": "Data", "Preco": "Preço (R$)", "Loja": "Loja"},
                     )
-                    
                     fig.update_traces(
                         textposition="top center",
-                        hovertemplate="<b>Loja:</b> %{data.name}<br><b>Data da Extração:</b> %{x|%d/%m/%Y}<br><b>Preço:</b> R$ %{y:,.2f}<extra></extra>"
+                        hovertemplate="<b>Loja:</b> %{data.name}<br><b>Data da Extração:</b> %{x|%d/%m/%Y}<br><b>Média:</b> R$ %{y:,.2f}<extra></extra>",
                     )
-                    
-                    fig.update_layout(
-                        yaxis=dict(range=[df_filtrado['Preco'].min() * 0.9, df_filtrado['Preco'].max() * 1.1]),
-                        paper_bgcolor='rgba(0,0,0,0)', 
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color='#FFFFFF'),
-                        xaxis=dict(showgrid=True, gridcolor='#333333'),
-                        yaxis_title="Preço (R$)"
-                    )
-                    fig.update_xaxes(tickformat="%d/%m/%Y", showgrid=True, gridcolor='#333333')
-                    
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(configurar_grafico_preco(fig, df_agrupado), use_container_width=True)
                 else:
-                    st.markdown("""
-                    <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                        ⚠️ <b>Atenção:</b> Sem dados suficientes para gerar o gráfico deste produto específico.
-                    </div><br>
-                    """, unsafe_allow_html=True)
+                    placeholder_grafico(f"Sem dados históricos para a família '{familia_input}'.")
             else:
-                 st.markdown("""
-                 <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-top: 15px;">
-                      Por favor, pesquise e selecione um produto na lista acima.
-                 </div>
-                 """, unsafe_allow_html=True)
-        
+                placeholder_grafico("Digite uma família/marca no painel de filtros para visualizar este gráfico.")
+
+        else:
+            if produto_escolhido and not esta_bloqueado:
+                df_filtrado = df_historico[
+                    df_historico["Produto"].astype(str).str.strip() == produto_escolhido
+                ].copy()
+
+                if not df_filtrado.empty:
+                    df_filtrado["Preco_Label"] = df_filtrado["Preco"].apply(formatar_moeda)
+                    fig = px.line(
+                        df_filtrado,
+                        x="DataCaptura",
+                        y="Preco",
+                        color="Loja",
+                        markers=True,
+                        text="Preco_Label",
+                        title=f"Histórico Específico: {produto_escolhido}",
+                        labels={"DataCaptura": "Data da Extração", "Preco": "Preço à Vista (R$)", "Loja": "Loja Monitorada"},
+                    )
+                    fig.update_traces(
+                        textposition="top center",
+                        hovertemplate="<b>Loja:</b> %{data.name}<br><b>Data da Extração:</b> %{x|%d/%m/%Y}<br><b>Preço:</b> R$ %{y:,.2f}<extra></extra>",
+                    )
+                    st.plotly_chart(configurar_grafico_preco(fig, df_filtrado), use_container_width=True)
+                else:
+                    placeholder_grafico("Sem dados suficientes para gerar o gráfico deste produto específico.")
+            else:
+                placeholder_grafico("Selecione a Família/Marca e Hardware específico para visualizar este gráfico.")
+
         st.markdown("---")
-        st.write("Análise De Filtros Avançados")
+        st.markdown("### Análise de Filtros Avançados")
         st.write("Filtre o mercado através de categorias, modelos, marcas e especificações.")
 
-        todos_os_modelos = sorted(list(set(sum(mapa_subcategorias.values(), []))))
-        
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            cat_escolhida = st.selectbox("1. Categoria:", [""] + sorted(categorias_base))
-            
-        if cat_escolhida:
-            modelos_da_cat = mapa_subcategorias.get(cat_escolhida, [])
-            if len(modelos_da_cat) > 0:
-                opcoes_modelo = [""] + sorted(modelos_da_cat)
-                disabled_mod = False
-            else:
-                opcoes_modelo = ["N/A"]
-                disabled_mod = True
-        else:
-            opcoes_modelo = [""] + todos_os_modelos
-            disabled_mod = False
-            
-        with col2:
-            subcat_escolhida = st.selectbox("2. Modelo:", opcoes_modelo, disabled=disabled_mod)
-
-        df_drill = df_historico.copy()
-        
-        if cat_escolhida:
-            termo_cat_limpo = ''.join(c for c in unicodedata.normalize('NFD', cat_escolhida) if unicodedata.category(c) != 'Mn').lower()
-            
-            if termo_cat_limpo == "placa de video":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('video|vídeo|vga|geforce|radeon|rtx|gtx|rx|arc|gpu', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('placa mae|placa-mae|cooler|water|espelho|suporte|cabo|fonte|mouse|teclado|monitor|headset|cadeira|mesa|ssd|hd ', na=False)]
-                
-            elif termo_cat_limpo == "processador":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('processador|ryzen|core i|athlon|celeron|pentium', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('placa|cooler|water|fan|gabinete|memoria|notebook|pc|computador|desktop|mouse|teclado|monitor|headset|fonte|ssd|hd |gpu', na=False)]
-                
-            elif termo_cat_limpo == "placa mae":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('placa|motherboard|mainboard', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('video|vídeo|cooler|mouse|teclado|monitor|headset|fonte|processador|gpu', na=False)]
-                
-            elif termo_cat_limpo == "memoria ram":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('memoria|ram|ddr', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('placa|video|vídeo|cooler|mouse|teclado|monitor|headset|fonte|processador|gpu|gddr', na=False)]
-                
-            elif "fonte" in termo_cat_limpo:
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('fonte|atx|power', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('cabo|adaptador|placa|video|cooler|mouse|teclado|monitor|headset|processador|memoria', na=False)]
-                
-            elif termo_cat_limpo == "monitor":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('monitor|tela|display', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('cabo|hdmi|adaptador|suporte|braco|braço|pistao|pistão|tv|televisao|televisão|placa', na=False)]
-            
-            elif termo_cat_limpo == "ssd":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('ssd|nvme|m\.2|sata', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains(r'cabo|adaptador|dissipador|heatsink|case|gaveta|placa|cooler|\bhd\b|disco rigido|hard drive', na=False, regex=True)]
-                
-            elif termo_cat_limpo == "hd":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('hd |disco rigido|hard drive|hd externo', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('ssd|cabo|adaptador|gaveta|case|monitor|tv|placa', na=False)]
-
-            elif termo_cat_limpo == "water cooler":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('water cooler|watercooler|liquid cooler', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('gabinete|placa|processador|fan|ventoinha|ar', na=False)]
-
-            elif termo_cat_limpo == "air cooler":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('air cooler|aircooler|cooler para processador', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('water|liquido|gabinete|fan |ventoinha', na=False)]
-
-            elif termo_cat_limpo == "fan":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('fan|ventoinha|cooler para gabinete', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('water|air|processador|gabinete|placa', na=False)]
-
-            elif termo_cat_limpo == "gabinete":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('gabinete|case', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('cooler|fan|ventoinha|placa|fonte|memoria', na=False)]
-
-            elif termo_cat_limpo == "headset gamer":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('headset|fone', na=False) & df_drill['Produto'].str.lower().str.contains('gamer', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('suporte|mouse|teclado|cadeira|mesa', na=False)]
-
-            elif termo_cat_limpo == "mouse":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('mouse', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('gamer|mousepad|pad|teclado|headset|monitor|placa|cooler|fonte|memoria|processador', na=False)]
-                
-            elif termo_cat_limpo == "mouse gamer":
-                df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('mouse', na=False) & df_drill['Produto'].str.lower().str.contains('gamer', na=False)]
-                df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('mousepad|pad|teclado|headset|monitor|placa|cooler|fonte|memoria|processador', na=False)]
-                
-            elif termo_cat_limpo == "teclado mecanico":
-                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('teclado', na=False) & df_drill['Produto'].str.lower().str.contains('mecanico|mecânico', na=False)]
-                 df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('mouse|kit|combo', na=False)]
-                 
-            elif termo_cat_limpo == "teclado magnetico":
-                 df_drill = df_drill[df_drill['Produto'].str.lower().str.contains('teclado', na=False) & df_drill['Produto'].str.lower().str.contains('magnetico|magnético', na=False)]
-                 df_drill = df_drill[~df_drill['Produto'].str.lower().str.contains('mouse|kit|combo', na=False)]
-                 
-            else:
-                 for palavra in termo_cat_limpo.split():
-                     df_drill = df_drill[df_drill['Produto'].str.lower().str.contains(palavra, na=False)]
-                     
-        if subcat_escolhida and subcat_escolhida != "N/A":
-            mask = pd.Series(True, index=df_drill.index)
-            partes_busca = subcat_escolhida.lower().split()
-            
-            for p in partes_busca:
-                padrao_parte = r'\b' + re.escape(p) + r'\b'
-                
-                if p.isdigit():
-                    padrao_parte = re.escape(p) 
-                elif p.endswith('tb') or p.endswith('gb'):
-                    padrao_parte = r'(?<![a-z0-9])' + re.escape(p) + r'(?![a-z0-9])'
-                
-                mask = mask & df_drill['Produto'].str.lower().str.contains(padrao_parte, regex=True, na=False)
-            
-            modelos_derivados = []
-            lista_para_verificar = mapa_subcategorias.get(cat_escolhida, todos_os_modelos) if cat_escolhida else todos_os_modelos
-                
-            for modelo in lista_para_verificar:
-                if modelo != subcat_escolhida and subcat_escolhida.lower() in modelo.lower():
-                    modelos_derivados.append(modelo)
-                    
-            for derivado in modelos_derivados:
-                mask_derivado = pd.Series(True, index=df_drill.index)
-                for p in derivado.lower().split():
-                    padrao_parte_excl = r'\b' + re.escape(p) + r'\b'
-                    if p.isdigit():
-                        padrao_parte_excl = re.escape(p)
-                    elif p.endswith('tb') or p.endswith('gb'):
-                        padrao_parte_excl = r'(?<![a-z0-9])' + re.escape(p) + r'(?![a-z0-9])'
-                        
-                    mask_derivado = mask_derivado & df_drill['Produto'].str.lower().str.contains(padrao_parte_excl, regex=True, na=False)
-                
-                mask = mask & ~mask_derivado
-                
-            df_drill = df_drill[mask]
-
-        marcas_validas = sorted([m for m in df_drill['Marca'].dropna().unique()])
-        
-        with col3:
-            marcas_escolhidas = st.multiselect("3. Marcas:", marcas_validas)
-            
-        if len(marcas_escolhidas) > 0:
-            df_drill = df_drill[df_drill['Marca'].isin(marcas_escolhidas)]
-
-        with col4:
-            especificacao_extra = st.text_input("4. Especificação (Ex: Branco, OC):")
-            
-        if especificacao_extra:
-            espec_limpa = ''.join(c for c in unicodedata.normalize('NFD', especificacao_extra) if unicodedata.category(c) != 'Mn').lower()
-            df_drill = df_drill[df_drill['Produto'].str.lower().str.contains(espec_limpa, na=False)]
-
-        filtros_ativos = 0
-        if cat_escolhida: filtros_ativos += 1
-        if subcat_escolhida and subcat_escolhida != "N/A": filtros_ativos += 1
-        if len(marcas_escolhidas) > 0: filtros_ativos += 1
-        if especificacao_extra: filtros_ativos += 1
-
         if filtros_ativos < 2:
-            st.markdown("""
-            <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-top: 15px;">
-                 Preencha pelo menos DUAS opções (Ex: Categoria + Marca, ou Modelo + Marca) para visualizar o histórico de preços.
-            </div>
-            """, unsafe_allow_html=True)
+            placeholder_grafico("Preencha pelo menos duas opções no painel de filtros para visualizar o histórico de preços.")
+        elif df_drill.empty:
+            placeholder_grafico("Nenhum hardware foi encontrado com essa combinação exata de filtros.")
         else:
-            if not df_drill.empty:
-                st.markdown("<br>", unsafe_allow_html=True) 
-                col_vazia, col_filtro_preco = st.columns([3, 1]) 
-                
-                with col_filtro_preco:
-                    filtro_preco = st.selectbox(
-                        "Faixa de Preço",
-                        [
-                            "Todos os Preços", 
-                            "Abaixo de R$ 100", 
-                            "R$ 100 a R$ 500", 
-                            "R$ 500 a R$ 1.500", 
-                            "R$ 1.500 a R$ 3.000", 
-                            "R$ 3.000 a R$ 5.000", 
-                            "R$ 5.000 a R$ 8.000",
-                            "Acima de R$ 8.000"
-                        ]
-                    )
-                
-                if filtro_preco == "Abaixo de R$ 100":
-                    df_drill = df_drill[df_drill['Preco'] < 100]
-                elif filtro_preco == "R$ 100 a R$ 500":
-                    df_drill = df_drill[(df_drill['Preco'] >= 100) & (df_drill['Preco'] <= 500)]
-                elif filtro_preco == "R$ 500 a R$ 1.500":
-                    df_drill = df_drill[(df_drill['Preco'] > 500) & (df_drill['Preco'] <= 1500)]
-                elif filtro_preco == "R$ 1.500 a R$ 3.000":
-                    df_drill = df_drill[(df_drill['Preco'] > 1500) & (df_drill['Preco'] <= 3000)]
-                elif filtro_preco == "R$ 3.000 a R$ 5.000":
-                    df_drill = df_drill[(df_drill['Preco'] > 3000) & (df_drill['Preco'] <= 5000)]
-                elif filtro_preco == "R$ 5.000 a R$ 8.000":
-                    df_drill = df_drill[(df_drill['Preco'] > 5000) & (df_drill['Preco'] <= 8000)]
-                elif filtro_preco == "Acima de R$ 8.000":
-                    df_drill = df_drill[df_drill['Preco'] > 8000]
-
-                if not df_drill.empty:
-                    if subcat_escolhida != "" and subcat_escolhida != "N/A":
-                        df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Marca'])['Preco'].mean().reset_index()
-                        df_agrupado_drill['Legenda'] = df_agrupado_drill['Marca'] 
-                    else:
-                        df_agrupado_drill = df_drill.groupby(['DataCaptura', 'Loja', 'Produto'])['Preco'].mean().reset_index()
-                        df_agrupado_drill['Produto_Curto'] = df_agrupado_drill['Produto'].apply(lambda x: x[:40] + "..." if len(x) > 40 else x)
-                        df_agrupado_drill['Legenda'] = df_agrupado_drill['Produto_Curto']
-                    
-                    df_agrupado_drill['Preco_Label'] = df_agrupado_drill['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                    
-                    partes_titulo = []
-                    if cat_escolhida: partes_titulo.append(cat_escolhida)
-                    if subcat_escolhida and subcat_escolhida != "N/A": partes_titulo.append(subcat_escolhida)
-                    if marcas_escolhidas: partes_titulo.append(" | ".join(marcas_escolhidas))
-                    
-                    titulo_graf = " + ".join(partes_titulo)
-                    subtitulo = f"Especificação: {especificacao_extra}" if especificacao_extra else ""
-                    
-                    lojas_presentes = sorted(df_agrupado_drill['Loja'].unique())
-                    
-                    for loja in lojas_presentes:
-                        df_loja = df_agrupado_drill[df_agrupado_drill['Loja'] == loja]
-                        
-                        if not df_loja.empty:
-                            fig_drill = px.line(
-                                df_loja, 
-                                x="DataCaptura", 
-                                y="Preco", 
-                                color="Legenda", 
-                                markers=True, 
-                                text="Preco_Label", 
-                                title=f" {loja.upper()} | {titulo_graf} {subtitulo}", 
-                                labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Legenda": "Item"}
-                            )
-                            
-                            fig_drill.update_traces(
-                                textposition="top center",
-                                hovertemplate="<b>Item:</b> %{data.name}<br><b>Data da Extração:</b> %{x|%d/%m/%Y}<br><b>Média:</b> R$ %{y:,.2f}<extra></extra>"
-                            )
-                            
-                            fig_drill.update_layout(
-                                yaxis=dict(range=[df_loja['Preco'].min() * 0.9, df_loja['Preco'].max() * 1.1]),
-                                paper_bgcolor='rgba(0,0,0,0)', 
-                                plot_bgcolor='rgba(0,0,0,0)',
-                                font=dict(color='#FFFFFF'),
-                                xaxis=dict(showgrid=True, gridcolor='#333333'),
-                                yaxis_title="Preço (R$)"
-                            )
-                            fig_drill.update_xaxes(tickformat="%d/%m/%Y", showgrid=True, gridcolor='#333333')
-                            
-                            st.plotly_chart(fig_drill, use_container_width=True)
-                    
-                    with st.expander("Ver histórico detalhado de preços (Últimos 7 dias)"):
-                        df_tabela = df_drill.copy()
-                        df_tabela['DataCaptura'] = pd.to_datetime(df_tabela['DataCaptura'])
-                        data_maxima = df_tabela['DataCaptura'].max()
-                        data_limite = data_maxima - pd.Timedelta(days=7)
-                        df_7_dias = df_tabela[df_tabela['DataCaptura'] >= data_limite].copy()
-                        
-                        df_7_dias['Data'] = df_7_dias['DataCaptura'].dt.strftime('%d/%m/%Y')
-                        df_7_dias['Preço Real'] = df_7_dias['Preco'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-                        
-                        st.dataframe(
-                            df_7_dias.sort_values(['Produto', 'DataCaptura'], ascending=[True, False])[['Data', 'Loja', 'Marca', 'Produto', 'Preço Real']],
-                            use_container_width=True,
-                            hide_index=True
-                        )
-                else:
-                    st.markdown(f"""
-                    <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                         <b>Atenção:</b> Nenhum produto encontrado na faixa '{filtro_preco}'.
-                    </div><br>
-                    """, unsafe_allow_html=True)
+            if subcat_escolhida != "" and subcat_escolhida != "N/A":
+                df_agrupado_drill = df_drill.groupby(["DataCaptura", "Loja", "Marca"])["Preco"].mean().reset_index()
+                df_agrupado_drill["Legenda"] = df_agrupado_drill["Marca"]
             else:
-                st.markdown("""
-                <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                     <b>Atenção:</b> Nenhum hardware encontrado no banco de dados com essa combinação exata de filtros.
-                </div><br>
-                """, unsafe_allow_html=True)
+                df_agrupado_drill = df_drill.groupby(["DataCaptura", "Loja", "Produto"])["Preco"].mean().reset_index()
+                df_agrupado_drill["Produto_Curto"] = df_agrupado_drill["Produto"].apply(
+                    lambda x: x[:40] + "..." if len(x) > 40 else x
+                )
+                df_agrupado_drill["Legenda"] = df_agrupado_drill["Produto_Curto"]
+
+            df_agrupado_drill["Preco_Label"] = df_agrupado_drill["Preco"].apply(formatar_moeda)
+
+            partes_titulo = []
+            if cat_escolhida:
+                partes_titulo.append(cat_escolhida)
+            if subcat_escolhida and subcat_escolhida != "N/A":
+                partes_titulo.append(subcat_escolhida)
+            if marcas_escolhidas:
+                partes_titulo.append(" | ".join(marcas_escolhidas))
+
+            titulo_graf = " + ".join(partes_titulo)
+            subtitulo = f"Especificação: {especificacao_extra}" if especificacao_extra else ""
+
+            for loja in sorted(df_agrupado_drill["Loja"].unique()):
+                df_loja = df_agrupado_drill[df_agrupado_drill["Loja"] == loja]
+                if df_loja.empty:
+                    continue
+
+                fig_drill = px.line(
+                    df_loja,
+                    x="DataCaptura",
+                    y="Preco",
+                    color="Legenda",
+                    markers=True,
+                    text="Preco_Label",
+                    title=f"{loja.upper()} | {titulo_graf} {subtitulo}",
+                    labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Legenda": "Item"},
+                )
+                fig_drill.update_traces(
+                    textposition="top center",
+                    hovertemplate="<b>Item:</b> %{data.name}<br><b>Data da Extração:</b> %{x|%d/%m/%Y}<br><b>Média:</b> R$ %{y:,.2f}<extra></extra>",
+                )
+                st.plotly_chart(configurar_grafico_preco(fig_drill, df_loja), use_container_width=True)
+
+            with st.expander("Ver histórico detalhado de preços (Últimos 7 dias)"):
+                df_tabela = df_drill.copy()
+                df_tabela["DataCaptura"] = pd.to_datetime(df_tabela["DataCaptura"])
+                data_maxima = df_tabela["DataCaptura"].max()
+                data_limite = data_maxima - pd.Timedelta(days=7)
+                df_7_dias = df_tabela[df_tabela["DataCaptura"] >= data_limite].copy()
+
+                df_7_dias["Data"] = df_7_dias["DataCaptura"].dt.strftime("%d/%m/%Y")
+                df_7_dias["Preço Real"] = df_7_dias["Preco"].apply(formatar_moeda)
+
+                st.dataframe(
+                    df_7_dias.sort_values(["Produto", "DataCaptura"], ascending=[True, False])[
+                        ["Data", "Loja", "Marca", "Produto", "Preço Real"]
+                    ],
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
+    return
+
 
 # ================= PÁGINA 2: PREVISÃO DE IA =================
-elif menu == "Sistema de predição":
-    st.title(" Motor Preditivo")
-    st.markdown("Utilize Inteligência Artificial para simular cenários de mercado e prever o volume de vendas futuras.")
+def pagina_sistema_predicao():
+    conteudo_col, filtros_col = st.columns([4.4, 1.25], gap="large")
 
-    if st.session_state.get('dados_tratados') is None or st.session_state['dados_tratados'].empty:
-        st.markdown("""
-        <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF; margin-bottom: 10px;">
-             <b>Atenção:</b> O Motor de IA está aguardando os dados.
-        </div>
-        <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD;">
-            Vá até a aba <b>'Gestão de Dados'</b>, faça o upload do seu ficheiro CSV e clique em <b>'Executar Tratamento'</b> para liberar o sistema preditivo.
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        df_interno = st.session_state['dados_tratados'].copy()
-        df_aws = carregar_dados_aws()
+    with conteudo_col:
+        st.title("Motor Preditivo")
+        st.markdown("Utilize Inteligência Artificial para simular cenários de mercado e prever o volume de vendas futuras.")
 
-        with st.spinner("Sincronizando banco de dados interno com nuvem AWS e cruzando Câmbio (Dólar)..."):
-            
-            if df_interno['Preco'].dtype == 'object':
-                df_interno['Preco'] = df_interno['Preco'].astype(str).str.replace('.', '', regex=False).str.replace(',', '.', regex=False)
-            
-            df_interno['DataCaptura'] = pd.to_datetime(df_interno['DataCaptura'])
-            df_interno['Preco'] = pd.to_numeric(df_interno['Preco'], errors='coerce')
-            df_interno['Quantidade'] = pd.to_numeric(df_interno['Quantidade'], errors='coerce')
-            df_interno = df_interno.dropna(subset=['Preco', 'Quantidade'])
+    if st.session_state.get("dados_tratados") is None or st.session_state["dados_tratados"].empty:
+        with filtros_col:
+            iniciar_painel_filtros("Filtros e ações")
+            texto_apoio("O motor preditivo precisa da base interna tratada antes de liberar os filtros.")
+        with conteudo_col:
+            painel_erro("<b>Atenção:</b> O Motor de IA está aguardando os dados.")
+            painel_info("Vá até <b>Gestão de Dados</b>, faça o upload do CSV e execute o tratamento para liberar o sistema preditivo.")
+            placeholder_grafico("Dados internos tratados são necessários para visualizar a projeção.")
+        return
 
-            if not df_aws.empty:
-                df_aws_limpo = df_aws.copy()
-                df_aws_limpo['DataCaptura'] = pd.to_datetime(df_aws_limpo['DataCaptura']).dt.normalize() 
-                df_aws_limpo['Marca'] = df_aws_limpo['Marca'].astype(str).str.upper().str.strip()
-                
-                if 'Dolar' in df_aws_limpo.columns:
-                    df_aws_limpo['Dolar'] = pd.to_numeric(df_aws_limpo['Dolar'], errors='coerce')
-                    df_cotacao = df_aws_limpo[['DataCaptura', 'Dolar']].dropna().drop_duplicates(subset=['DataCaptura'])
-                else:
-                    df_cotacao = pd.DataFrame(columns=['DataCaptura', 'Dolar'])
-                
-                todos_modelos_ordenados = []
-                for cat in mapa_subcategorias:
-                    for modelo in mapa_subcategorias[cat]:
-                        todos_modelos_ordenados.append(modelo.upper())
-                
-                todos_modelos_ordenados.sort(key=len, reverse=True)
-                
-                def extrair_modelo_curto(nome_longo):
-                    nome_longo = str(nome_longo).upper()
-                    for modelo in todos_modelos_ordenados:
-                        if modelo in nome_longo:
-                            return modelo
-                    return nome_longo.strip()
+    df_interno = st.session_state["dados_tratados"].copy()
+    df_aws = carregar_dados_aws()
 
-                df_aws_limpo['Link_IA'] = df_aws_limpo['Produto'].apply(extrair_modelo_curto)
-                df_interno['Link_IA'] = df_interno['Produto'].apply(extrair_modelo_curto)
-                
-                df_concorrencia = df_aws_limpo.groupby(['DataCaptura', 'Link_IA', 'Marca'])['Preco'].mean().reset_index()
-                df_concorrencia = df_concorrencia.rename(columns={'Preco': 'Preco_Concorrencia'})
-                
-                df_ml = pd.merge(df_interno, df_concorrencia, on=['DataCaptura', 'Link_IA', 'Marca'], how='left')
-                df_ml['Preco_Concorrencia'] = df_ml.groupby(['Link_IA', 'Marca'])['Preco_Concorrencia'].ffill()
-                df_ml['Preco_Concorrencia'] = df_ml['Preco_Concorrencia'].fillna(df_ml['Preco'])
-                
-                if not df_cotacao.empty:
-                    df_ml = pd.merge(df_ml, df_cotacao, on='DataCaptura', how='left')
-                    df_ml['Dolar'] = df_ml['Dolar'].ffill().bfill()
-                else:
-                    df_ml['Dolar'] = 5.00
+    with st.spinner("Sincronizando banco interno com AWS e cruzando câmbio..."):
+        if df_interno["Preco"].dtype == "object":
+            df_interno["Preco"] = (
+                df_interno["Preco"].astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
+            )
+
+        df_interno["DataCaptura"] = pd.to_datetime(df_interno["DataCaptura"])
+        df_interno["Preco"] = pd.to_numeric(df_interno["Preco"], errors="coerce")
+        df_interno["Quantidade"] = pd.to_numeric(df_interno["Quantidade"], errors="coerce")
+        df_interno = df_interno.dropna(subset=["Preco", "Quantidade"])
+
+        if not df_aws.empty:
+            df_aws_limpo = df_aws.copy()
+            df_aws_limpo["DataCaptura"] = pd.to_datetime(df_aws_limpo["DataCaptura"]).dt.normalize()
+            df_aws_limpo["Marca"] = df_aws_limpo["Marca"].astype(str).str.upper().str.strip()
+
+            if "Dolar" in df_aws_limpo.columns:
+                df_aws_limpo["Dolar"] = pd.to_numeric(df_aws_limpo["Dolar"], errors="coerce")
+                df_cotacao = df_aws_limpo[["DataCaptura", "Dolar"]].dropna().drop_duplicates(subset=["DataCaptura"])
             else:
-                df_ml = df_interno.copy()
-                df_ml['Preco_Concorrencia'] = df_ml['Preco']
-                df_ml['Dolar'] = 5.00
+                df_cotacao = pd.DataFrame(columns=["DataCaptura", "Dolar"])
 
-            df_ml['Ano'] = df_ml['DataCaptura'].dt.year
-            df_ml['Mes'] = df_ml['DataCaptura'].dt.month
-            df_ml['DiaDaSemana'] = df_ml['DataCaptura'].dt.dayofweek
+            todos_modelos_ordenados = []
+            for cat in mapa_subcategorias:
+                for modelo in mapa_subcategorias[cat]:
+                    todos_modelos_ordenados.append(modelo.upper())
+            todos_modelos_ordenados.sort(key=len, reverse=True)
 
-        st.markdown("### 1. Seleção de Ativo")
-        produtos_disponiveis = sorted(df_ml['Produto'].dropna().unique())
-        
-        col_sel1, col_sel2 = st.columns(2)
-        with col_sel1:
-            produto_ia = st.selectbox("Hardware Alvo:", produtos_disponiveis)
-        
-        marcas_disponiveis = sorted(df_ml[df_ml['Produto'] == produto_ia]['Marca'].dropna().unique())
-        with col_sel2:
-            marca_ia = st.selectbox("Fabricante:", marcas_disponiveis)
-        
-        df_alvo = df_ml[(df_ml['Produto'] == produto_ia) & (df_ml['Marca'] == marca_ia)].copy()
-        
-        if len(df_alvo) < 10:
-            st.markdown(f"""
-            <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                 <b>Atenção:</b> Dados insuficientes para '{produto_ia}' ({marca_ia}). Necessário mínimo de 10 dias de histórico para garantir precisão estatística.
-            </div><br>
-            """, unsafe_allow_html=True)
+            def extrair_modelo_curto(nome_longo):
+                nome_longo = str(nome_longo).upper()
+                for modelo in todos_modelos_ordenados:
+                    if modelo in nome_longo:
+                        return modelo
+                return nome_longo.strip()
+
+            df_aws_limpo["Link_IA"] = df_aws_limpo["Produto"].apply(extrair_modelo_curto)
+            df_interno["Link_IA"] = df_interno["Produto"].apply(extrair_modelo_curto)
+
+            df_concorrencia = df_aws_limpo.groupby(["DataCaptura", "Link_IA", "Marca"])["Preco"].mean().reset_index()
+            df_concorrencia = df_concorrencia.rename(columns={"Preco": "Preco_Concorrencia"})
+
+            df_ml = pd.merge(df_interno, df_concorrencia, on=["DataCaptura", "Link_IA", "Marca"], how="left")
+            df_ml["Preco_Concorrencia"] = df_ml.groupby(["Link_IA", "Marca"])["Preco_Concorrencia"].ffill()
+            df_ml["Preco_Concorrencia"] = df_ml["Preco_Concorrencia"].fillna(df_ml["Preco"])
+
+            if not df_cotacao.empty:
+                df_ml = pd.merge(df_ml, df_cotacao, on="DataCaptura", how="left")
+                df_ml["Dolar"] = df_ml["Dolar"].ffill().bfill()
+            else:
+                df_ml["Dolar"] = 5.00
         else:
-            st.markdown(f"""
-            <div style="background-color: #1A1A1A; padding: 15px; border-radius: 8px; border-left: 5px solid #FF4B4B; color: #FFF;">
-                 <b>Base de conhecimento pronta:</b> {len(df_alvo)} registros encontrados para este produto.
-            </div>
-            """, unsafe_allow_html=True)
-            st.markdown("---")
-            
-            tab_simulacao, tab_tecnica = st.tabs([" Painel de Simulação", " Painel estatístico"])
-            
-            with tab_simulacao:
-                st.markdown("### 2. Configurar Cenário Futuro")
-                st.write("Ajuste as variáveis abaixo para simular o comportamento do mercado.")
-                
-                with st.container():
-                    col_in0, col_in1, col_in2, col_in3, col_in4 = st.columns(5)
-                    
-                    import datetime
-                    hoje = datetime.datetime.now()
-                    ano_atual = hoje.year
-                    mes_atual_idx = hoje.month - 1
-                    
-                    with col_in0:
-                        ano_selecionado = st.selectbox("Ano da Projeção:", [ano_atual, ano_atual + 1, ano_atual + 2])
-                    
-                    meses_nomes_lista = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-                    
-                    if ano_selecionado == ano_atual:
-                        meses_opcoes = meses_nomes_lista[mes_atual_idx:]
-                    else:
-                        meses_opcoes = meses_nomes_lista
-                    
-                    with col_in1:
-                        mes_selecionado_nome = st.selectbox("Mês da Projeção:", meses_opcoes)
-                        mes_alvo_num = meses_nomes_lista.index(mes_selecionado_nome) + 1
-                    
-                    if 'Dolar' in df_alvo.columns and not df_alvo['Dolar'].isna().all():
-                        dolar_recente = df_alvo.sort_values('DataCaptura', ascending=False)['Dolar'].iloc[0]
-                    else:
-                        dolar_recente = 5.00
-                        
-                    try:
-                        df_nosso_recente = df_interno[(df_interno['Produto'].str.contains(produto_ia, case=False)) & (df_interno['Marca'] == marca_ia)]
-                        if not df_nosso_recente.empty:
-                            preco_recente_nosso = df_nosso_recente.sort_values('DataCaptura', ascending=False)['Preco'].iloc[0]
-                        else:
-                            preco_recente_nosso = df_alvo.sort_values('DataCaptura', ascending=False)['Preco'].iloc[0]
-                    except:
-                        preco_recente_nosso = 0.0
+            df_ml = df_interno.copy()
+            df_ml["Preco_Concorrencia"] = df_ml["Preco"]
+            df_ml["Dolar"] = 5.00
 
-                    try:
-                        df_conc_recente = df_aws[(df_aws['Produto'].str.contains(produto_ia, case=False)) & (df_aws['Marca'] == marca_ia)]
-                        if not df_conc_recente.empty:
-                            preco_recente_conc = df_conc_recente.sort_values('DataCaptura', ascending=False)['Preco'].iloc[0]
-                        else:
-                            preco_recente_conc = df_alvo.sort_values('DataCaptura', ascending=False)['Preco_Concorrencia'].iloc[0]
-                    except:
-                        preco_recente_conc = 0.0
-                    
-                    with col_in2:
-                        preco_simulado = st.number_input("Seu Preço (R$):", value=float(preco_recente_nosso), step=50.0)
-                    with col_in3:
-                        preco_conc_simulado = st.number_input("Preço Concorrência (R$):", value=float(preco_recente_conc), step=50.0)
-                    with col_in4:
-                        dolar_simulado = st.number_input("Cotação do Dólar (R$):", value=float(dolar_recente), step=0.10)
+        df_ml["Ano"] = df_ml["DataCaptura"].dt.year
+        df_ml["Mes"] = df_ml["DataCaptura"].dt.month
+        df_ml["DiaDaSemana"] = df_ml["DataCaptura"].dt.dayofweek
 
-                st.markdown("<br>", unsafe_allow_html=True)
+    produtos_disponiveis = sorted(df_ml["Produto"].dropna().unique())
 
-                if st.button("INICIAR PROCESSAMENTO DA INTELIGÊNCIA ARTIFICIAL", use_container_width=True, type="primary"):
-                    with st.spinner(f"O Algoritmo está processando o cenário para {mes_selecionado_nome}/{ano_selecionado}..."):
-                        time.sleep(1)
-                        from sklearn.ensemble import RandomForestRegressor
-                        from sklearn.model_selection import train_test_split
-                        from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
-                        
-                        X = df_alvo[['Ano', 'Mes', 'DiaDaSemana', 'Preco', 'Preco_Concorrencia', 'Dolar']]
-                        y = df_alvo['Quantidade']
-                        
-                        X_treino, X_teste, y_treino, y_teste = train_test_split(X, y, test_size=0.2, random_state=42)
-                        
-                        modelo_ia = RandomForestRegressor(n_estimators=100, random_state=42)
-                        modelo_ia.fit(X_treino, y_treino)
-                        
-                        previsoes_teste = modelo_ia.predict(X_teste)
-                        acuracia_r2 = r2_score(y_teste, previsoes_teste)
-                        erro_mae = mean_absolute_error(y_teste, previsoes_teste)
-                        erro_rmse = np.sqrt(mean_squared_error(y_teste, previsoes_teste))
-                        
-                        st.session_state['ultima_acuracia'] = acuracia_r2
-                        st.session_state['ultima_mae'] = erro_mae
-                        st.session_state['ultima_rmse'] = erro_rmse
-                        st.session_state['ultima_importancia'] = modelo_ia.feature_importances_
-                        
-                        X_futuro = pd.DataFrame({
-                            'Ano': [ano_selecionado],
-                            'Mes': [mes_alvo_num],
-                            'DiaDaSemana': [4],
-                            'Preco': [preco_simulado],
-                            'Preco_Concorrencia': [preco_conc_simulado],
-                            'Dolar': [dolar_simulado]
-                        })
-                        
-                        previsao_ia = modelo_ia.predict(X_futuro)[0]
-                        previsao_arredondada = max(1, int(previsao_ia))
-                        
-                        faturamento_estimado = previsao_arredondada * preco_simulado
-                        
-                        df_historico_mes = df_alvo[df_alvo['Mes'] == mes_alvo_num]
-                        if not df_historico_mes.empty:
-                            media_historica_mes = int(df_historico_mes['Quantidade'].mean())
-                        else:
-                            media_historica_mes = "N/A (Sem dados)"
+    if len(produtos_disponiveis) == 0:
+        with filtros_col:
+            iniciar_painel_filtros("Filtros e ações")
+            texto_apoio("A base tratada não possui produtos válidos para seleção.")
+        with conteudo_col:
+            painel_erro("<b>Atenção:</b> nenhum produto válido foi encontrado na base tratada.")
+            placeholder_grafico("Revise a base em Gestão de Dados para liberar a simulação.")
+        return
 
-                        st.session_state['resultado_simulacao'] = {
-                            'produto_alvo': produto_ia,
-                            'previsao': previsao_arredondada,
-                            'faturamento': faturamento_estimado,
-                            'media_historica': media_historica_mes,
-                            'mes_nome': mes_selecionado_nome
-                        }
+    with filtros_col:
+        iniciar_painel_filtros("Filtros e cenário")
+        texto_apoio("Selecione o ativo e ajuste o cenário futuro para processar a previsão.")
 
-                if 'resultado_simulacao' in st.session_state and st.session_state['resultado_simulacao']['produto_alvo'] == produto_ia:
-                    res = st.session_state['resultado_simulacao']
-                    
-                    def formatar_br(valor):
-                        return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        produto_ia = st.selectbox("Hardware Alvo", produtos_disponiveis, key="ia_produto")
+        marcas_disponiveis = sorted(df_ml[df_ml["Produto"] == produto_ia]["Marca"].dropna().unique())
+        marca_ia = st.selectbox("Fabricante", marcas_disponiveis, key="ia_marca")
 
-                    st.markdown("###  Resultado da Projeção de Demanda")
-                    
-                    colA, colB, colC = st.columns(3)
-                    with colB:
-                        st.metric(" Previsão Principal", f"{res['previsao']} unid.", delta="Volume Esperado", delta_color="off")
-                    with colA:
-                        st.metric(" Cenário Pessimista", f"{int(res['previsao'] * 0.85)} unid.", delta="-15% Risco", delta_color="inverse")
-                    with colC:
-                        st.metric(" Cenário Otimista", f"{int(res['previsao'] * 1.15)} unid.", delta="+15% Conversão", delta_color="normal")
-                    
-                    st.markdown(f"""
-                    <div style="background-color: #0D2137; padding: 20px; border-radius: 10px; margin-top: 15px; border-left: 5px solid #0066CC; color: #FFFFFF;">
-                        <h4 style="margin-top: 0px; color: #94B3FD;"> Projeção Financeira</h4>
-                        <p style="margin-bottom: 5px; font-size: 16px;"><b>Faturamento Bruto Esperado:</b> R$ {formatar_br(res['faturamento'])} <i>(Baseado no preço sugerido)</i></p>
-                        <p style="margin-bottom: 0px; font-size: 16px;"><b>Média de Vendas Histórica ({res['mes_nome']}):</b> {res['media_historica']} unid. <i>(O que costumava vender nesta época)</i></p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                        
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.markdown("""
-                    <div style="background-color: #1A1A1A; padding: 10px; border-radius: 5px; border-left: 5px solid #FF4B4B; color: #FFF;">
-                         <b>Análise Concluída:</b>.
-                    </div>
-                    """, unsafe_allow_html=True)
+        df_alvo = df_ml[(df_ml["Produto"] == produto_ia) & (df_ml["Marca"] == marca_ia)].copy()
 
-            with tab_tecnica:
-                st.markdown("### Métricas de Validação Científica")
-                if 'ultima_acuracia' in st.session_state:
-                    acuracia = st.session_state['ultima_acuracia']
-                    mae = st.session_state['ultima_mae']
-                    rmse = st.session_state['ultima_rmse']
-                    importancias = st.session_state['ultima_importancia']
-                    
-                    col_m1, col_m2, col_m3 = st.columns(3)
-                    with col_m1:
-                        st.metric("Score de Tendência (R²)", f"{acuracia * 100:.1f}%")
-                    with col_m2:
-                        st.metric("Erro Médio Absoluto (MAE)", f"{mae:.1f} unid.")
-                    with col_m3:
-                        st.metric("Erro Quadrático (RMSE)", f"{rmse:.1f} unid.")
-                    
-                    if acuracia > 0.80:
-                        st.markdown("<div style='background-color: #1A1A1A; padding: 10px; border-left: 5px solid #FF4B4B; border-radius: 5px; margin-bottom: 15px; color: #FFF;'> Grau de confiança <b>Excepcional</b>. O modelo prevê a tendência com alta precisão.</div>", unsafe_allow_html=True)
-                    elif acuracia > 0.60:
-                        st.markdown("<div style='background-color: #0D2137; padding: 10px; border-left: 5px solid #0066CC; border-radius: 5px; margin-bottom: 15px; color: #FFF;'> Grau de confiança <b>Bom</b>. O modelo compreende a dinâmica do mercado.</div>", unsafe_allow_html=True)
-                    else:
-                        st.markdown("<div style='background-color: #330000; padding: 10px; border-left: 5px solid #FF0000; border-radius: 5px; margin-bottom: 15px; color: #FFF;'> Grau de confiança <b>Baixo</b>. O mercado atual está muito instável ou faltam dados.</div>", unsafe_allow_html=True)
-                        
-                    st.markdown("---")
-                    st.markdown("### Importância das Variáveis (O que a IA aprendeu?)")
-                    
-                    st.markdown("""
-                    <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-bottom: 20px;">
-                         <b>Como interpretar esta Matriz de Decisão?</b><br>
-                        Este gráfico mostra quais os fatores que mais influenciam a venda deste hardware:<br>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    import plotly.express as px
-                    df_importancia = pd.DataFrame({
-                        "Variável Analisada": ['Ano', 'Mês (Sazonalidade)', 'Dia da Semana', 'Nosso Preço', 'Preço Concorrência', 'Cotação do Dólar'],
-                        "Peso na Decisão (%)": importancias * 100
-                    }).sort_values('Peso na Decisão (%)', ascending=True)
-                    
-                    fig_imp = px.bar(
-                        df_importancia, 
-                        x="Peso na Decisão (%)", 
-                        y="Variável Analisada", 
-                        orientation='h',
-                        title=f"Matriz de Decisão da IA para: {marca_ia} {produto_ia}"
-                    )
-                    
-                    #  Gráfico em Azul Tecnológico
-                    fig_imp.update_traces(
-                        marker_color='#0066CC',  
-                        hovertemplate="<b>%{y}</b><br>Peso: %{x:.1f}%<extra></extra>"
-                    )
-                    
-                    fig_imp.update_layout(
-                        showlegend=False,
-                        bargap=0.4,       
-                        height=400,       
-                        xaxis_title="Peso (%) na Decisão de Compra",
-                        yaxis_title=None,
-                        paper_bgcolor='rgba(0,0,0,0)', 
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color='#FFFFFF'),
-                        xaxis=dict(showgrid=True, gridcolor='#333333')
-                    )
-                    
-                    st.plotly_chart(fig_imp, use_container_width=True)
+        st.markdown('<div class="filter-separator"></div>', unsafe_allow_html=True)
+        titulo_secao_filtro("Cenário futuro")
+
+        import datetime
+        hoje = datetime.datetime.now()
+        ano_atual = hoje.year
+        mes_atual_idx = hoje.month - 1
+
+        ano_selecionado = st.selectbox("Ano da Projeção", [ano_atual, ano_atual + 1, ano_atual + 2], key="ia_ano")
+        meses_nomes_lista = [
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+        ]
+        meses_opcoes = meses_nomes_lista[mes_atual_idx:] if ano_selecionado == ano_atual else meses_nomes_lista
+        mes_selecionado_nome = st.selectbox("Mês da Projeção", meses_opcoes, key="ia_mes")
+        mes_alvo_num = meses_nomes_lista.index(mes_selecionado_nome) + 1
+
+        if not df_alvo.empty and "Dolar" in df_alvo.columns and not df_alvo["Dolar"].isna().all():
+            dolar_recente = df_alvo.sort_values("DataCaptura", ascending=False)["Dolar"].iloc[0]
+        else:
+            dolar_recente = 5.00
+
+        try:
+            df_nosso_recente = df_interno[
+                (df_interno["Produto"].str.contains(produto_ia, case=False)) & (df_interno["Marca"] == marca_ia)
+            ]
+            preco_recente_nosso = (
+                df_nosso_recente.sort_values("DataCaptura", ascending=False)["Preco"].iloc[0]
+                if not df_nosso_recente.empty
+                else df_alvo.sort_values("DataCaptura", ascending=False)["Preco"].iloc[0]
+            )
+        except Exception:
+            preco_recente_nosso = 0.0
+
+        try:
+            df_conc_recente = df_aws[
+                (df_aws["Produto"].str.contains(produto_ia, case=False)) & (df_aws["Marca"] == marca_ia)
+            ]
+            preco_recente_conc = (
+                df_conc_recente.sort_values("DataCaptura", ascending=False)["Preco"].iloc[0]
+                if not df_conc_recente.empty
+                else df_alvo.sort_values("DataCaptura", ascending=False)["Preco_Concorrencia"].iloc[0]
+            )
+        except Exception:
+            preco_recente_conc = 0.0
+
+        preco_simulado = st.number_input("Seu Preço (R$)", value=float(preco_recente_nosso), step=50.0, key="ia_preco")
+        preco_conc_simulado = st.number_input("Preço Concorrência (R$)", value=float(preco_recente_conc), step=50.0, key="ia_preco_conc")
+        dolar_simulado = st.number_input("Cotação do Dólar (R$)", value=float(dolar_recente), step=0.10, key="ia_dolar")
+
+        processar_ia = st.button(
+            "Iniciar IA",
+            type="primary",
+            width="stretch",
+            disabled=len(df_alvo) < 10,
+            key="ia_processar",
+        )
+
+    if processar_ia and len(df_alvo) >= 10:
+        with st.spinner(f"O algoritmo está processando o cenário para {mes_selecionado_nome}/{ano_selecionado}..."):
+            time.sleep(1)
+            from sklearn.ensemble import RandomForestRegressor
+            from sklearn.model_selection import train_test_split
+            from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+
+            X = df_alvo[["Ano", "Mes", "DiaDaSemana", "Preco", "Preco_Concorrencia", "Dolar"]]
+            y = df_alvo["Quantidade"]
+
+            X_treino, X_teste, y_treino, y_teste = train_test_split(X, y, test_size=0.2, random_state=42)
+
+            modelo_ia = RandomForestRegressor(n_estimators=100, random_state=42)
+            modelo_ia.fit(X_treino, y_treino)
+
+            previsoes_teste = modelo_ia.predict(X_teste)
+            acuracia_r2 = r2_score(y_teste, previsoes_teste)
+            erro_mae = mean_absolute_error(y_teste, previsoes_teste)
+            erro_rmse = np.sqrt(mean_squared_error(y_teste, previsoes_teste))
+
+            st.session_state["ultima_acuracia"] = acuracia_r2
+            st.session_state["ultima_mae"] = erro_mae
+            st.session_state["ultima_rmse"] = erro_rmse
+            st.session_state["ultima_importancia"] = modelo_ia.feature_importances_
+
+            X_futuro = pd.DataFrame({
+                "Ano": [ano_selecionado],
+                "Mes": [mes_alvo_num],
+                "DiaDaSemana": [4],
+                "Preco": [preco_simulado],
+                "Preco_Concorrencia": [preco_conc_simulado],
+                "Dolar": [dolar_simulado],
+            })
+
+            previsao_ia = modelo_ia.predict(X_futuro)[0]
+            previsao_arredondada = max(1, int(previsao_ia))
+            faturamento_estimado = previsao_arredondada * preco_simulado
+
+            df_historico_mes = df_alvo[df_alvo["Mes"] == mes_alvo_num]
+            media_historica_mes = int(df_historico_mes["Quantidade"].mean()) if not df_historico_mes.empty else "N/A (Sem dados)"
+
+            st.session_state["resultado_simulacao"] = {
+                "produto_alvo": produto_ia,
+                "marca_alvo": marca_ia,
+                "previsao": previsao_arredondada,
+                "faturamento": faturamento_estimado,
+                "media_historica": media_historica_mes,
+                "mes_nome": mes_selecionado_nome,
+            }
+
+    with conteudo_col:
+        st.markdown("### Ativo selecionado")
+
+        if len(df_alvo) < 10:
+            painel_erro(
+                f"<b>Atenção:</b> Dados insuficientes para '{produto_ia}' ({marca_ia}). "
+                "São necessários pelo menos 10 dias de histórico."
+            )
+            placeholder_grafico("Selecione um ativo com histórico suficiente para visualizar a projeção.")
+            return
+
+        painel_sucesso(f"<b>Base de conhecimento pronta:</b> {len(df_alvo)} registros encontrados para este produto.")
+
+        tab_simulacao, tab_tecnica = st.tabs(["Painel de Simulação", "Painel estatístico"])
+
+        with tab_simulacao:
+            st.markdown("### Resultado da Projeção de Demanda")
+            resultado = st.session_state.get("resultado_simulacao")
+            resultado_valido = (
+                resultado is not None
+                and resultado.get("produto_alvo") == produto_ia
+                and resultado.get("marca_alvo") == marca_ia
+            )
+
+            if not resultado_valido:
+                placeholder_grafico("Configure o cenário no painel de filtros e clique em Iniciar IA para gerar a projeção.")
+            else:
+                col_a, col_b, col_c = st.columns(3)
+                with col_b:
+                    st.metric("Previsão Principal", f"{resultado['previsao']} unid.", delta="Volume esperado", delta_color="off")
+                with col_a:
+                    st.metric("Cenário Pessimista", f"{int(resultado['previsao'] * 0.85)} unid.", delta="-15% risco", delta_color="inverse")
+                with col_c:
+                    st.metric("Cenário Otimista", f"{int(resultado['previsao'] * 1.15)} unid.", delta="+15% conversão", delta_color="normal")
+
+                painel_info(
+                    f"<h4 style='margin-top:0;color:#94B3FD;'>Projeção Financeira</h4>"
+                    f"<p><b>Faturamento Bruto Esperado:</b> {formatar_moeda(resultado['faturamento'])} "
+                    f"<i>(baseado no preço sugerido)</i></p>"
+                    f"<p style='margin-bottom:0;'><b>Média de Vendas Histórica ({resultado['mes_nome']}):</b> "
+                    f"{resultado['media_historica']} unid. <i>(o que costumava vender nesta época)</i></p>"
+                )
+
+        with tab_tecnica:
+            st.markdown("### Métricas de Validação Científica")
+            if "ultima_acuracia" not in st.session_state:
+                placeholder_grafico("Execute uma simulação para gerar os dados técnicos.")
+            else:
+                acuracia = st.session_state["ultima_acuracia"]
+                mae = st.session_state["ultima_mae"]
+                rmse = st.session_state["ultima_rmse"]
+                importancias = st.session_state["ultima_importancia"]
+
+                col_m1, col_m2, col_m3 = st.columns(3)
+                with col_m1:
+                    st.metric("Score de Tendência (R²)", f"{acuracia * 100:.1f}%")
+                with col_m2:
+                    st.metric("Erro Médio Absoluto (MAE)", f"{mae:.1f} unid.")
+                with col_m3:
+                    st.metric("Erro Quadrático (RMSE)", f"{rmse:.1f} unid.")
+
+                if acuracia > 0.80:
+                    painel_sucesso("Grau de confiança <b>Excepcional</b>. O modelo prevê a tendência com alta precisão.")
+                elif acuracia > 0.60:
+                    painel_info("Grau de confiança <b>Bom</b>. O modelo compreende a dinâmica do mercado.")
                 else:
-                    st.markdown("""
-                    <div style="background-color: #1A1A1A; padding: 10px; border-radius: 5px; border-left: 5px solid #FF4B4B; color: #FFF;">
-                         Execute uma simulação para gerar os dados técnicos.
-                    </div>
-                    """, unsafe_allow_html=True)
+                    painel_erro("Grau de confiança <b>Baixo</b>. O mercado atual está instável ou faltam dados.")
+
+                st.markdown("### Importância das Variáveis")
+                df_importancia = pd.DataFrame({
+                    "Variável Analisada": [
+                        "Ano",
+                        "Mês (Sazonalidade)",
+                        "Dia da Semana",
+                        "Nosso Preço",
+                        "Preço Concorrência",
+                        "Cotação do Dólar",
+                    ],
+                    "Peso na Decisão (%)": importancias * 100,
+                }).sort_values("Peso na Decisão (%)", ascending=True)
+
+                fig_imp = px.bar(
+                    df_importancia,
+                    x="Peso na Decisão (%)",
+                    y="Variável Analisada",
+                    orientation="h",
+                    title=f"Matriz de Decisão da IA para: {marca_ia} {produto_ia}",
+                )
+                fig_imp.update_traces(
+                    marker_color="#0066CC",
+                    hovertemplate="<b>%{y}</b><br>Peso: %{x:.1f}%<extra></extra>",
+                )
+                fig_imp.update_layout(
+                    showlegend=False,
+                    bargap=0.4,
+                    height=440,
+                    xaxis_title="Peso (%) na Decisão de Compra",
+                    yaxis_title=None,
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    font=dict(color="#FFFFFF"),
+                    margin=dict(l=20, r=20, t=70, b=40),
+                    xaxis=dict(showgrid=True, gridcolor="#333333"),
+                )
+                st.plotly_chart(fig_imp, use_container_width=True)
+
+    return
+
 
 # ================= GESTÃO DE DADOS =================
-elif menu == "Gestão de Dados":
-    st.title("Ingestão, Limpeza e Tratamento")
-    st.write("Carregamento e padronização do histórico de vendas.")
-    
-    if 'dados_brutos' not in st.session_state:
-        st.session_state['dados_brutos'] = None
-    if 'dados_tratados' not in st.session_state:
-        st.session_state['dados_tratados'] = None
-    if 'linhas_removidas' not in st.session_state:
-        st.session_state['linhas_removidas'] = 0
+def pagina_gestao_dados():
+    if "dados_brutos" not in st.session_state:
+        st.session_state["dados_brutos"] = None
+    if "dados_tratados" not in st.session_state:
+        st.session_state["dados_tratados"] = None
+    if "linhas_removidas" not in st.session_state:
+        st.session_state["linhas_removidas"] = 0
+    if "arquivo_upload_nome" not in st.session_state:
+        st.session_state["arquivo_upload_nome"] = None
 
-    st.markdown("---")
-    st.write("Padrão Exigido para o CSV")
-    st.markdown("""
-    <div style="background-color: #0D2137; padding: 15px; border-radius: 8px; border-left: 5px solid #0066CC; color: #94B3FD; margin-bottom: 20px;">
-        Para o modelo de Inteligência Artificial cruzar o seu histórico de vendas com os preços da concorrência, o seu ficheiro CSV deve ter <b>exatamente</b> estas colunas (a ordem não importa, mas os nomes devem ser estes, sem acentos):<br>
-        * <b>DataCaptura</b> (Data da venda)<br>
-        * <b>Marca</b> (Marca da peça, ex: Asus, Gigabyte)<br>
-        * <b>Produto</b> (O nome curto limpo, ex: RTX 4060)<br>
-        * <b>Descricao</b> (As características extras da peça)<br>
-        * <b>Preco</b> (O valor unitário de venda)<br>
-        * <b>Quantidade</b> (Quantas unidades foram vendidas neste dia)
-    </div>
-    """, unsafe_allow_html=True)
-    
-    arquivo_upload = st.file_uploader("Suba o arquivo CSV de vendas internas:", type=["csv"])
-    
-    if arquivo_upload is not None:
+    conteudo_col, filtros_col = st.columns([4.4, 1.25], gap="large")
+    mensagem_upload = None
+    erro_upload = None
+
+    with filtros_col:
+        iniciar_painel_filtros("Dados e ações")
+        texto_apoio("Use este painel para carregar o CSV, tratar os dados e liberar o motor preditivo.")
+        arquivo_upload = st.file_uploader("CSV de vendas internas", type=["csv"], key="dados_upload")
+
+        executar_tratamento = st.button(
+            "Executar Tratamento",
+            type="primary",
+            width="stretch",
+            disabled=st.session_state["dados_brutos"] is None,
+            key="dados_executar_tratamento",
+        )
+
+        limpar_memoria = st.button(
+            "Limpar e subir novo",
+            width="stretch",
+            disabled=st.session_state["dados_brutos"] is None and st.session_state["dados_tratados"] is None,
+            key="dados_limpar_memoria",
+        )
+
+    if limpar_memoria:
+        st.session_state["dados_brutos"] = None
+        st.session_state["dados_tratados"] = None
+        st.session_state["linhas_removidas"] = 0
+        st.session_state["arquivo_upload_nome"] = None
+        st.rerun()
+
+    if arquivo_upload is not None and st.session_state["arquivo_upload_nome"] != arquivo_upload.name:
         try:
             df_teste = pd.read_csv(arquivo_upload)
-            
-            colunas_obrigatorias = ['DataCaptura', 'Marca', 'Produto', 'Descricao', 'Preco', 'Quantidade']
+            colunas_obrigatorias = ["DataCaptura", "Marca", "Produto", "Descricao", "Preco", "Quantidade"]
             colunas_ausentes = [col for col in colunas_obrigatorias if col not in df_teste.columns]
-            
-            if len(colunas_ausentes) > 0:
-                st.markdown(f"""
-                <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF; margin-bottom: 10px;">
-                     <b>Erro de Formatação:</b> Faltam as seguintes colunas no seu CSV: {', '.join(colunas_ausentes)}
-                </div>
-                <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                     Ajuste o cabeçalho do seu ficheiro Excel/CSV para coincidir exatamente com as colunas exigidas acima e tente de novo.
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.session_state['dados_brutos'] = df_teste
-                st.session_state['dados_tratados'] = None
-                
-        except Exception as e:
-            st.markdown(f"""
-            <div style="background-color: #330000; padding: 15px; border-radius: 8px; border-left: 5px solid #FF0000; color: #FFF;">
-                 <b>Erro ao ler o ficheiro:</b> {e}
-            </div>
-            """, unsafe_allow_html=True)
-    
-    if st.session_state['dados_brutos'] is not None:
-        st.markdown(f"""
-        <div style="background-color: #1A1A1A; padding: 15px; border-radius: 8px; border-left: 5px solid #FF4B4B; color: #FFF; margin-bottom: 15px;">
-             <b>Ficheiro validado e carregado com sucesso</b>
-        </div>
-        """, unsafe_allow_html=True)
-        st.dataframe(st.session_state['dados_brutos'], use_container_width=True)    
-        
-        st.markdown("---")
-        st.write("Limpeza e Padronização de Dados")
-        st.write("Clique abaixo para padronizar os dados internos com a base de dados da Nuvem AWS.")
-        
-        if st.button("Executar Tratamento de Dados"):
-            with st.spinner("A aplicar algoritmos de normalização..."):
-                time.sleep(1) 
-                
-                df_tratado = st.session_state['dados_brutos'].copy()
-                tamanho_original = len(df_tratado)
-                
-                df_tratado.columns = df_tratado.columns.str.strip()
-                df_tratado = df_tratado.dropna(how='all')
-                df_tratado = df_tratado.loc[:, ~df_tratado.columns.str.contains('^Unnamed')]
-                
-                colunas_texto = ['Marca', 'Produto', 'Descricao']
-                for col in colunas_texto:
-                    if col in df_tratado.columns:
-                        df_tratado[col] = df_tratado[col].astype(str).str.upper().str.strip()
-                        
-                        if col == 'Produto':
-                            df_tratado['Produto'] = df_tratado['Produto'].apply(lambda x: re.sub(r'^[\d\s-]+\s*', '', str(x)))
-                            df_tratado['Produto'] = df_tratado['Produto'].str.strip() 
-                
-                if 'Preco' in df_tratado.columns:
-                    def limpar_moeda_inteligente(valor):
-                        if pd.isna(valor): return valor
-                        v = str(valor).replace('R$', '').replace(' ', '').strip()
-                        
-                        if ',' in v:
-                            v = v.replace('.', '').replace(',', '.')
-                        else:
-                            pass 
-                            
-                        return v
 
-                    df_tratado['Preco'] = df_tratado['Preco'].apply(limpar_moeda_inteligente)
-                    df_tratado['Preco'] = pd.to_numeric(df_tratado['Preco'], errors='coerce')
-                    df_tratado = df_tratado.dropna(subset=['Preco']) 
-                
-                if 'Quantidade' in df_tratado.columns:
-                    df_tratado['Quantidade'] = pd.to_numeric(df_tratado['Quantidade'], errors='coerce').fillna(0).astype(int)
-                    df_tratado = df_tratado[df_tratado['Quantidade'] > 0]
-                
-                if 'DataCaptura' in df_tratado.columns:
-                    df_tratado['DataCaptura'] = pd.to_datetime(df_tratado['DataCaptura'], errors='coerce', dayfirst=True)
-                    df_tratado = df_tratado.dropna(subset=['DataCaptura']) 
-                    df_tratado['DataCaptura'] = df_tratado['DataCaptura'].dt.strftime('%Y-%m-%d')
-                
-                st.session_state['dados_tratados'] = df_tratado
-                st.session_state['linhas_removidas'] = tamanho_original - len(df_tratado)
-                
-    if st.session_state['dados_tratados'] is not None:
-        st.write("Dados Normalizados e Prontos")
-        st.dataframe(st.session_state['dados_tratados'], use_container_width=True)
-        
-        st.markdown(f"""
-        <div style="background-color: #1A1A1A; padding: 15px; border-radius: 8px; border-left: 5px solid #FF4B4B; color: #FFF; margin-bottom: 15px;">
-             <b>Operação concluída!</b> {st.session_state['linhas_removidas']} linhas de "lixo" (ou nulas) removidas. Valores formatados para a IA e datas alinhadas com o banco AWS.
-        </div>
-        """, unsafe_allow_html=True)
-        
-        if st.button("Limpar Memória e Subir Novo Arquivo"):
-            st.session_state['dados_brutos'] = None
-            st.session_state['dados_tratados'] = None
-            st.session_state['linhas_removidas'] = 0
-            st.rerun()
+            if len(colunas_ausentes) > 0:
+                erro_upload = (
+                    "<b>Erro de Formatação:</b> faltam as seguintes colunas no CSV: "
+                    + ", ".join(colunas_ausentes)
+                )
+            else:
+                st.session_state["dados_brutos"] = df_teste
+                st.session_state["dados_tratados"] = None
+                st.session_state["arquivo_upload_nome"] = arquivo_upload.name
+                mensagem_upload = "<b>Ficheiro validado e carregado com sucesso.</b>"
+        except Exception as e:
+            erro_upload = f"<b>Erro ao ler o ficheiro:</b> {e}"
+
+    if executar_tratamento and st.session_state["dados_brutos"] is not None:
+        with st.spinner("Aplicando algoritmos de normalização..."):
+            time.sleep(1)
+
+            df_tratado = st.session_state["dados_brutos"].copy()
+            tamanho_original = len(df_tratado)
+
+            df_tratado.columns = df_tratado.columns.str.strip()
+            df_tratado = df_tratado.dropna(how="all")
+            df_tratado = df_tratado.loc[:, ~df_tratado.columns.str.contains("^Unnamed")]
+
+            colunas_texto = ["Marca", "Produto", "Descricao"]
+            for col in colunas_texto:
+                if col in df_tratado.columns:
+                    df_tratado[col] = df_tratado[col].astype(str).str.upper().str.strip()
+                    if col == "Produto":
+                        df_tratado["Produto"] = df_tratado["Produto"].apply(lambda x: re.sub(r"^[\d\s-]+\s*", "", str(x)))
+                        df_tratado["Produto"] = df_tratado["Produto"].str.strip()
+
+            if "Preco" in df_tratado.columns:
+                def limpar_moeda_inteligente(valor):
+                    if pd.isna(valor):
+                        return valor
+                    valor_limpo = str(valor).replace("R$", "").replace(" ", "").strip()
+                    if "," in valor_limpo:
+                        valor_limpo = valor_limpo.replace(".", "").replace(",", ".")
+                    return valor_limpo
+
+                df_tratado["Preco"] = df_tratado["Preco"].apply(limpar_moeda_inteligente)
+                df_tratado["Preco"] = pd.to_numeric(df_tratado["Preco"], errors="coerce")
+                df_tratado = df_tratado.dropna(subset=["Preco"])
+
+            if "Quantidade" in df_tratado.columns:
+                df_tratado["Quantidade"] = pd.to_numeric(df_tratado["Quantidade"], errors="coerce").fillna(0).astype(int)
+                df_tratado = df_tratado[df_tratado["Quantidade"] > 0]
+
+            if "DataCaptura" in df_tratado.columns:
+                df_tratado["DataCaptura"] = pd.to_datetime(df_tratado["DataCaptura"], errors="coerce", dayfirst=True)
+                df_tratado = df_tratado.dropna(subset=["DataCaptura"])
+                df_tratado["DataCaptura"] = df_tratado["DataCaptura"].dt.strftime("%Y-%m-%d")
+
+            st.session_state["dados_tratados"] = df_tratado
+            st.session_state["linhas_removidas"] = tamanho_original - len(df_tratado)
+
+    with conteudo_col:
+        st.title("Ingestão, Limpeza e Tratamento")
+        st.write("Carregamento e padronização do histórico de vendas.")
+
+        st.markdown("### Padrão Exigido para o CSV")
+        painel_info(
+            "Para o modelo de Inteligência Artificial cruzar seu histórico de vendas com os preços da concorrência, "
+            "o CSV deve ter exatamente estas colunas: <br>"
+            "<b>DataCaptura</b>, <b>Marca</b>, <b>Produto</b>, <b>Descricao</b>, <b>Preco</b> e <b>Quantidade</b>."
+        )
+
+        if erro_upload:
+            painel_erro(erro_upload)
+        elif mensagem_upload:
+            painel_sucesso(mensagem_upload)
+
+        if st.session_state["dados_brutos"] is None:
+            placeholder_grafico("Suba um CSV no painel de filtros para visualizar e tratar os dados.")
+        else:
+            st.markdown("### Dados recebidos")
+            st.dataframe(st.session_state["dados_brutos"], use_container_width=True)
+
+            if st.session_state["dados_tratados"] is None:
+                placeholder_grafico("Clique em Executar Tratamento no painel lateral para normalizar a base.")
+            else:
+                st.markdown("### Dados Normalizados e Prontos")
+                st.dataframe(st.session_state["dados_tratados"], use_container_width=True)
+                painel_sucesso(
+                    f"<b>Operação concluída!</b> {st.session_state['linhas_removidas']} linhas de lixo ou nulas removidas. "
+                    "Valores formatados para a IA e datas alinhadas com o banco AWS."
+                )
+
+    return
+
+
+paginas_app = [
+    st.Page(pagina_pesquisa_mercado, title="Pesquisa de Mercado", url_path="", default=True),
+    st.Page(pagina_sistema_predicao, title="Sistema de predição", url_path="predicao"),
+    st.Page(pagina_gestao_dados, title="Gestão de Dados", url_path="dados"),
+]
+
+pagina_atual = st.navigation(paginas_app, position="hidden")
+renderizar_menu_superior(pagina_atual, paginas_app)
+pagina_atual.run()
