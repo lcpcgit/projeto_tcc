@@ -283,10 +283,11 @@ mapa_subcategorias = {
 # ================= FUNÇÕES DE DADOS =================
 @st.cache_data(ttl=600) 
 def carregar_dados_aws():
-    endpoint_aws = "hardwares-tcc.cveowcsuansb.sa-east-1.rds.amazonaws.com"
-    senha_aws = urllib.parse.quote_plus("milanhaverso2")
-    usuario_aws = "lcpctcc"
-    url_conexao = f"mssql+pyodbc://{usuario_aws}:{senha_aws}@{endpoint_aws}/tcc_hardware?driver=ODBC+Driver+17+for+SQL+Server"
+    endpoint_aws = st.secrets["DB_HOST"]
+    usuario_aws = st.secrets["DB_USER"]
+    senha_aws = st.secrets["DB_PASSWORD"]
+    senha_codificada = urllib.parse.quote_plus(senha_aws)
+    url_conexao = f"mssql+pyodbc://{usuario_aws}:{senha_codificada}@{endpoint_aws}/tcc_hardware?driver=ODBC+Driver+17+for+SQL+Server"
     
     try:
         engine = create_engine(url_conexao)
@@ -415,7 +416,7 @@ def renderizar_menu_superior(pagina_atual, paginas):
                 rotulo,
                 key=chave,
                 type="primary" if ativo else "secondary",
-                width="stretch",
+                use_container_width=True,
             ) and not ativo:
                 st.switch_page(pagina)
 
@@ -430,15 +431,68 @@ def limpar_texto_busca(texto):
         return ""
     texto = "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn")
     texto = texto.lower().strip()
-    texto = re.sub(r"[^\w\s]", " ", texto)
+    texto = re.sub(r"([a-z])(\d)", r"\1 \2", texto)
+    texto = re.sub(r"(\d)([a-z])", r"\1 \2", texto)
+    texto = re.sub(r"[^a-z0-9\s]", " ", texto)
     texto = re.sub(r"\s+", " ", texto)
     return texto
 
 
+def obter_tokens_busca(texto):
+    return limpar_texto_busca(texto).split()
+
+
+def contem_sequencia_tokens(tokens, sequencia):
+    if len(sequencia) == 0:
+        return True
+    limite = len(tokens) - len(sequencia) + 1
+    return any(tokens[indice:indice + len(sequencia)] == sequencia for indice in range(limite))
+
+
+def produto_atende_termos_busca(produto, termos_busca, excluir_variantes_gpu=True):
+    if not termos_busca:
+        return False
+
+    tokens_produto = obter_tokens_busca(produto)
+    tokens_produto_set = set(tokens_produto)
+
+    if not all(termo in tokens_produto_set for termo in termos_busca):
+        return False
+
+    prefixos_gpu = {"rtx", "gtx", "rx", "gt", "arc"}
+    variantes_gpu = {"ti", "super", "xt", "gre"}
+    busca_gpu = any(termo in prefixos_gpu for termo in termos_busca)
+
+    for indice, termo in enumerate(termos_busca[:-1]):
+        proximo_termo = termos_busca[indice + 1]
+        if termo in prefixos_gpu and proximo_termo.isdigit():
+            if not contem_sequencia_tokens(tokens_produto, [termo, proximo_termo]):
+                return False
+
+    if excluir_variantes_gpu and busca_gpu:
+        for variante in variantes_gpu:
+            if variante not in termos_busca and variante in tokens_produto_set:
+                return False
+
+    return True
+
+
+def normalizar_produto_comparacao(texto):
+    if not isinstance(texto, str):
+        return ""
+    texto = "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn")
+    texto = re.sub(r"\s+", " ", texto).strip().casefold()
+    return texto
+
+
 def aplicar_filtro_exclusivo(nome_do_produto, palavras_da_pesquisa):
+    tokens_produto = nome_do_produto.split()
+    tokens_produto_set = set(tokens_produto)
+
     if "mouse" in palavras_da_pesquisa and "gamer" not in palavras_da_pesquisa:
-        return "mouse" in nome_do_produto and "gamer" not in nome_do_produto
-    return all(palavra in nome_do_produto for palavra in palavras_da_pesquisa)
+        return "mouse" in tokens_produto_set and "gamer" not in tokens_produto_set
+
+    return produto_atende_termos_busca(nome_do_produto, palavras_da_pesquisa)
 
 
 def opcoes_modelo_por_categoria(cat_escolhida):
@@ -539,16 +593,8 @@ def aplicar_filtro_modelo(df_drill, cat_escolhida, subcat_escolhida):
     if not subcat_escolhida or subcat_escolhida == "N/A":
         return df_drill
 
-    mask = pd.Series(True, index=df_drill.index)
-    partes_busca = subcat_escolhida.lower().split()
-
-    for parte in partes_busca:
-        padrao_parte = r"\b" + re.escape(parte) + r"\b"
-        if parte.isdigit():
-            padrao_parte = re.escape(parte)
-        elif parte.endswith("tb") or parte.endswith("gb"):
-            padrao_parte = r"(?<![a-z0-9])" + re.escape(parte) + r"(?![a-z0-9])"
-        mask = mask & df_drill["Produto"].str.lower().str.contains(padrao_parte, regex=True, na=False)
+    partes_busca = obter_tokens_busca(subcat_escolhida)
+    mask = df_drill["Produto"].apply(lambda produto: produto_atende_termos_busca(produto, partes_busca))
 
     modelos_derivados = []
     todos_os_modelos = sorted(list(set(sum(mapa_subcategorias.values(), []))))
@@ -559,14 +605,10 @@ def aplicar_filtro_modelo(df_drill, cat_escolhida, subcat_escolhida):
             modelos_derivados.append(modelo)
 
     for derivado in modelos_derivados:
-        mask_derivado = pd.Series(True, index=df_drill.index)
-        for parte in derivado.lower().split():
-            padrao_parte_excl = r"\b" + re.escape(parte) + r"\b"
-            if parte.isdigit():
-                padrao_parte_excl = re.escape(parte)
-            elif parte.endswith("tb") or parte.endswith("gb"):
-                padrao_parte_excl = r"(?<![a-z0-9])" + re.escape(parte) + r"(?![a-z0-9])"
-            mask_derivado = mask_derivado & df_drill["Produto"].str.lower().str.contains(padrao_parte_excl, regex=True, na=False)
+        partes_derivado = obter_tokens_busca(derivado)
+        mask_derivado = df_drill["Produto"].apply(
+            lambda produto: produto_atende_termos_busca(produto, partes_derivado, excluir_variantes_gpu=False)
+        )
 
         mask = mask & ~mask_derivado
 
@@ -612,7 +654,7 @@ def pagina_pesquisa_mercado():
         ("mercado_modo_visao", "Visão Geral"),
         ("mercado_familia_geral", st.session_state.get("ultima_busca", "rtx 5070")),
         ("mercado_pesquisa_especifica", ""),
-        ("mercado_produto_especifico", ""),
+        ("mercado_produto_especifico", []),
         ("mercado_categoria", ""),
         ("mercado_modelo", ""),
         ("mercado_marcas", []),
@@ -637,7 +679,7 @@ def pagina_pesquisa_mercado():
         texto_apoio("Use os filtros para gerar os gráficos ao lado.")
 
         familia_input = ""
-        produto_escolhido = ""
+        produto_escolhido = []
         esta_bloqueado = True
 
         if modo_visao == "Visão Geral":
@@ -659,18 +701,10 @@ def pagina_pesquisa_mercado():
                 args=("mercado_pesquisa_especifica",),
             )
             if pesquisa_produto:
-                termos_busca = pesquisa_produto.lower().split()
-                mask = pd.Series(True, index=df_historico.index)
-
-                for termo in termos_busca:
-                    mask = mask & df_historico["Produto"].str.lower().str.contains(termo, na=False, regex=False)
-
-                if "ti" not in termos_busca:
-                    mask = mask & ~df_historico["Produto"].str.lower().str.contains(r"(?<![a-z])ti(?![a-z])", regex=True, na=False)
-                if "super" not in termos_busca:
-                    mask = mask & ~df_historico["Produto"].str.lower().str.contains(r"(?<![a-z])super(?![a-z])", regex=True, na=False)
-                if "xt" not in termos_busca:
-                    mask = mask & ~df_historico["Produto"].str.lower().str.contains(r"(?<![a-z])xt(?![a-z])", regex=True, na=False)
+                termos_busca = obter_tokens_busca(pesquisa_produto)
+                mask = df_historico["Produto"].apply(
+                    lambda produto: produto_atende_termos_busca(produto, termos_busca)
+                )
 
                 lista_filtrada = df_historico[mask]["Produto"].astype(str).str.strip().dropna().unique()
                 lista_filtrada = sorted(lista_filtrada)
@@ -682,15 +716,23 @@ def pagina_pesquisa_mercado():
             esta_bloqueado = len(lista_filtrada) == 1 and (
                 lista_filtrada[0].startswith("Digite algo") or lista_filtrada[0].startswith("Nenhum produto")
             )
-            if st.session_state.get("mercado_produto_especifico") not in lista_filtrada:
-                st.session_state["mercado_produto_especifico"] = lista_filtrada[0]
-            produto_escolhido = st.selectbox(
-                "Hardware específico",
+            
+            valor_atual = st.session_state.get("mercado_produto_especifico", [])
+            if not isinstance(valor_atual, list):
+                st.session_state["mercado_produto_especifico"] = [valor_atual] if valor_atual in lista_filtrada else []
+            else:
+                st.session_state["mercado_produto_especifico"] = [
+                    valor for valor in valor_atual if valor in lista_filtrada
+                ]
+
+            produto_escolhido = st.multiselect(
+                "Hardware(s) específico(s)",
                 lista_filtrada,
                 disabled=esta_bloqueado,
                 key="mercado_produto_especifico",
                 on_change=lembrar_widget,
                 args=("mercado_produto_especifico",),
+                placeholder="Selecione um ou mais produtos..."
             )
 
         st.markdown('<div class="filter-separator"></div>', unsafe_allow_html=True)
@@ -776,10 +818,16 @@ def pagina_pesquisa_mercado():
         df_drill = df_drill[df_drill["Marca"].isin(marcas_escolhidas)]
 
     if especificacao_extra:
-        espec_limpa = "".join(
-            c for c in unicodedata.normalize("NFD", especificacao_extra) if unicodedata.category(c) != "Mn"
-        ).lower()
-        df_drill = df_drill[df_drill["Produto"].str.lower().str.contains(espec_limpa, na=False)]
+        termos_especificacao = obter_tokens_busca(especificacao_extra)
+        df_drill = df_drill[
+            df_drill["Produto"].apply(
+                lambda produto: produto_atende_termos_busca(
+                    produto,
+                    termos_especificacao,
+                    excluir_variantes_gpu=False,
+                )
+            )
+        ]
 
     df_drill = aplicar_filtro_preco(df_drill, filtro_preco)
 
@@ -833,31 +881,54 @@ def pagina_pesquisa_mercado():
 
         else:
             if produto_escolhido and not esta_bloqueado:
-                df_filtrado = df_historico[
-                    df_historico["Produto"].astype(str).str.strip() == produto_escolhido
-                ].copy()
+                chaves_produtos_escolhidos = {
+                    normalizar_produto_comparacao(produto) for produto in produto_escolhido
+                }
+                df_filtrado = df_historico.copy()
+                df_filtrado["Produto"] = df_filtrado["Produto"].astype(str).str.strip()
+                df_filtrado["ProdutoComparacao"] = df_filtrado["Produto"].apply(normalizar_produto_comparacao)
+                df_filtrado = df_filtrado[df_filtrado["ProdutoComparacao"].isin(chaves_produtos_escolhidos)].copy()
 
                 if not df_filtrado.empty:
-                    df_filtrado["Preco_Label"] = df_filtrado["Preco"].apply(formatar_moeda)
-                    fig = px.line(
-                        df_filtrado,
-                        x="DataCaptura",
-                        y="Preco",
-                        color="Loja",
-                        markers=True,
-                        text="Preco_Label",
-                        title=f"Histórico Específico: {produto_escolhido}",
-                        labels={"DataCaptura": "Data da Extração", "Preco": "Preço à Vista (R$)", "Loja": "Loja Monitorada"},
-                    )
-                    fig.update_traces(
-                        textposition="top center",
-                        hovertemplate="<b>Loja:</b> %{data.name}<br><b>Data da Extração:</b> %{x|%d/%m/%Y}<br><b>Preço:</b> R$ %{y:,.2f}<extra></extra>",
-                    )
-                    st.plotly_chart(configurar_grafico_preco(fig, df_filtrado), use_container_width=True)
+                    df_filtrado["Preco"] = pd.to_numeric(df_filtrado["Preco"], errors="coerce")
+                    df_filtrado = df_filtrado.dropna(subset=["Preco"])
+                    if not df_filtrado.empty:
+                        df_filtrado = (
+                            df_filtrado
+                            .groupby(["DataCaptura", "Loja", "Produto", "ProdutoComparacao"], as_index=False)["Preco"]
+                            .mean()
+                        )
+                        df_filtrado["Preco_Label"] = df_filtrado["Preco"].apply(formatar_moeda)
+                        df_filtrado["Serie"] = df_filtrado["Loja"] + " - " + df_filtrado["Produto"]
+                        df_filtrado["Legenda"] = df_filtrado["Serie"].apply(
+                            lambda x: x[:45] + "..." if len(x) > 45 else x
+                        )
+                        
+                        fig = px.line(
+                            df_filtrado,
+                            x="DataCaptura",
+                            y="Preco",
+                            color="Serie",
+                            markers=True,
+                            text="Preco_Label",
+                            custom_data=["Loja", "Produto"],
+                            title="Histórico Específico de Produtos",
+                            labels={"DataCaptura": "Data da Extração", "Preco": "Preço à Vista (R$)", "Serie": "Loja - Item"},
+                        )
+                        nomes_legenda = dict(zip(df_filtrado["Serie"], df_filtrado["Legenda"]))
+                        for trace in fig.data:
+                            trace.name = nomes_legenda.get(trace.name, trace.name)
+                        fig.update_traces(
+                            textposition="top center",
+                            hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<br><b>Data:</b> %{x|%d/%m/%Y}<br><b>Preço:</b> R$ %{y:,.2f}<extra></extra>",
+                        )
+                        st.plotly_chart(configurar_grafico_preco(fig, df_filtrado), use_container_width=True)
+                    else:
+                        placeholder_grafico("Sem preços válidos para gerar o gráfico deste produto específico.")
                 else:
                     placeholder_grafico("Sem dados suficientes para gerar o gráfico deste produto específico.")
             else:
-                placeholder_grafico("Selecione a Família/Marca e Hardware específico para visualizar este gráfico.")
+                placeholder_grafico("Selecione a Família/Marca e os Hardwares específicos para visualizar este gráfico.")
 
         st.markdown("---")
         st.markdown("### Análise de Filtros Avançados")
@@ -1087,7 +1158,7 @@ def pagina_sistema_predicao():
         processar_ia = st.button(
             "Iniciar IA",
             type="primary",
-            width="stretch",
+            use_container_width=True,
             disabled=len(df_alvo) < 10,
             key="ia_processar",
         )
@@ -1292,14 +1363,14 @@ def pagina_gestao_dados():
         executar_tratamento = st.button(
             "Executar Tratamento",
             type="primary",
-            width="stretch",
+            use_container_width=True,
             disabled=st.session_state["dados_brutos"] is None,
             key="dados_executar_tratamento",
         )
 
         limpar_memoria = st.button(
             "Limpar e subir novo",
-            width="stretch",
+            use_container_width=True,
             disabled=st.session_state["dados_brutos"] is None and st.session_state["dados_tratados"] is None,
             key="dados_limpar_memoria",
         )
