@@ -44,7 +44,8 @@ st.markdown("""
 
     [data-testid="stAppViewContainer"] .main .block-container {
         max-width: 1480px;
-        padding-top: 1.6rem;
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
         padding-left: 2rem;
         padding-right: 2rem;
     }
@@ -89,14 +90,14 @@ st.markdown("""
     }
 
     .top-nav-line {
-        margin: 0.5rem 0 1.4rem 0;
+        margin: 0.25rem 0 0.9rem 0;
     }
 
     div[data-testid="column"]:has(.filter-panel-marker) {
         background-color: var(--panel);
         border-left: 1px solid var(--blue-line);
-        padding: 1rem 1.1rem 1.5rem 1.1rem;
-        min-height: calc(100vh - 112px);
+        padding: 0.8rem 1rem 1rem 1rem;
+        min-height: calc(100vh - 88px);
         margin-top: -0.35rem;
     }
 
@@ -324,6 +325,28 @@ def carregar_dados_aws():
 # ================= FUNÇÕES DE INTERFACE =================
 def formatar_moeda(valor):
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+PALETA_GRAFICOS = [
+    "#4EA1FF",
+    "#FFB84D",
+    "#67E08D",
+    "#FF6B6B",
+    "#B98CFF",
+    "#4DD7D0",
+    "#F6D365",
+    "#F08CC6",
+    "#A5D6A7",
+    "#C9A27E",
+]
+
+
+def criar_mapa_cores(valores):
+    valores_ordenados = sorted([str(valor) for valor in pd.Series(valores).dropna().unique()])
+    return {
+        valor: PALETA_GRAFICOS[indice % len(PALETA_GRAFICOS)]
+        for indice, valor in enumerate(valores_ordenados)
+    }, valores_ordenados
 
 
 def iniciar_painel_filtros(titulo="Filtros"):
@@ -949,7 +972,9 @@ def pagina_pesquisa_mercado():
                 )
                 df_agrupado_drill["Legenda"] = df_agrupado_drill["Produto_Curto"]
 
+            df_agrupado_drill["Legenda"] = df_agrupado_drill["Legenda"].astype(str)
             df_agrupado_drill["Preco_Label"] = df_agrupado_drill["Preco"].apply(formatar_moeda)
+            mapa_cores_drill, ordem_legendas_drill = criar_mapa_cores(df_agrupado_drill["Legenda"])
 
             partes_titulo = []
             if cat_escolhida:
@@ -976,6 +1001,8 @@ def pagina_pesquisa_mercado():
                     text="Preco_Label",
                     title=f"{loja.upper()} | {titulo_graf} {subtitulo}",
                     labels={"DataCaptura": "Data da Extração", "Preco": "Preço Médio (R$)", "Legenda": "Item"},
+                    color_discrete_map=mapa_cores_drill,
+                    category_orders={"Legenda": ordem_legendas_drill},
                 )
                 fig_drill.update_traces(
                     textposition="top center",
@@ -1163,6 +1190,19 @@ def pagina_sistema_predicao():
             key="ia_processar",
         )
 
+        st.markdown('<div class="filter-separator"></div>', unsafe_allow_html=True)
+        titulo_secao_filtro("Métricas de validação")
+        st.markdown(
+            """
+            <div class="helper-copy">
+                <b>R²</b>: mostra quanto da variação das vendas o modelo conseguiu explicar. Quanto mais perto de 100%, melhor.<br><br>
+                <b>MAE</b>: erro médio absoluto da previsão, em unidades. Indica o quanto o modelo erra em média.<br><br>
+                <b>RMSE</b>: erro quadrático, também em unidades. Penaliza mais os erros grandes.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
     if processar_ia and len(df_alvo) >= 10:
         with st.spinner(f"O algoritmo está processando o cenário para {mes_selecionado_nome}/{ano_selecionado}..."):
             time.sleep(1)
@@ -1332,6 +1372,8 @@ def pagina_gestao_dados():
         st.session_state["linhas_removidas"] = 0
     if "arquivo_upload_nome" not in st.session_state:
         st.session_state["arquivo_upload_nome"] = None
+    if "dados_upload_key" not in st.session_state:
+        st.session_state["dados_upload_key"] = 0
 
     conteudo_col, filtros_col = st.columns([4.4, 1.25], gap="large")
     mensagem_upload = None
@@ -1358,7 +1400,36 @@ def pagina_gestao_dados():
         )
         st.markdown('<div class="filter-separator"></div>', unsafe_allow_html=True)
 
-        arquivo_upload = st.file_uploader("CSV de vendas internas", type=["csv"], key="dados_upload")
+        arquivo_upload = st.file_uploader(
+            "CSV de vendas internas",
+            type=["csv"],
+            key=f"dados_upload_{st.session_state['dados_upload_key']}",
+        )
+
+        if arquivo_upload is not None and st.session_state["arquivo_upload_nome"] != arquivo_upload.name:
+            try:
+                df_teste = pd.read_csv(arquivo_upload)
+                colunas_obrigatorias = ["DataCaptura", "Marca", "Produto", "Descricao", "Preco", "Quantidade"]
+                colunas_ausentes = [col for col in colunas_obrigatorias if col not in df_teste.columns]
+
+                if len(colunas_ausentes) > 0:
+                    st.session_state["dados_brutos"] = None
+                    st.session_state["dados_tratados"] = None
+                    st.session_state["arquivo_upload_nome"] = None
+                    erro_upload = (
+                        "<b>Erro de Formatação:</b> faltam as seguintes colunas no CSV: "
+                        + ", ".join(colunas_ausentes)
+                    )
+                else:
+                    st.session_state["dados_brutos"] = df_teste
+                    st.session_state["dados_tratados"] = None
+                    st.session_state["arquivo_upload_nome"] = arquivo_upload.name
+                    mensagem_upload = "<b>Ficheiro validado e carregado com sucesso.</b>"
+            except Exception as e:
+                st.session_state["dados_brutos"] = None
+                st.session_state["dados_tratados"] = None
+                st.session_state["arquivo_upload_nome"] = None
+                erro_upload = f"<b>Erro ao ler o ficheiro:</b> {e}"
 
         executar_tratamento = st.button(
             "Executar Tratamento",
@@ -1380,26 +1451,8 @@ def pagina_gestao_dados():
         st.session_state["dados_tratados"] = None
         st.session_state["linhas_removidas"] = 0
         st.session_state["arquivo_upload_nome"] = None
+        st.session_state["dados_upload_key"] += 1
         st.rerun()
-
-    if arquivo_upload is not None and st.session_state["arquivo_upload_nome"] != arquivo_upload.name:
-        try:
-            df_teste = pd.read_csv(arquivo_upload)
-            colunas_obrigatorias = ["DataCaptura", "Marca", "Produto", "Descricao", "Preco", "Quantidade"]
-            colunas_ausentes = [col for col in colunas_obrigatorias if col not in df_teste.columns]
-
-            if len(colunas_ausentes) > 0:
-                erro_upload = (
-                    "<b>Erro de Formatação:</b> faltam as seguintes colunas no CSV: "
-                    + ", ".join(colunas_ausentes)
-                )
-            else:
-                st.session_state["dados_brutos"] = df_teste
-                st.session_state["dados_tratados"] = None
-                st.session_state["arquivo_upload_nome"] = arquivo_upload.name
-                mensagem_upload = "<b>Ficheiro validado e carregado com sucesso.</b>"
-        except Exception as e:
-            erro_upload = f"<b>Erro ao ler o ficheiro:</b> {e}"
 
     if executar_tratamento and st.session_state["dados_brutos"] is not None:
         with st.spinner("Aplicando algoritmos de normalização..."):
