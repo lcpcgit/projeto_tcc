@@ -1081,9 +1081,7 @@ def pagina_sistema_predicao():
             iniciar_painel_filtros("Filtros e ações")
             texto_apoio("O motor preditivo precisa da base interna tratada antes de liberar os filtros.")
         with conteudo_col:
-            painel_erro("<b>Atenção:</b> O Motor de IA está aguardando os dados.")
             painel_info("Vá até <b>Gestão de Dados</b>, faça o upload do CSV e execute o tratamento para liberar o sistema preditivo.")
-            placeholder_grafico("Dados internos tratados são necessários para visualizar a projeção.")
         return
 
     df_interno = st.session_state["dados_tratados"].copy()
