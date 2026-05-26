@@ -592,21 +592,13 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
  
             if salvar_no_banco:
                 try:
-                    import streamlit as st # Certifique-se de que o streamlit está importado
-                    from sqlalchemy import create_engine
-                    import urllib.parse
+                    try:
+                        from conexao_aws import criar_engine_aws
+                    except ImportError:
+                        from automacao.conexao_aws import criar_engine_aws
                     
                     print("☁️ Conectando ao banco de dados na AWS para salvar...")
-                    
-                    # 🔒 PUXANDO AS CREDENCIAIS DO COFRE SECRETO
-                    endpoint_aws = st.secrets["DB_HOST"]
-                    usuario_aws = st.secrets["DB_USER"]
-                    senha_aws = st.secrets["DB_PASSWORD"]
-                    
-                    # Formato seguro
-                    senha_codificada = urllib.parse.quote_plus(senha_aws)
-                    url_conexao = f"mssql+pyodbc://{usuario_aws}:{senha_codificada}@{endpoint_aws}/tcc_hardware?driver=ODBC+Driver+17+for+SQL+Server"
-                    engine = create_engine(url_conexao)
+                    engine = criar_engine_aws(timeout=20)
                     
                     # Injeta no banco e cria a tabela 'HistoricoPrecos' se ela não existir
                     df_aws = df_resultados.rename(columns={
@@ -615,7 +607,8 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
                         'Descrição': 'Descricao'
                     })
                     
-                    df_aws.to_sql('HistoricoPrecos', con=engine, if_exists='append', index=False)
+                    with engine.begin() as conexao:
+                        df_aws.to_sql('HistoricoPrecos', con=conexao, if_exists='append', index=False)
                     print("✅ Sucesso: Tabela criada e atualizada na AWS!")
                     
                 except Exception as aws_erro:
