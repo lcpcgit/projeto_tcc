@@ -3,8 +3,11 @@ from datetime import datetime
 from bot_scraping import escanear_mercado_completo
 import requests
 import pandas as pd
-from sqlalchemy import create_engine
-import urllib.parse
+
+try:
+    from conexao_aws import criar_engine_aws
+except ImportError:
+    from automacao.conexao_aws import criar_engine_aws
 
 pecas_para_monitorar = [
 
@@ -198,10 +201,9 @@ def registrar_dolar_do_dia():
     print("💵 INICIANDO CAPTURA DO DÓLAR (API BANCÁRIA)")
     print("==================================================")
     try:
-        import streamlit as st # Adicionamos o import do Streamlit para ler o cofre
-        
         # 1. Bate na porta da API pública de moedas
-        resposta = requests.get("https://economia.awesomeapi.com.br/last/USD-BRL")
+        resposta = requests.get("https://economia.awesomeapi.com.br/last/USD-BRL", timeout=15)
+        resposta.raise_for_status()
         dados = resposta.json()
         
         # 2. Extrai o valor de compra (bid)
@@ -216,18 +218,12 @@ def registrar_dolar_do_dia():
             "ValorDolar": [valor_dolar]
         })
         
-        # 4. PUXANDO AS CREDENCIAIS DO COFRE SECRETO (st.secrets)
-        endpoint_aws = st.secrets["DB_HOST"]
-        usuario_aws = st.secrets["DB_USER"]
-        senha_aws = st.secrets["DB_PASSWORD"]
-        
-        senha_codificada = urllib.parse.quote_plus(senha_aws)
-        url_conexao = f"mssql+pyodbc://{usuario_aws}:{senha_codificada}@{endpoint_aws}/tcc_hardware?driver=ODBC+Driver+17+for+SQL+Server"
-        
-        engine = create_engine(url_conexao)
+        print("Conectando à AWS para salvar o dólar...")
+        engine = criar_engine_aws(timeout=20)
         
         # if_exists='append' vai criar a tabela HistoricoDolar na AWS se ela não existir!
-        df_dolar.to_sql('HistoricoDolar', con=engine, if_exists='append', index=False)
+        with engine.begin() as conexao:
+            df_dolar.to_sql('HistoricoDolar', con=conexao, if_exists='append', index=False)
         print("✅ Dólar salvo na nuvem AWS com sucesso!")
         
     except Exception as e:
