@@ -1,4 +1,4 @@
-﻿import streamlit as st
+import streamlit as st
 import pandas as pd
 import plotly.express as px
 from sqlalchemy import create_engine
@@ -44,10 +44,26 @@ st.markdown("""
 
     [data-testid="stAppViewContainer"] .main .block-container {
         max-width: 1480px;
-        padding-top: 0.75rem;
-        padding-bottom: 0.75rem;
-        padding-left: 2rem;
-        padding-right: 2rem;
+        padding-top: 0.75rem !important;
+        padding-bottom: 0 !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+    }
+
+    .block-container,
+    [data-testid="stMainBlockContainer"] {
+        padding-bottom: 0 !important;
+    }
+
+    [data-testid="stAppViewContainer"] .main h1 {
+        margin-top: 0.25rem !important;
+        margin-bottom: 0.45rem !important;
+    }
+
+    [data-testid="stAppViewContainer"] .main h2,
+    [data-testid="stAppViewContainer"] .main h3 {
+        margin-top: 0.75rem !important;
+        margin-bottom: 0.45rem !important;
     }
 
     hr {
@@ -90,41 +106,62 @@ st.markdown("""
     }
 
     .top-nav-line {
-        margin: 0.25rem 0 0.9rem 0;
+        margin: 0.2rem 0 0.65rem 0;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.filter-panel-marker) {
+        align-items: flex-start !important;
     }
 
     div[data-testid="column"]:has(.filter-panel-marker) {
         background-color: var(--panel);
         border-left: 1px solid var(--blue-line);
-        padding: 0.8rem 1rem 1rem 1rem;
-        min-height: calc(100vh - 88px);
-        margin-top: -0.35rem;
+        padding: 0.7rem 0.95rem 0.85rem 0.95rem;
+        min-height: 0 !important;
+        height: fit-content !important;
+        align-self: flex-start !important;
+        margin-top: -0.25rem;
+    }
+
+    div[data-testid="column"]:has(.filter-panel-marker) [data-testid="stVerticalBlock"] {
+        gap: 0.55rem !important;
+    }
+
+    div[data-testid="column"]:has(.filter-panel-marker) label {
+        margin-bottom: 0.15rem !important;
+    }
+
+    div[data-testid="column"]:has(.filter-panel-marker) div[data-testid="stSelectbox"],
+    div[data-testid="column"]:has(.filter-panel-marker) div[data-testid="stNumberInput"],
+    div[data-testid="column"]:has(.filter-panel-marker) div[data-testid="stTextInput"],
+    div[data-testid="column"]:has(.filter-panel-marker) div[data-testid="stMultiSelect"] {
+        margin-bottom: 0.15rem !important;
     }
 
     .filter-panel-title {
         font-size: 1.05rem;
         font-weight: 700;
-        margin-bottom: 0.75rem;
+        margin-bottom: 0.55rem;
     }
 
     .filter-separator {
         height: 1px;
         background: rgba(255, 255, 255, 0.10);
-        margin: 0.75rem 0 1rem 0;
+        margin: 0.55rem 0 0.7rem 0;
     }
 
     .helper-copy {
         color: var(--muted);
         font-size: 0.92rem;
         line-height: 1.35;
-        margin-bottom: 1rem;
+        margin-bottom: 0.65rem;
     }
 
     .section-eyebrow {
         color: #D7E7FF;
         font-size: 0.92rem;
         font-weight: 700;
-        margin: 1rem 0 0.65rem 0;
+        margin: 0.7rem 0 0.45rem 0;
     }
 
     .chart-placeholder {
@@ -1192,16 +1229,17 @@ def pagina_sistema_predicao():
 
         st.markdown('<div class="filter-separator"></div>', unsafe_allow_html=True)
         titulo_secao_filtro("Métricas de validação")
-        st.markdown(
-            """
-            <div class="helper-copy">
-                <b>R²</b>: mostra quanto da variação das vendas o modelo conseguiu explicar. Quanto mais perto de 100%, melhor.<br><br>
-                <b>MAE</b>: erro médio absoluto da previsão, em unidades. Indica o quanto o modelo erra em média.<br><br>
-                <b>RMSE</b>: erro quadrático, também em unidades. Penaliza mais os erros grandes.
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        with st.expander("Ver explicação", expanded=False):
+            st.markdown(
+                """
+                <div class="helper-copy">
+                    <b>R²</b>: mostra quanto da variação das vendas o modelo conseguiu explicar. Quanto mais perto de 100%, melhor.<br><br>
+                    <b>MAE</b>: erro médio absoluto da previsão, em unidades. Indica o quanto o modelo erra em média.<br><br>
+                    <b>RMSE</b>: erro quadrático, também em unidades. Penaliza mais os erros grandes.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
     if processar_ia and len(df_alvo) >= 10:
         with st.spinner(f"O algoritmo está processando o cenário para {mes_selecionado_nome}/{ano_selecionado}..."):
