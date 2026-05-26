@@ -545,6 +545,23 @@ def normalizar_produto_comparacao(texto):
     return texto
 
 
+def criar_rotulos_produtos_por_loja(dados):
+    if dados.empty:
+        return [], {}
+
+    dados_rotulo = dados[["Produto", "Loja"]].dropna(subset=["Produto"]).copy()
+    dados_rotulo["Produto"] = dados_rotulo["Produto"].astype(str).str.strip()
+    dados_rotulo["Loja"] = dados_rotulo["Loja"].fillna("Loja nao informada").astype(str).str.strip()
+
+    rotulos = {}
+    for produto, grupo in dados_rotulo.groupby("Produto", sort=True):
+        lojas = sorted([loja for loja in grupo["Loja"].dropna().unique() if loja])
+        prefixo_lojas = " + ".join(lojas) if lojas else "Loja nao informada"
+        rotulos[produto] = f"{prefixo_lojas} | {produto}"
+
+    return sorted(rotulos), rotulos
+
+
 def aplicar_filtro_exclusivo(nome_do_produto, palavras_da_pesquisa):
     tokens_produto = nome_do_produto.split()
     tokens_produto_set = set(tokens_produto)
@@ -760,14 +777,14 @@ def pagina_pesquisa_mercado():
                 on_change=lembrar_widget,
                 args=("mercado_pesquisa_especifica",),
             )
+            rotulos_opcoes_produtos = {}
             if pesquisa_produto:
                 termos_busca = obter_tokens_busca(pesquisa_produto)
                 mask = df_historico["Produto"].apply(
                     lambda produto: produto_atende_termos_busca(produto, termos_busca)
                 )
 
-                lista_filtrada = df_historico[mask]["Produto"].astype(str).str.strip().dropna().unique()
-                lista_filtrada = sorted(lista_filtrada)
+                lista_filtrada, rotulos_opcoes_produtos = criar_rotulos_produtos_por_loja(df_historico[mask])
                 if len(lista_filtrada) == 0:
                     lista_filtrada = ["Nenhum produto encontrado com esses termos."]
             else:
@@ -792,6 +809,7 @@ def pagina_pesquisa_mercado():
                 key="mercado_produto_especifico",
                 on_change=lembrar_widget,
                 args=("mercado_produto_especifico",),
+                format_func=lambda produto: rotulos_opcoes_produtos.get(produto, produto),
                 placeholder="Selecione um ou mais produtos..."
             )
 
