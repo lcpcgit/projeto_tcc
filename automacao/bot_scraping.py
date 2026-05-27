@@ -3,12 +3,81 @@ from datetime import datetime
 import time
 import re
 import unicodedata 
+import os
+from pathlib import Path
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from webdriver_manager.chrome import ChromeDriverManager
 import traceback
+
+
+def obter_versao_chrome_windows():
+    if os.name != "nt":
+        return None
+
+    try:
+        import winreg
+    except ImportError:
+        return None
+
+    locais_registro = [
+        (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Google\Chrome\BLBeacon"),
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Google\Chrome\BLBeacon"),
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Google Chrome"),
+    ]
+
+    for raiz, chave in locais_registro:
+        try:
+            with winreg.OpenKey(raiz, chave) as registro:
+                return winreg.QueryValueEx(registro, "version")[0]
+        except OSError:
+            continue
+
+    return None
+
+
+def extrair_versao_do_caminho(caminho):
+    for parte in caminho.parts:
+        if re.fullmatch(r"\d+(?:\.\d+)+", parte):
+            return tuple(int(numero) for numero in parte.split("."))
+    return tuple()
+
+
+def localizar_chromedriver_local():
+    candidatos = []
+    for pasta_cache in [
+        Path.home() / ".wdm" / "drivers" / "chromedriver",
+        Path.home() / ".cache" / "selenium" / "chromedriver",
+    ]:
+        if pasta_cache.exists():
+            candidatos.extend(pasta_cache.rglob("chromedriver.exe"))
+
+    if not candidatos:
+        return None
+
+    versao_chrome = obter_versao_chrome_windows()
+    if versao_chrome:
+        versao_principal = versao_chrome.split(".", 1)[0]
+        compativeis = [
+            caminho
+            for caminho in candidatos
+            if any(parte.startswith(f"{versao_principal}.") for parte in caminho.parts)
+        ]
+        if compativeis:
+            return max(compativeis, key=extrair_versao_do_caminho)
+
+    return max(candidatos, key=extrair_versao_do_caminho)
+
+
+def criar_navegador_chrome(opcoes):
+    caminho_driver = localizar_chromedriver_local()
+    if caminho_driver:
+        print(f"Usando ChromeDriver local: {caminho_driver}")
+        return webdriver.Chrome(service=Service(str(caminho_driver)), options=opcoes)
+
+    print("ChromeDriver local nao encontrado. Tentando Selenium Manager...")
+    return webdriver.Chrome(options=opcoes)
 
 # 🚨 CÓDIGO FINAL: Parâmetro salvar_no_banco e integração AWS ativada
 def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
@@ -23,8 +92,7 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
         opcoes.add_argument("--window-size=1920,1080")
         opcoes.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         
-        servico = Service(ChromeDriverManager().install())
-        navegador = webdriver.Chrome(service=servico, options=opcoes)
+        navegador = criar_navegador_chrome(opcoes)
         
         lista_produtos = []
         
