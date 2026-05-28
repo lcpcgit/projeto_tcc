@@ -5,6 +5,7 @@ import re
 import unicodedata 
 import os
 from pathlib import Path
+from sqlalchemy import text
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -72,12 +73,67 @@ def localizar_chromedriver_local():
 
 def criar_navegador_chrome(opcoes):
     caminho_driver = localizar_chromedriver_local()
-    if caminho_driver:
-        print(f"Usando ChromeDriver local: {caminho_driver}")
-        return webdriver.Chrome(service=Service(str(caminho_driver)), options=opcoes)
+    tentativas = []
 
-    print("ChromeDriver local nao encontrado. Tentando Selenium Manager...")
-    return webdriver.Chrome(options=opcoes)
+    if caminho_driver:
+        tentativas.append(("ChromeDriver local", caminho_driver))
+    tentativas.append(("Selenium Manager", None))
+
+    ultimo_erro = None
+    for indice, (origem, caminho) in enumerate(tentativas, 1):
+        try:
+            if caminho:
+                print(f"Usando {origem}: {caminho}")
+                return webdriver.Chrome(service=Service(str(caminho)), options=opcoes)
+
+            print("Tentando abrir Chrome com Selenium Manager...")
+            return webdriver.Chrome(options=opcoes)
+
+        except Exception as erro:
+            ultimo_erro = erro
+            print(f"Falha ao iniciar Chrome com {origem}: {type(erro).__name__}: {erro}")
+
+            if indice < len(tentativas):
+                print("Aguardando 3 segundos antes da proxima tentativa...")
+                time.sleep(3)
+
+    raise RuntimeError("Nao foi possivel iniciar o ChromeDriver.") from ultimo_erro
+
+
+def salvar_historico_precos_na_aws(conexao, df_aws):
+    colunas = ["DataCaptura", "Loja", "Marca", "Produto", "Descricao", "Preco"]
+    df_limpo = df_aws.loc[:, colunas].copy()
+    df_limpo["Preco"] = pd.to_numeric(df_limpo["Preco"], errors="coerce")
+    df_limpo = df_limpo.dropna(subset=["Preco"])
+
+    if df_limpo.empty:
+        return 0
+
+    conexao.execute(text("""
+        IF OBJECT_ID('dbo.HistoricoPrecos', 'U') IS NULL
+        BEGIN
+            CREATE TABLE dbo.HistoricoPrecos (
+                DataCaptura varchar(10) NULL,
+                Loja varchar(100) NULL,
+                Marca varchar(100) NULL,
+                Produto varchar(500) NULL,
+                Descricao varchar(max) NULL,
+                Preco float NULL
+            )
+        END
+    """))
+
+    registros = df_limpo.where(pd.notna(df_limpo), None).to_dict("records")
+    conexao.execute(
+        text("""
+            INSERT INTO HistoricoPrecos
+                (DataCaptura, Loja, Marca, Produto, Descricao, Preco)
+            VALUES
+                (:DataCaptura, :Loja, :Marca, :Produto, :Descricao, :Preco)
+        """),
+        registros,
+    )
+    return len(registros)
 
 # 🚨 CÓDIGO FINAL: Parâmetro salvar_no_banco e integração AWS ativada
 def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
@@ -89,7 +145,15 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
     try:
         opcoes = Options()
         opcoes.add_argument("--disable-gpu")
+        opcoes.add_argument("--disable-extensions")
+        opcoes.add_argument("--disable-background-networking")
+        opcoes.add_argument("--disable-dev-shm-usage")
+        opcoes.add_argument("--no-default-browser-check")
+        opcoes.add_argument("--no-first-run")
+        opcoes.add_argument("--remote-debugging-port=0")
         opcoes.add_argument("--window-size=1920,1080")
+        opcoes.add_experimental_option("excludeSwitches", ["enable-logging"])
+        opcoes.page_load_strategy = "eager"
         opcoes.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         
         navegador = criar_navegador_chrome(opcoes)
@@ -659,6 +723,7 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
             df_resultados = df_resultados.sort_values(by="Preço", ascending=True).reset_index(drop=True)
  
             if salvar_no_banco:
+                engine = None
                 try:
                     try:
                         from conexao_aws import criar_engine_aws
@@ -668,19 +733,21 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
                     print("☁️ Conectando ao banco de dados na AWS para salvar...")
                     engine = criar_engine_aws(timeout=20)
                     
-                    # Injeta no banco e cria a tabela 'HistoricoPrecos' se ela não existir
                     df_aws = df_resultados.rename(columns={
                         'Data': 'DataCaptura',
                         'Preço': 'Preco',
                         'Descrição': 'Descricao'
                     })
-                    
+                     
                     with engine.begin() as conexao:
-                        df_aws.to_sql('HistoricoPrecos', con=conexao, if_exists='append', index=False)
+                        salvar_historico_precos_na_aws(conexao, df_aws)
                     print("✅ Sucesso: Tabela criada e atualizada na AWS!")
                     
                 except Exception as aws_erro:
                     print(f"❌ Erro ao tentar salvar na AWS: {aws_erro}")
+                finally:
+                    if engine is not None:
+                        engine.dispose()
             # ========================================================
             
             qtd_kabum = len(df_resultados[df_resultados['Loja'] == 'Kabum'])

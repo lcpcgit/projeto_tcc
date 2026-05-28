@@ -1,8 +1,15 @@
 import time
+import sys
 from datetime import datetime
-from bot_scraping import escanear_mercado_completo
 import requests
 import pandas as pd
+from sqlalchemy import text
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+from bot_scraping import escanear_mercado_completo
 
 try:
     from conexao_aws import criar_engine_aws
@@ -196,6 +203,62 @@ pecas_para_monitorar = [
     "soundbar",
     "microfone",
 ]
+
+
+def salvar_dolar_na_aws(df_dolar, data_hoje, tentativas=3, pausa_segundos=5):
+    ultimo_erro = None
+    valor_dolar = float(df_dolar.loc[0, "ValorDolar"])
+
+    for tentativa in range(1, tentativas + 1):
+        engine = None
+        try:
+            print(f"Conectando a AWS para salvar o dolar... tentativa {tentativa}/{tentativas}")
+            engine = criar_engine_aws(timeout=30)
+
+            with engine.begin() as conexao:
+                conexao.execute(text("""
+                    IF OBJECT_ID('dbo.HistoricoDolar', 'U') IS NULL
+                    BEGIN
+                        CREATE TABLE dbo.HistoricoDolar (
+                            DataCaptura varchar(10) NOT NULL,
+                            ValorDolar float NOT NULL
+                        )
+                    END
+                """))
+                conexao.execute(
+                    text("DELETE FROM HistoricoDolar WHERE DataCaptura = :data_captura"),
+                    {"data_captura": data_hoje},
+                )
+                conexao.execute(
+                    text(
+                        """
+                        INSERT INTO HistoricoDolar (DataCaptura, ValorDolar)
+                        VALUES (:data_captura, :valor_dolar)
+                        """
+                    ),
+                    {"data_captura": data_hoje, "valor_dolar": valor_dolar},
+                )
+
+            print("✅ Dólar salvo na nuvem AWS com sucesso!")
+            return
+
+        except Exception as erro:
+            ultimo_erro = erro
+            print(f"Falha ao salvar dolar na AWS ({type(erro).__name__}): {erro}")
+
+            if tentativa < tentativas:
+                print(f"Tentando novamente em {pausa_segundos} segundos...")
+                time.sleep(pausa_segundos)
+
+        finally:
+            if engine is not None:
+                engine.dispose()
+
+    raise RuntimeError(
+        f"Nao foi possivel salvar o dolar na AWS apos {tentativas} tentativas."
+    ) from ultimo_erro
+
+
 def registrar_dolar_do_dia():
     print("\n==================================================")
     print("💵 INICIANDO CAPTURA DO DÓLAR (API BANCÁRIA)")
@@ -218,34 +281,35 @@ def registrar_dolar_do_dia():
             "ValorDolar": [valor_dolar]
         })
         
-        print("Conectando à AWS para salvar o dólar...")
-        engine = criar_engine_aws(timeout=20)
-        
-        # if_exists='append' vai criar a tabela HistoricoDolar na AWS se ela não existir!
-        with engine.begin() as conexao:
-            df_dolar.to_sql('HistoricoDolar', con=conexao, if_exists='append', index=False)
-        print("✅ Dólar salvo na nuvem AWS com sucesso!")
+        salvar_dolar_na_aws(df_dolar, data_hoje)
         
     except Exception as e:
         print(f"❌ Erro ao capturar/salvar o dólar: {e}")
 
-# CHAMA A FUNÇÃO DO DÓLAR ANTES DE COMEÇAR O SCRAPING
+def executar_rotina_semanal():
+    # CHAMA A FUNÇÃO DO DÓLAR ANTES DE COMEÇAR O SCRAPING
+    registrar_dolar_do_dia()
 
-registrar_dolar_do_dia()
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 🚀 INICIANDO ROTINA DE EXTRAÇÃO SEMANAL...")
+    print(f"Total de itens a pesquisar: {len(pecas_para_monitorar)}")
 
-print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] 🚀 INICIANDO ROTINA DE EXTRAÇÃO SEMANAL...")
-print(f"Total de itens a pesquisar: {len(pecas_para_monitorar)}")
+    # 2. O Loop de Extração
+    for i, peca in enumerate(pecas_para_monitorar, 1):
+        print(f"\n[{i}/{len(pecas_para_monitorar)}] Pesquisando: {peca}")
+        
+        try:
+            # Chama o bot e LIGA a chave para salvar na AWS
+            escanear_mercado_completo(peca, salvar_no_banco=True)
+        except Exception as erro:
+            print(f"❌ Erro ao pesquisar '{peca}'. A rotina vai continuar: {erro}")
+        
+        # Pausa de 15 segundos entre cada pesquisa para não bloquear o seu IP nas lojas!
+        if i < len(pecas_para_monitorar):
+            print("⏳ Pausando 10 segundos para evitar bloqueios de segurança...")
+            time.sleep(10)
 
-# 2. O Loop de Extração
-for i, peca in enumerate(pecas_para_monitorar, 1):
-    print(f"\n[{i}/{len(pecas_para_monitorar)}] Pesquisando: {peca}")
-    
-    # Chama o bot e LIGA a chave para salvar na AWS
-    escanear_mercado_completo(peca, salvar_no_banco=True)
-    
-    # Pausa de 15 segundos entre cada pesquisa para não bloquear o seu IP nas lojas!
-    if i < len(pecas_para_monitorar):
-        print("⏳ Pausando 10 segundos para evitar bloqueios de segurança...")
-        time.sleep(10)
+    print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ✅ ROTINA FINALIZADA COM SUCESSO!")
 
-print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ✅ ROTINA FINALIZADA COM SUCESSO!")
+
+if __name__ == "__main__":
+    executar_rotina_semanal()
