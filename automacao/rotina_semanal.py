@@ -213,7 +213,7 @@ def salvar_dolar_na_aws(df_dolar, data_hoje, tentativas=3, pausa_segundos=5):
         engine = None
         try:
             print(f"Conectando a AWS para salvar o dolar... tentativa {tentativa}/{tentativas}")
-            engine = criar_engine_aws(timeout=30)
+            engine = criar_engine_aws(timeout=10)
 
             with engine.begin() as conexao:
                 conexao.execute(text("""

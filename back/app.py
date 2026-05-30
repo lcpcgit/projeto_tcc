@@ -319,6 +319,39 @@ mapa_subcategorias = {
 }
 
 # ================= FUNÇÕES DE DADOS =================
+def limpar_nome_kabum(texto):
+    texto = re.sub(r"\s+", " ", str(texto or "")).strip()
+    texto = "".join(
+        c for c in unicodedata.normalize("NFD", texto)
+        if unicodedata.category(c) != "Mn"
+    )
+    texto = texto.replace("\ufffd", " ")
+    texto = re.sub(r"\s+", " ", texto).strip()
+    texto = re.sub(r"^[^A-Za-z0-9]+", "", texto)
+    texto = re.sub(
+        r"^(?:AVALIACAO\s+\d+(?:[\.,]\d+)?\s+DE\s+\d+(?:[\.,]\d+)?\s*[^A-Za-z0-9]*)+",
+        "",
+        texto,
+        flags=re.IGNORECASE,
+    )
+    texto = re.sub(r"^\*?\s*\d(?:[\.,]\d)?\s+(?:PATROCINADO\s+)?", "", texto, flags=re.IGNORECASE)
+    texto = re.sub(
+        r"^(?:(?:FRETE\s+GRATIS\*?|PATROCINADO|OPENBOX|PRIME\s+NINJA)\s+)+",
+        "",
+        texto,
+        flags=re.IGNORECASE,
+    )
+    texto = re.split(
+        r"\s+R\$\s*\d|\s+NO\s+PIX\b|\s+OU\s+\d+X\b|\s+PRE-VENDA\b|\s+RESTAM?\s+\d+",
+        texto,
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )[0]
+    texto = re.sub(r"\b(?:FRETE\s+GRATIS\*?|PATROCINADO)\b", "", texto, flags=re.IGNORECASE)
+    texto = re.sub(r"^[^A-Za-z0-9]+", "", texto)
+    return re.sub(r"\s+", " ", texto).strip()
+
+
 @st.cache_data(ttl=600) 
 def carregar_dados_aws():
     endpoint_aws = st.secrets["DB_HOST"]
@@ -347,8 +380,8 @@ def carregar_dados_aws():
         palavras_proibidas = 'MÁQUINA|MAQUINA|MONTAGEM|COMPUTADOR|PC GAMER|COMPLETO|COMPLETA|CPU GAMER|DESKTOP'
         df = df[~df['Produto'].str.contains(palavras_proibidas, case=False, na=False)]
         
-        import re
         df['Produto'] = df['Produto'].apply(lambda x: re.sub(r'^[\d\s-]+\s*', '', str(x)))
+        df['Produto'] = df['Produto'].apply(limpar_nome_kabum)
         
         return df
     except Exception as e:
