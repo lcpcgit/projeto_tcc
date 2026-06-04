@@ -221,6 +221,139 @@ st.markdown("""
         color: #FFFFFF !important;
     }
 
+    .model-scenario-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+        margin: 0.35rem 0 1rem 0;
+    }
+
+    .model-scenario-card {
+        background: #1A1A1A;
+        border: 1px solid rgba(255, 75, 75, 0.45);
+        border-radius: 8px;
+        padding: 0.95rem;
+        min-height: 156px;
+        box-shadow: inset 4px 0 0 var(--red-line);
+    }
+
+    .model-scenario-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: flex-start;
+        margin-bottom: 0.85rem;
+    }
+
+    .model-scenario-title {
+        color: #FFFFFF;
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .model-scenario-subtitle {
+        color: var(--muted);
+        font-size: 0.82rem;
+        margin-top: 0.2rem;
+    }
+
+    .scenario-mini-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.65rem;
+    }
+
+    .scenario-mini {
+        background: #121212;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 0.75rem;
+        min-height: 92px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .scenario-label {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .scenario-value {
+        color: #FFFFFF;
+        font-size: 1.45rem;
+        font-weight: 800;
+        line-height: 1.05;
+        margin: 0.45rem 0;
+    }
+
+    .scenario-note {
+        color: #D7E7FF;
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+
+    .scenario-note.risk {
+        color: #FF9A9A;
+    }
+
+    .scenario-note.upside {
+        color: #7DE8A7;
+    }
+
+    .finance-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+        margin: 1rem 0;
+    }
+
+    .finance-card {
+        background: #1A1A1A;
+        border: 1px solid rgba(255, 75, 75, 0.45);
+        border-radius: 8px;
+        padding: 1rem;
+        box-shadow: inset 4px 0 0 var(--red-line);
+    }
+
+    .finance-title {
+        color: #FFFFFF;
+        font-size: 1rem;
+        font-weight: 800;
+        margin-bottom: 0.25rem;
+    }
+
+    .finance-subtitle {
+        color: var(--muted);
+        font-size: 0.82rem;
+        margin-bottom: 0.9rem;
+    }
+
+    .finance-value {
+        color: #FFFFFF;
+        font-size: 1.65rem;
+        font-weight: 800;
+        line-height: 1.05;
+        margin-bottom: 0.75rem;
+    }
+
+    .finance-line {
+        color: #FFFFFF;
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-top: 0.35rem;
+    }
+
+    @media (max-width: 900px) {
+        .model-scenario-grid,
+        .scenario-mini-grid,
+        .finance-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
     .stAlert {
         background-color: var(--panel) !important;
         color: #94B3FD !important;
@@ -1297,48 +1430,83 @@ def pagina_sistema_predicao():
             from sklearn.model_selection import train_test_split
             from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
+            try:
+                from xgboost import XGBRegressor
+            except ImportError:
+                st.session_state["erro_simulacao"] = (
+                    "A biblioteca XGBoost não está instalada. Rode `pip install xgboost` "
+                    "no ambiente virtual e reinicie o Streamlit."
+                )
+                st.session_state.pop("resultado_simulacao", None)
+                XGBRegressor = None
+
             X = df_alvo[["Ano", "Mes", "DiaDaSemana", "Preco", "Preco_Concorrencia", "Dolar"]]
             y = df_alvo["Quantidade"]
 
-            X_treino, X_teste, y_treino, y_teste = train_test_split(X, y, test_size=0.2, random_state=42)
+            if XGBRegressor is not None:
+                X_treino, X_teste, y_treino, y_teste = train_test_split(X, y, test_size=0.2, random_state=42)
 
-            modelo_ia = RandomForestRegressor(n_estimators=100, random_state=42)
-            modelo_ia.fit(X_treino, y_treino)
+                modelos_ia = {
+                    "Random Forest": RandomForestRegressor(n_estimators=100, random_state=42),
+                    "XGBoost": XGBRegressor(
+                        n_estimators=100,
+                        learning_rate=0.1,
+                        max_depth=6,
+                        objective="reg:squarederror",
+                        random_state=42,
+                        n_jobs=1,
+                        verbosity=0,
+                    ),
+                }
 
-            previsoes_teste = modelo_ia.predict(X_teste)
-            acuracia_r2 = r2_score(y_teste, previsoes_teste)
-            erro_mae = mean_absolute_error(y_teste, previsoes_teste)
-            erro_rmse = np.sqrt(mean_squared_error(y_teste, previsoes_teste))
+                X_futuro = pd.DataFrame({
+                    "Ano": [ano_selecionado],
+                    "Mes": [mes_alvo_num],
+                    "DiaDaSemana": [4],
+                    "Preco": [preco_simulado],
+                    "Preco_Concorrencia": [preco_conc_simulado],
+                    "Dolar": [dolar_simulado],
+                })
 
-            st.session_state["ultima_acuracia"] = acuracia_r2
-            st.session_state["ultima_mae"] = erro_mae
-            st.session_state["ultima_rmse"] = erro_rmse
-            st.session_state["ultima_importancia"] = modelo_ia.feature_importances_
+                resultados_modelos = []
+                for nome_modelo, modelo_ia in modelos_ia.items():
+                    modelo_ia.fit(X_treino, y_treino)
 
-            X_futuro = pd.DataFrame({
-                "Ano": [ano_selecionado],
-                "Mes": [mes_alvo_num],
-                "DiaDaSemana": [4],
-                "Preco": [preco_simulado],
-                "Preco_Concorrencia": [preco_conc_simulado],
-                "Dolar": [dolar_simulado],
-            })
+                    previsoes_teste = modelo_ia.predict(X_teste)
+                    acuracia_r2 = r2_score(y_teste, previsoes_teste)
+                    erro_mae = mean_absolute_error(y_teste, previsoes_teste)
+                    erro_rmse = np.sqrt(mean_squared_error(y_teste, previsoes_teste))
 
-            previsao_ia = modelo_ia.predict(X_futuro)[0]
-            previsao_arredondada = max(1, int(previsao_ia))
-            faturamento_estimado = previsao_arredondada * preco_simulado
+                    previsao_ia = modelo_ia.predict(X_futuro)[0]
+                    previsao_arredondada = max(1, int(round(previsao_ia)))
+                    faturamento_estimado = previsao_arredondada * preco_simulado
 
-            df_historico_mes = df_alvo[df_alvo["Mes"] == mes_alvo_num]
-            media_historica_mes = int(df_historico_mes["Quantidade"].mean()) if not df_historico_mes.empty else "N/A (Sem dados)"
+                    resultados_modelos.append({
+                        "modelo": nome_modelo,
+                        "previsao": previsao_arredondada,
+                        "faturamento": faturamento_estimado,
+                        "r2": acuracia_r2,
+                        "mae": erro_mae,
+                        "rmse": erro_rmse,
+                        "importancias": np.asarray(modelo_ia.feature_importances_, dtype=float),
+                    })
 
-            st.session_state["resultado_simulacao"] = {
-                "produto_alvo": produto_ia,
-                "marca_alvo": marca_ia,
-                "previsao": previsao_arredondada,
-                "faturamento": faturamento_estimado,
-                "media_historica": media_historica_mes,
-                "mes_nome": mes_selecionado_nome,
-            }
+                modelo_referencia = min(resultados_modelos, key=lambda item: (item["rmse"], -item["r2"]))
+
+                df_historico_mes = df_alvo[df_alvo["Mes"] == mes_alvo_num]
+                media_historica_mes = int(df_historico_mes["Quantidade"].mean()) if not df_historico_mes.empty else "N/A (Sem dados)"
+
+                st.session_state["erro_simulacao"] = None
+                st.session_state["resultado_simulacao"] = {
+                    "produto_alvo": produto_ia,
+                    "marca_alvo": marca_ia,
+                    "modelos": resultados_modelos,
+                    "modelo_referencia": modelo_referencia["modelo"],
+                    "previsao": modelo_referencia["previsao"],
+                    "faturamento": modelo_referencia["faturamento"],
+                    "media_historica": media_historica_mes,
+                    "mes_nome": mes_selecionado_nome,
+                }
 
     with conteudo_col:
         st.markdown("### Ativo selecionado")
@@ -1358,82 +1526,169 @@ def pagina_sistema_predicao():
         with tab_simulacao:
             st.markdown("### Resultado da Projeção de Demanda")
             resultado = st.session_state.get("resultado_simulacao")
+            erro_simulacao = st.session_state.get("erro_simulacao")
             resultado_valido = (
                 resultado is not None
                 and resultado.get("produto_alvo") == produto_ia
                 and resultado.get("marca_alvo") == marca_ia
+                and resultado.get("modelos")
             )
 
-            if not resultado_valido:
+            if erro_simulacao:
+                painel_erro(erro_simulacao)
+            elif not resultado_valido:
                 placeholder_grafico("Configure o cenário no painel de filtros e clique em Iniciar IA para gerar a projeção.")
             else:
-                col_a, col_b, col_c = st.columns(3)
-                with col_b:
-                    st.metric("Previsão Principal", f"{resultado['previsao']} unid.", delta="Volume esperado", delta_color="off")
-                with col_a:
-                    st.metric("Cenário Pessimista", f"{int(resultado['previsao'] * 0.85)} unid.", delta="-15% risco", delta_color="inverse")
-                with col_c:
-                    st.metric("Cenário Otimista", f"{int(resultado['previsao'] * 1.15)} unid.", delta="+15% conversão", delta_color="normal")
+                resultados_modelos = resultado["modelos"]
+                modelo_referencia = resultado["modelo_referencia"]
 
-                painel_neutro(
-                    f"<h4 style='margin-top:0;color:#FFFFFF;'>Projeção Financeira</h4>"
-                    f"<p><b>Faturamento Bruto Esperado:</b> {formatar_moeda(resultado['faturamento'])} "
-                    f"<i>(baseado no preço sugerido)</i></p>"
-                    f"<p style='margin-bottom:0;'><b>Média de Vendas Histórica ({resultado['mes_nome']}):</b> "
-                    f"{resultado['media_historica']} unid. <i>(o que costumava vender nesta época)</i></p>"
+                st.markdown("#### Comparativo dos Modelos")
+                cenarios_modelos_html = []
+                for item in resultados_modelos:
+                    previsao_modelo = item["previsao"]
+                    classe_referencia = " reference" if item["modelo"] == modelo_referencia else ""
+                    subtitulo_modelo = "Modelo de referência" if item["modelo"] == modelo_referencia else "Modelo comparativo"
+                    cenarios_modelos_html.append(
+                        f'<div class="model-scenario-card{classe_referencia}">'
+                        '<div class="model-scenario-head">'
+                        '<div>'
+                        f'<div class="model-scenario-title">{item["modelo"]}</div>'
+                        f'<div class="model-scenario-subtitle">{subtitulo_modelo}</div>'
+                        '</div>'
+                        '</div>'
+                        '<div class="scenario-mini-grid">'
+                        '<div class="scenario-mini">'
+                        '<div class="scenario-label">Pessimista</div>'
+                        f'<div class="scenario-value">{int(previsao_modelo * 0.85)} unid.</div>'
+                        '<div class="scenario-note risk">-15% risco</div>'
+                        '</div>'
+                        '<div class="scenario-mini reference">'
+                        '<div class="scenario-label">Previsão</div>'
+                        f'<div class="scenario-value">{previsao_modelo} unid.</div>'
+                        '<div class="scenario-note">Base do modelo</div>'
+                        '</div>'
+                        '<div class="scenario-mini">'
+                        '<div class="scenario-label">Otimista</div>'
+                        f'<div class="scenario-value">{int(previsao_modelo * 1.15)} unid.</div>'
+                        '<div class="scenario-note upside">+15% conversão</div>'
+                        '</div>'
+                        '</div>'
+                        '</div>'
+                    )
+
+                st.markdown(
+                    f'<div class="model-scenario-grid">{"".join(cenarios_modelos_html)}</div>',
+                    unsafe_allow_html=True,
+                )
+
+                st.markdown("#### Projeção Financeira")
+                projecoes_financeiras_html = []
+                for item in resultados_modelos:
+                    classe_referencia = " reference" if item["modelo"] == modelo_referencia else ""
+                    subtitulo_modelo = "Referência pelo menor erro" if item["modelo"] == modelo_referencia else "Comparativo"
+                    projecoes_financeiras_html.append(
+                        f'<div class="finance-card{classe_referencia}">'
+                        f'<div class="finance-title">{item["modelo"]}</div>'
+                        f'<div class="finance-subtitle">{subtitulo_modelo}</div>'
+                        f'<div class="finance-value">{formatar_moeda(item["faturamento"])}</div>'
+                        f'<div class="finance-line">Previsão: {item["previsao"]} unid.</div>'
+                        f'<div class="finance-line">Média histórica ({resultado["mes_nome"]}): {resultado["media_historica"]} unid.</div>'
+                        '</div>'
+                    )
+                st.markdown(
+                    f'<div class="finance-grid">{"".join(projecoes_financeiras_html)}</div>',
+                    unsafe_allow_html=True,
                 )
 
         with tab_tecnica:
             st.markdown("### Métricas de Validação Científica")
-            if "ultima_acuracia" not in st.session_state:
+            resultado = st.session_state.get("resultado_simulacao")
+            resultado_valido = (
+                resultado is not None
+                and resultado.get("produto_alvo") == produto_ia
+                and resultado.get("marca_alvo") == marca_ia
+                and resultado.get("modelos")
+            )
+
+            if st.session_state.get("erro_simulacao"):
+                painel_erro(st.session_state["erro_simulacao"])
+            elif not resultado_valido:
                 placeholder_grafico("Execute uma simulação para gerar os dados técnicos.")
             else:
-                acuracia = st.session_state["ultima_acuracia"]
-                mae = st.session_state["ultima_mae"]
-                rmse = st.session_state["ultima_rmse"]
-                importancias = st.session_state["ultima_importancia"]
+                resultados_modelos = resultado["modelos"]
 
-                col_m1, col_m2, col_m3 = st.columns(3)
-                with col_m1:
-                    st.metric("Score de Tendência (R²)", f"{acuracia * 100:.1f}%")
-                with col_m2:
-                    st.metric("Erro Médio Absoluto (MAE)", f"{mae:.1f} unid.")
-                with col_m3:
-                    st.metric("Erro Quadrático (RMSE)", f"{rmse:.1f} unid.")
+                colunas_metricas = st.columns(len(resultados_modelos))
+                for coluna, item in zip(colunas_metricas, resultados_modelos):
+                    with coluna:
+                        st.metric(f"{item['modelo']} - R²", f"{item['r2'] * 100:.1f}%")
+                        st.metric("MAE", f"{item['mae']:.1f} unid.")
+                        st.metric("RMSE", f"{item['rmse']:.1f} unid.")
 
-                if acuracia > 0.80:
-                    painel_sucesso("Grau de confiança <b>Excepcional</b>. O modelo prevê a tendência com alta precisão.")
-                elif acuracia > 0.60:
-                    painel_info("Grau de confiança <b>Bom</b>. O modelo compreende a dinâmica do mercado.")
+                menor_acuracia = min(item["r2"] for item in resultados_modelos)
+                if menor_acuracia > 0.80:
+                    painel_sucesso(
+                        "Grau de confiança <b>Excepcional</b> nos dois modelos. "
+                        "Random Forest e XGBoost preveem a tendência com alta precisão."
+                    )
+                elif menor_acuracia > 0.60:
+                    painel_info(
+                        "Grau de confiança <b>Bom</b> nos dois modelos. "
+                        "Random Forest e XGBoost compreendem a dinâmica do mercado."
+                    )
                 else:
-                    painel_erro("Grau de confiança <b>Baixo</b>. O mercado atual está instável ou faltam dados.")
+                    painel_erro(
+                        "Comparativo concluído com <b>confiança baixa</b> em pelo menos um dos modelos. "
+                        "O mercado atual está instável ou faltam dados."
+                    )
 
                 st.markdown("### Importância das Variáveis")
-                df_importancia = pd.DataFrame({
-                    "Variável Analisada": [
-                        "Ano",
-                        "Mês (Sazonalidade)",
-                        "Dia da Semana",
-                        "Nosso Preço",
-                        "Preço Concorrência",
-                        "Cotação do Dólar",
-                    ],
-                    "Peso na Decisão (%)": importancias * 100,
-                }).sort_values("Peso na Decisão (%)", ascending=True)
+                variaveis_analisadas = [
+                    "Ano",
+                    "Mês (Sazonalidade)",
+                    "Dia da Semana",
+                    "Nosso Preço",
+                    "Preço Concorrência",
+                    "Cotação do Dólar",
+                ]
+                df_importancia = pd.DataFrame([
+                    {
+                        "Modelo": item["modelo"],
+                        "Variável Analisada": variavel,
+                        "Peso na Decisão (%)": peso * 100,
+                    }
+                    for item in resultados_modelos
+                    for variavel, peso in zip(variaveis_analisadas, item["importancias"])
+                ])
+                df_importancia["Peso Exibido (%)"] = df_importancia["Peso na Decisão (%)"].clip(lower=0.25)
+                df_importancia["Rótulo"] = df_importancia["Peso na Decisão (%)"].map(lambda peso: f"{peso:.1f}%")
+                ordem_variaveis = (
+                    df_importancia.groupby("Variável Analisada")["Peso na Decisão (%)"]
+                    .mean()
+                    .sort_values(ascending=True)
+                    .index
+                    .tolist()
+                )
 
                 fig_imp = px.bar(
                     df_importancia,
-                    x="Peso na Decisão (%)",
+                    x="Peso Exibido (%)",
                     y="Variável Analisada",
+                    color="Modelo",
+                    text="Rótulo",
                     orientation="h",
+                    barmode="group",
                     title=f"Matriz de Decisão da IA para: {marca_ia} {produto_ia}",
+                    category_orders={"Variável Analisada": ordem_variaveis},
+                    color_discrete_map={"Random Forest": "#0066CC", "XGBoost": "#FF4B4B"},
+                    custom_data=["Peso na Decisão (%)"],
                 )
                 fig_imp.update_traces(
-                    marker_color="#0066CC",
-                    hovertemplate="<b>%{y}</b><br>Peso: %{x:.1f}%<extra></extra>",
+                    cliponaxis=False,
+                    textposition="outside",
+                    hovertemplate="<b>%{fullData.name}</b><br>%{y}<br>Peso: %{customdata[0]:.1f}%<extra></extra>",
                 )
                 fig_imp.update_layout(
-                    showlegend=False,
+                    showlegend=True,
                     bargap=0.4,
                     height=440,
                     xaxis_title="Peso (%) na Decisão de Compra",
