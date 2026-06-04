@@ -6,11 +6,49 @@ import unicodedata
 import os
 from pathlib import Path
 from sqlalchemy import text
+from selenium.common.exceptions import WebDriverException
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common import utils
 import traceback
+
+
+class ServicoChromeRobusto(Service):
+    def __init__(self, *args, timeout_inicio=20, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.timeout_inicio = timeout_inicio
+
+    @property
+    def service_url(self):
+        return f"http://127.0.0.1:{self.port}"
+
+    def is_connectable(self):
+        return utils.is_url_connectable(self.port, host="127.0.0.1")
+
+    def start(self):
+        if self._path is None:
+            raise WebDriverException("Service path cannot be None.")
+
+        self._start_process(self._path)
+
+        inicio = time.monotonic()
+        tentativas = 0
+        while True:
+            self.assert_process_still_running()
+            if self.is_connectable():
+                break
+
+            if time.monotonic() - inicio >= self.timeout_inicio:
+                self.stop()
+                raise WebDriverException(
+                    f"Timeout ao conectar no ChromeDriver em 127.0.0.1:{self.port} "
+                    f"apos {self.timeout_inicio} segundos."
+                )
+
+            time.sleep(min(0.05 + 0.05 * tentativas, 0.5))
+            tentativas += 1
 
 
 def obter_versao_chrome_windows():
@@ -82,12 +120,17 @@ def criar_navegador_chrome(opcoes):
     ultimo_erro = None
     for indice, (origem, caminho) in enumerate(tentativas, 1):
         try:
+            servico = ServicoChromeRobusto(
+                executable_path=str(caminho) if caminho else None,
+                service_args=["--allowed-ips=127.0.0.1"],
+                timeout_inicio=20,
+            )
             if caminho:
                 print(f"Usando {origem}: {caminho}")
-                return webdriver.Chrome(service=Service(str(caminho)), options=opcoes)
+                return webdriver.Chrome(service=servico, options=opcoes)
 
             print("Tentando abrir Chrome com Selenium Manager...")
-            return webdriver.Chrome(options=opcoes)
+            return webdriver.Chrome(service=servico, options=opcoes)
 
         except Exception as erro:
             ultimo_erro = erro
@@ -131,6 +174,28 @@ def limpar_nome_kabum(texto):
     texto = re.sub(r"\b(?:FRETE\s+GRATIS\*?|PATROCINADO)\b", "", texto, flags=re.IGNORECASE)
     texto = re.sub(r"^[^A-Za-z0-9]+", "", texto)
     return re.sub(r"\s+", " ", texto).strip()
+
+
+def remover_acentos_minusculo(texto):
+    texto_sem_acento = ''.join(
+        c for c in unicodedata.normalize('NFD', str(texto))
+        if unicodedata.category(c) != 'Mn'
+    )
+    return texto_sem_acento.lower()
+
+
+def produto_parece_combo(nome_produto):
+    nome_limpo = remover_acentos_minusculo(nome_produto)
+
+    if re.search(r"\s\+\s", nome_limpo):
+        return True
+
+    segundo_produto = (
+        r"(?:placa[\s-]?mae|motherboard|mainboard|processador|cpu|memoria|ram|"
+        r"ssd|hd|fonte|gabinete|monitor|teclado|mouse|headset|cooler|"
+        r"water\s*cooler|fan|placa\s+de\s+video|gpu|vga)"
+    )
+    return bool(re.search(rf"\+\s*{segundo_produto}\b", nome_limpo))
 
 
 def salvar_historico_precos_na_aws(conexao, df_aws):
@@ -187,6 +252,7 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
         opcoes.add_argument("--window-size=1920,1080")
         opcoes.add_experimental_option("excludeSwitches", ["enable-logging"])
         opcoes.page_load_strategy = "eager"
+        opcoes.ignore_local_proxy_environment_variables()
         opcoes.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         
         navegador = criar_navegador_chrome(opcoes)
@@ -391,14 +457,16 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
             return "Outra/Genérica"
         
         def remover_acentos(texto):
-            texto_sem_acento = ''.join(c for c in unicodedata.normalize('NFD', str(texto)) if unicodedata.category(c) != 'Mn')
-            return texto_sem_acento.lower()
+            return remover_acentos_minusculo(texto)
         
         def produto_eh_valido(nome_produto, termo):
             nome_limpo = remover_acentos(nome_produto)
             termo_limpo = remover_acentos(termo)
             
             if re.search(r'\b(open box|recondicionado|usado|refurbished|salvado)\b', nome_limpo):
+                return False
+
+            if produto_parece_combo(nome_produto):
                 return False
 
             correcoes = {

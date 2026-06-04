@@ -205,17 +205,19 @@ pecas_para_monitorar = [
 ]
 
 
-def salvar_dolar_na_aws(df_dolar, data_hoje, tentativas=3, pausa_segundos=5):
+def salvar_dolar_na_aws(df_dolar, data_hoje, tentativas=3, pausa_segundos=5, timeout_banco=10):
     ultimo_erro = None
     valor_dolar = float(df_dolar.loc[0, "ValorDolar"])
+    timeout_lock_ms = int(timeout_banco * 1000)
 
     for tentativa in range(1, tentativas + 1):
         engine = None
         try:
             print(f"Conectando a AWS para salvar o dolar... tentativa {tentativa}/{tentativas}")
-            engine = criar_engine_aws(timeout=10)
+            engine = criar_engine_aws(timeout=timeout_banco)
 
             with engine.begin() as conexao:
+                conexao.execute(text(f"SET LOCK_TIMEOUT {timeout_lock_ms}; SET XACT_ABORT ON;"))
                 conexao.execute(text("""
                     IF OBJECT_ID('dbo.HistoricoDolar', 'U') IS NULL
                     BEGIN
@@ -226,14 +228,17 @@ def salvar_dolar_na_aws(df_dolar, data_hoje, tentativas=3, pausa_segundos=5):
                     END
                 """))
                 conexao.execute(
-                    text("DELETE FROM HistoricoDolar WHERE DataCaptura = :data_captura"),
-                    {"data_captura": data_hoje},
-                )
-                conexao.execute(
                     text(
                         """
-                        INSERT INTO HistoricoDolar (DataCaptura, ValorDolar)
-                        VALUES (:data_captura, :valor_dolar)
+                        UPDATE dbo.HistoricoDolar
+                        SET ValorDolar = :valor_dolar
+                        WHERE DataCaptura = :data_captura;
+
+                        IF @@ROWCOUNT = 0
+                        BEGIN
+                            INSERT INTO dbo.HistoricoDolar (DataCaptura, ValorDolar)
+                            VALUES (:data_captura, :valor_dolar)
+                        END
                         """
                     ),
                     {"data_captura": data_hoje, "valor_dolar": valor_dolar},
@@ -241,6 +246,11 @@ def salvar_dolar_na_aws(df_dolar, data_hoje, tentativas=3, pausa_segundos=5):
 
             print("✅ Dólar salvo na nuvem AWS com sucesso!")
             return
+
+        except TimeoutError as erro:
+            ultimo_erro = erro
+            print(f"AWS indisponivel para salvar o dolar: {erro}")
+            break
 
         except Exception as erro:
             ultimo_erro = erro
@@ -254,9 +264,7 @@ def salvar_dolar_na_aws(df_dolar, data_hoje, tentativas=3, pausa_segundos=5):
             if engine is not None:
                 engine.dispose()
 
-    raise RuntimeError(
-        f"Nao foi possivel salvar o dolar na AWS apos {tentativas} tentativas."
-    ) from ultimo_erro
+    raise RuntimeError("Nao foi possivel salvar o dolar na AWS.") from ultimo_erro
 
 
 def registrar_dolar_do_dia():
@@ -285,6 +293,7 @@ def registrar_dolar_do_dia():
         
     except Exception as e:
         print(f"❌ Erro ao capturar/salvar o dólar: {e}")
+        print("A rotina vai continuar sem atualizar o HistoricoDolar.")
 
 def executar_rotina_semanal():
     # CHAMA A FUNÇÃO DO DÓLAR ANTES DE COMEÇAR O SCRAPING
