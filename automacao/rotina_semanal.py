@@ -168,7 +168,7 @@ pecas_para_monitorar = [
     "monitor ultrawide",
 
     # 🌬️ REFRIGERAÇÃO
-    "air cooler cpu",
+    "cooler processador",
     "water cooler 120mm",
     "water cooler 240mm",
     "water cooler 360mm",

@@ -198,6 +198,69 @@ def produto_parece_combo(nome_produto):
     return bool(re.search(rf"\+\s*{segundo_produto}\b", nome_limpo))
 
 
+def palavra_eh_capacidade_armazenamento(palavra):
+    return re.fullmatch(r"\d+(?:[\.,]\d+)?\s*(?:tb|gb)", str(palavra).strip(), re.IGNORECASE)
+
+
+def formatar_capacidade_armazenamento(palavra):
+    match = re.fullmatch(r"(\d+(?:[\.,]\d+)?)\s*(tb|gb)", str(palavra).strip(), re.IGNORECASE)
+    if not match:
+        return str(palavra).upper()
+
+    numero = match.group(1).replace(",", ".")
+    unidade = match.group(2).upper()
+    if numero.endswith(".0"):
+        numero = numero[:-2]
+    return f"{numero}{unidade}"
+
+
+def capacidade_armazenamento_corresponde(capacidade_busca, nome_limpo):
+    match = re.fullmatch(r"(\d+(?:[\.,]\d+)?)\s*(tb|gb)", str(capacidade_busca).strip(), re.IGNORECASE)
+    if not match:
+        return False
+
+    valor = float(match.group(1).replace(",", "."))
+    unidade = match.group(2).lower()
+    padroes = []
+
+    if unidade == "tb":
+        tb_texto = str(int(valor)) if valor.is_integer() else str(valor).replace(".", r"[\.,]")
+        gb_decimal = int(valor * 1000)
+        gb_binario = int(valor * 1024)
+        padroes.extend([
+            rf"\b{tb_texto}\s*tb\b",
+            rf"\b{gb_decimal}\s*g(?:b)?\b",
+            rf"\b{gb_binario}\s*g(?:b)?\b",
+        ])
+    else:
+        gb_texto = str(int(valor)) if valor.is_integer() else str(valor).replace(".", r"[\.,]")
+        padroes.append(rf"\b{gb_texto}\s*g(?:b)?\b")
+
+    return any(re.search(padrao, nome_limpo, re.IGNORECASE) for padrao in padroes)
+
+
+def montar_nome_terabyte(nome_completo, termo_busca):
+    partes_nome = re.split(r",\s*|;\s*|\s+-\s+", nome_completo, maxsplit=1)
+    nome_curto = partes_nome[0].strip()
+    descricao = partes_nome[1].strip() if len(partes_nome) > 1 else ""
+
+    termo_limpo = remover_acentos_minusculo(termo_busca)
+    nome_curto_limpo = remover_acentos_minusculo(nome_curto)
+    nome_completo_limpo = remover_acentos_minusculo(nome_completo)
+
+    if any(termo in termo_limpo for termo in ["ssd", "hd", "nvme", "m.2", "disco"]):
+        for palavra in termo_limpo.split():
+            if (
+                palavra_eh_capacidade_armazenamento(palavra)
+                and capacidade_armazenamento_corresponde(palavra, nome_completo_limpo)
+                and not capacidade_armazenamento_corresponde(palavra, nome_curto_limpo)
+            ):
+                nome_curto = f"{nome_curto} {formatar_capacidade_armazenamento(palavra)}"
+                break
+
+    return nome_curto, descricao
+
+
 def salvar_historico_precos_na_aws(conexao, df_aws):
     colunas = ["DataCaptura", "Loja", "Marca", "Produto", "Descricao", "Preco"]
     df_limpo = df_aws.loc[:, colunas].copy()
@@ -584,6 +647,25 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
                 if nome_limpo.startswith('cooler ') or nome_limpo.startswith('water ') or nome_limpo.startswith('fan '): return False
                 if 'cooler para' in nome_limpo or 'cooler processador' in nome_limpo or 'water cooler' in nome_limpo or 'watercooler' in nome_limpo: return False
                 if 'ventoinha' in nome_limpo or 'dissipador' in nome_limpo: return False
+
+            buscando_air_cooler = (
+                'air cooler' in termo_limpo
+                or 'aircooler' in termo_limpo
+                or ('cooler' in termo_limpo and re.search(r'\b(cpu|processador)\b', termo_limpo))
+            )
+            if buscando_air_cooler:
+                if 'water cooler' in nome_limpo or 'watercooler' in nome_limpo or 'liquid cooler' in nome_limpo or 'liquido' in nome_limpo:
+                    return False
+                if re.search(r'\b(fan|ventoinha)\b', nome_limpo) or 'cooler para gabinete' in nome_limpo:
+                    return False
+                if not (
+                    'cooler para processador' in nome_limpo
+                    or 'cooler processador' in nome_limpo
+                    or 'air cooler' in nome_limpo
+                    or 'aircooler' in nome_limpo
+                    or 'dissipador' in nome_limpo
+                ):
+                    return False
             
             # 🚀 CORREÇÃO 5: Liberação da palavra "Tela" se o alvo for um monitor
             if 'notebook' in nome_limpo or 'laptop' in nome_limpo or 'book' in nome_limpo: return False
@@ -613,6 +695,10 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
             if "gabinete" in palavras_da_busca and "gamer" in palavras_da_busca:
                 palavras_da_busca.remove("gamer")
 
+            # Flexibilidade Air Cooler: lojas costumam usar "Cooler para Processador".
+            if buscando_air_cooler:
+                palavras_da_busca = [p for p in palavras_da_busca if p not in ["air", "cpu", "processador"]]
+
             for palavra in palavras_da_busca:
                 # Se for número puro
                 if palavra.isdigit():
@@ -621,6 +707,9 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
                         
                 # Se for alfanumérico (ex: 8gb, 3200mhz, 13600k)
                 elif any(char.isdigit() for char in palavra):
+                    if capacidade_armazenamento_corresponde(palavra, nome_limpo):
+                        continue
+
                     # 🚀 NOVO: Flexibilidade para processadores com letras (K, F, KF, X, XT, X3D)
                     # Verifica se a palavra está no nome OU se a palavra sem a última letra está no nome
                     # Ex: se palavra for "13600k", aceita se achar "13600k" ou "13600 k" ou apenas "13600" (se for o caso da loja omitir)
@@ -792,9 +881,7 @@ def escanear_mercado_completo(termo_busca, salvar_no_banco=False):
                         preco_limpo = numeros_e_virgula.replace(',', '.')
                         marca = extrair_marca(nome_completo)
                         
-                        partes_nome = re.split(r',\s*|;\s*|\s+-\s+', nome_completo, maxsplit=1)
-                        nome_curto = partes_nome[0].strip()
-                        descricao = partes_nome[1].strip() if len(partes_nome) > 1 else ""
+                        nome_curto, descricao = montar_nome_terabyte(nome_completo, termo_busca)
                         
                         nome_curto = nome_curto.upper()
                         nome_curto = re.sub(r'\s+\|\s+TERABYTE.*|\s+\|\s+KABUM.*', '', nome_curto)

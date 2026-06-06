@@ -496,7 +496,7 @@ def carregar_dados_aws():
     try:
         engine = create_engine(url_conexao)
         
-        df_precos = pd.read_sql("SELECT DataCaptura, Loja, Marca, Produto, Preco FROM HistoricoPrecos", engine) 
+        df_precos = pd.read_sql("SELECT DataCaptura, Loja, Marca, Produto, Descricao, Preco FROM HistoricoPrecos", engine)
         df_dolar = pd.read_sql("SELECT DataCaptura, ValorDolar AS Dolar FROM HistoricoDolar", engine)
         
         if df_dolar['Dolar'].dtype == 'object':
@@ -515,6 +515,7 @@ def carregar_dados_aws():
         
         df['Produto'] = df['Produto'].apply(lambda x: re.sub(r'^[\d\s-]+\s*', '', str(x)))
         df['Produto'] = df['Produto'].apply(limpar_nome_kabum)
+        df['Descricao'] = df['Descricao'].fillna("").astype(str)
         
         return df
     except Exception as e:
@@ -668,6 +669,19 @@ def obter_tokens_busca(texto):
     return limpar_texto_busca(texto).split()
 
 
+def montar_produto_detalhado(produto, descricao=""):
+    produto = str(produto or "").strip()
+    descricao = str(descricao or "").strip()
+    return f"{produto} | {descricao}" if descricao else produto
+
+
+def obter_texto_produto_busca(dados):
+    texto = dados["Produto"].fillna("").astype(str)
+    if "Descricao" in dados.columns:
+        texto = texto + " " + dados["Descricao"].fillna("").astype(str)
+    return texto.str.strip()
+
+
 def contem_sequencia_tokens(tokens, sequencia):
     if len(sequencia) == 0:
         return True
@@ -715,12 +729,23 @@ def criar_rotulos_produtos_por_loja(dados):
     if dados.empty:
         return [], {}
 
-    dados_rotulo = dados[["Produto", "Loja"]].dropna(subset=["Produto"]).copy()
+    colunas_rotulo = ["Produto", "Loja"]
+    if "Descricao" in dados.columns:
+        colunas_rotulo.append("Descricao")
+
+    dados_rotulo = dados[colunas_rotulo].dropna(subset=["Produto"]).copy()
     dados_rotulo["Produto"] = dados_rotulo["Produto"].astype(str).str.strip()
+    if "Descricao" not in dados_rotulo.columns:
+        dados_rotulo["Descricao"] = ""
+    dados_rotulo["Descricao"] = dados_rotulo["Descricao"].fillna("").astype(str).str.strip()
     dados_rotulo["Loja"] = dados_rotulo["Loja"].fillna("Loja nao informada").astype(str).str.strip()
+    dados_rotulo["ProdutoDetalhado"] = dados_rotulo.apply(
+        lambda linha: montar_produto_detalhado(linha["Produto"], linha["Descricao"]),
+        axis=1,
+    )
 
     rotulos = {}
-    for produto, grupo in dados_rotulo.groupby("Produto", sort=True):
+    for produto, grupo in dados_rotulo.groupby("ProdutoDetalhado", sort=True):
         lojas = sorted([loja for loja in grupo["Loja"].dropna().unique() if loja])
         prefixo_lojas = " + ".join(lojas) if lojas else "Loja nao informada"
         rotulos[produto] = f"{prefixo_lojas} | {produto}"
@@ -837,7 +862,9 @@ def aplicar_filtro_modelo(df_drill, cat_escolhida, subcat_escolhida):
         return df_drill
 
     partes_busca = obter_tokens_busca(subcat_escolhida)
-    mask = df_drill["Produto"].apply(lambda produto: produto_atende_termos_busca(produto, partes_busca))
+    texto_busca = obter_texto_produto_busca(df_drill)
+
+    mask = texto_busca.apply(lambda produto: produto_atende_termos_busca(produto, partes_busca))
 
     modelos_derivados = []
     todos_os_modelos = sorted(list(set(sum(mapa_subcategorias.values(), []))))
@@ -849,7 +876,7 @@ def aplicar_filtro_modelo(df_drill, cat_escolhida, subcat_escolhida):
 
     for derivado in modelos_derivados:
         partes_derivado = obter_tokens_busca(derivado)
-        mask_derivado = df_drill["Produto"].apply(
+        mask_derivado = texto_busca.apply(
             lambda produto: produto_atende_termos_busca(produto, partes_derivado, excluir_variantes_gpu=False)
         )
 
@@ -946,7 +973,8 @@ def pagina_pesquisa_mercado():
             rotulos_opcoes_produtos = {}
             if pesquisa_produto:
                 termos_busca = obter_tokens_busca(pesquisa_produto)
-                mask = df_historico["Produto"].apply(
+                texto_busca_produtos = obter_texto_produto_busca(df_historico)
+                mask = texto_busca_produtos.apply(
                     lambda produto: produto_atende_termos_busca(produto, termos_busca)
                 )
 
@@ -1063,8 +1091,9 @@ def pagina_pesquisa_mercado():
 
     if especificacao_extra:
         termos_especificacao = obter_tokens_busca(especificacao_extra)
+        texto_especificacao = obter_texto_produto_busca(df_drill)
         df_drill = df_drill[
-            df_drill["Produto"].apply(
+            texto_especificacao.apply(
                 lambda produto: produto_atende_termos_busca(
                     produto,
                     termos_especificacao,
@@ -1093,7 +1122,7 @@ def pagina_pesquisa_mercado():
                 busca_limpa = limpar_texto_busca(familia_input)
                 palavras_busca = busca_limpa.split()
                 df_busca = df_historico.copy()
-                df_busca["ProdutoLimpo"] = df_busca["Produto"].apply(limpar_texto_busca)
+                df_busca["ProdutoLimpo"] = obter_texto_produto_busca(df_busca).apply(limpar_texto_busca)
                 mascara_filtro = df_busca["ProdutoLimpo"].apply(
                     lambda nome: aplicar_filtro_exclusivo(nome, palavras_busca)
                 )
@@ -1130,7 +1159,14 @@ def pagina_pesquisa_mercado():
                 }
                 df_filtrado = df_historico.copy()
                 df_filtrado["Produto"] = df_filtrado["Produto"].astype(str).str.strip()
-                df_filtrado["ProdutoComparacao"] = df_filtrado["Produto"].apply(normalizar_produto_comparacao)
+                if "Descricao" not in df_filtrado.columns:
+                    df_filtrado["Descricao"] = ""
+                df_filtrado["Descricao"] = df_filtrado["Descricao"].fillna("").astype(str).str.strip()
+                df_filtrado["ProdutoDetalhado"] = df_filtrado.apply(
+                    lambda linha: montar_produto_detalhado(linha["Produto"], linha["Descricao"]),
+                    axis=1,
+                )
+                df_filtrado["ProdutoComparacao"] = df_filtrado["ProdutoDetalhado"].apply(normalizar_produto_comparacao)
                 df_filtrado = df_filtrado[df_filtrado["ProdutoComparacao"].isin(chaves_produtos_escolhidos)].copy()
 
                 if not df_filtrado.empty:
@@ -1139,11 +1175,11 @@ def pagina_pesquisa_mercado():
                     if not df_filtrado.empty:
                         df_filtrado = (
                             df_filtrado
-                            .groupby(["DataCaptura", "Loja", "Produto", "ProdutoComparacao"], as_index=False)["Preco"]
+                            .groupby(["DataCaptura", "Loja", "ProdutoDetalhado", "ProdutoComparacao"], as_index=False)["Preco"]
                             .mean()
                         )
                         df_filtrado["Preco_Label"] = df_filtrado["Preco"].apply(formatar_moeda)
-                        df_filtrado["Serie"] = df_filtrado["Loja"] + " - " + df_filtrado["Produto"]
+                        df_filtrado["Serie"] = df_filtrado["Loja"] + " - " + df_filtrado["ProdutoDetalhado"]
                         df_filtrado["Legenda"] = df_filtrado["Serie"].apply(
                             lambda x: x[:45] + "..." if len(x) > 45 else x
                         )
@@ -1155,7 +1191,7 @@ def pagina_pesquisa_mercado():
                             color="Serie",
                             markers=True,
                             text="Preco_Label",
-                            custom_data=["Loja", "Produto"],
+                            custom_data=["Loja", "ProdutoDetalhado"],
                             title="Histórico Específico de Produtos",
                             labels={"DataCaptura": "Data da Extração", "Preco": "Preço à Vista (R$)", "Serie": "Loja - Item"},
                         )
