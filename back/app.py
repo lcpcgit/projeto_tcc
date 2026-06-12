@@ -1661,15 +1661,15 @@ def pagina_sistema_predicao():
                         st.metric("RMSE", f"{item['rmse']:.1f} unid.")
 
                 menor_acuracia = min(item["r2"] for item in resultados_modelos)
-                if menor_acuracia > 0.80:
+                if menor_acuracia >= 0.80:
                     painel_sucesso(
                         "Grau de confiança <b>Excepcional</b> nos dois modelos. "
                         "Random Forest e XGBoost preveem a tendência com alta precisão."
                     )
-                elif menor_acuracia > 0.60:
+                elif menor_acuracia >= 0.50:
                     painel_info(
-                        "Grau de confiança <b>Bom</b> nos dois modelos. "
-                        "Random Forest e XGBoost compreendem a dinâmica do mercado."
+                        "Grau de confiança <b>Moderado</b> nos dois modelos. "
+                        "Random Forest e XGBoost apresentam uma leitura aceitável do mercado."
                     )
                 else:
                     painel_erro(
