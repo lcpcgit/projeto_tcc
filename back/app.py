@@ -717,6 +717,91 @@ def produto_atende_termos_busca(produto, termos_busca, excluir_variantes_gpu=Tru
     return True
 
 
+def obter_modelos_compativeis_busca_especifica(termos_busca):
+    if not termos_busca:
+        return []
+
+    termos_set = set(termos_busca)
+    termos_com_numero = {termo for termo in termos_busca if any(char.isdigit() for char in termo)}
+    variantes_gpu = {"ti", "super", "xt", "gre"}
+    modelos_compativeis = []
+
+    for categoria, modelos in mapa_subcategorias.items():
+        for modelo in modelos:
+            termos_modelo = obter_tokens_busca(modelo)
+            if not termos_modelo:
+                continue
+
+            termos_modelo_set = set(termos_modelo)
+            busca_contida_no_modelo = all(termo in termos_modelo_set for termo in termos_busca)
+            modelo_contido_na_busca = all(termo in termos_set for termo in termos_modelo)
+            numeros_batem_modelo = termos_com_numero and all(
+                termo in termos_modelo_set for termo in termos_com_numero
+            )
+
+            if not (busca_contida_no_modelo or modelo_contido_na_busca or numeros_batem_modelo):
+                continue
+
+            if categoria == "Placa de Vídeo":
+                variante_modelo = termos_modelo_set & variantes_gpu
+                if variante_modelo and not variante_modelo.issubset(termos_set):
+                    continue
+
+            modelos_compativeis.append((categoria, termos_modelo))
+
+    return modelos_compativeis
+
+
+def produto_tem_indicador_categoria(produto, categoria):
+    tokens = obter_tokens_busca(produto)
+    tokens_set = set(tokens)
+    texto_limpo = " ".join(tokens)
+
+    if categoria == "Placa de Vídeo":
+        return (
+            "gpu" in tokens_set
+            or "vga" in tokens_set
+            or ("placa" in tokens_set and "video" in tokens_set)
+        )
+    if categoria == "Processador":
+        return bool({"processador", "cpu", "ryzen", "athlon", "celeron", "pentium"} & tokens_set) or "core i" in texto_limpo
+    if categoria == "Placa Mãe":
+        return ("placa" in tokens_set and "mae" in tokens_set) or "motherboard" in tokens_set or "mainboard" in tokens_set
+    if categoria == "Memória RAM":
+        return bool({"memoria", "ram", "ddr4", "ddr5"} & tokens_set)
+    if categoria == "SSD":
+        return bool({"ssd", "nvme"} & tokens_set) or "m 2" in texto_limpo
+    if categoria == "HD":
+        return "hd" in tokens_set or "hard drive" in texto_limpo or "disco rigido" in texto_limpo
+    if categoria == "Monitor":
+        return bool({"monitor", "tela", "display"} & tokens_set)
+    if categoria == "Fonte":
+        return bool({"fonte", "power", "atx"} & tokens_set)
+    if categoria == "Gabinete":
+        return bool({"gabinete", "case"} & tokens_set)
+    if categoria == "Water Cooler":
+        return "water cooler" in texto_limpo or "watercooler" in tokens_set or "liquid cooler" in texto_limpo
+    if categoria == "Fan":
+        return bool({"fan", "ventoinha"} & tokens_set)
+
+    return True
+
+
+def produto_atende_busca_especifica(produto, termos_busca):
+    if not produto_atende_termos_busca(produto, termos_busca):
+        return False
+
+    modelos_compativeis = obter_modelos_compativeis_busca_especifica(termos_busca)
+    if not modelos_compativeis:
+        return True
+
+    for categoria, termos_modelo in modelos_compativeis:
+        if produto_tem_indicador_categoria(produto, categoria) and produto_atende_termos_busca(produto, termos_modelo):
+            return True
+
+    return False
+
+
 def normalizar_produto_comparacao(texto):
     if not isinstance(texto, str):
         return ""
@@ -975,7 +1060,7 @@ def pagina_pesquisa_mercado():
                 termos_busca = obter_tokens_busca(pesquisa_produto)
                 texto_busca_produtos = obter_texto_produto_busca(df_historico)
                 mask = texto_busca_produtos.apply(
-                    lambda produto: produto_atende_termos_busca(produto, termos_busca)
+                    lambda produto: produto_atende_busca_especifica(produto, termos_busca)
                 )
 
                 lista_filtrada, rotulos_opcoes_produtos = criar_rotulos_produtos_por_loja(df_historico[mask])
